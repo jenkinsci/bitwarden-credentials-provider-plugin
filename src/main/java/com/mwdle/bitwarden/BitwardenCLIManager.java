@@ -1,7 +1,7 @@
 package com.mwdle.bitwarden;
 
+import com.mwdle.PluginDirectoryProvider;
 import hudson.Extension;
-import hudson.init.Terminator;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
@@ -27,44 +27,8 @@ import jenkins.model.Jenkins;
 public final class BitwardenCLIManager {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLIManager.class.getName());
-    private final String executablePath;
-
-    /**
-     * Constructs the singleton BitwardenExecutableManager.
-     * Detects the OS, determines the target path, and downloads the executable if it doesn't exist.
-     */
-    public BitwardenCLIManager() {
-        LOGGER.fine("Starting executable initialization.");
-        String downloadUrl;
-        String executableName;
-
-        OS os = OS.detect();
-        if (os == OS.WINDOWS) {
-            downloadUrl = "https://bitwarden.com/download/?app=cli&platform=windows";
-            executableName = "bw.exe";
-        } else if (os == OS.MAC) {
-            downloadUrl = "https://bitwarden.com/download/?app=cli&platform=macos";
-            executableName = "bw";
-        } else {
-            downloadUrl = "https://bitwarden.com/download/?app=cli&platform=linux";
-            executableName = "bw";
-        }
-
-        File pluginBinDir = getPluginBinDirectory();
-        File executableFile = new File(pluginBinDir, executableName);
-
-        if (!executableFile.exists()) {
-            LOGGER.info("Bitwarden CLI not found. Downloading...");
-            try {
-                downloadAndExtract(new URI(downloadUrl).toURL(), executableFile);
-            } catch (IOException | URISyntaxException e) {
-                LOGGER.log(Level.SEVERE, "Failed to initialize Bitwarden executable", e);
-                throw new RuntimeException("Failed to initialize Bitwarden executable", e);
-            }
-        }
-
-        this.executablePath = executableFile.getAbsolutePath();
-    }
+    private volatile String executablePath;
+    private final transient Object provisionLock = new Object();
 
     /**
      * Provides global access to the single instance of this manager, as managed by Jenkins.
@@ -73,6 +37,44 @@ public final class BitwardenCLIManager {
      */
     public static BitwardenCLIManager getInstance() {
         return Jenkins.get().getExtensionList(BitwardenCLIManager.class).get(0);
+    }
+
+    /**
+     * Represents supported operating systems for the Bitwarden CLI.
+     */
+    private enum OS {
+        WINDOWS,
+        MAC,
+        LINUX;
+
+        /**
+         * Detects the current operating system.
+         *
+         * @return the detected OS enum
+         * @throws UnsupportedOperationException if OS is not supported
+         */
+        static OS detect() {
+            String osName = System.getProperty("os.name").toLowerCase();
+            if (osName.contains("win")) return WINDOWS;
+            if (osName.contains("mac")) return MAC;
+            if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) return LINUX;
+            LOGGER.fine(() -> "Detected OS: " + osName);
+            throw new UnsupportedOperationException("Unsupported OS: " + osName);
+        }
+    }
+
+    private String getDownloadUrl() {
+        OS os = OS.detect();
+        return switch (os) {
+            case WINDOWS -> "https://bitwarden.com/download/?app=cli&platform=windows";
+            case MAC -> "https://bitwarden.com/download/?app=cli&platform=macos";
+            case LINUX -> "https://bitwarden.com/download/?app=cli&platform=linux";
+        };
+    }
+
+    private String getExecutableName() {
+        OS os = OS.detect();
+        return (os == OS.WINDOWS) ? "bw.exe" : "bw";
     }
 
     /**
@@ -114,10 +116,51 @@ public final class BitwardenCLIManager {
         }
 
         if (targetFile.setExecutable(true, true)) {
-            LOGGER.info("Downloaded Bitwarden CLI executable: " + targetFile.getAbsolutePath());
+            LOGGER.fine("Downloaded Bitwarden CLI executable: " + targetFile.getAbsolutePath());
         } else {
             LOGGER.warning("Could not set executable permission on Bitwarden CLI.");
         }
+    }
+
+    /**
+     * Downloads the latest Bitwarden CLI, overwriting any existing version.
+     * @return true on success, false on failure.
+     */
+    public boolean downloadLatestExecutable() {
+        synchronized (provisionLock) {
+            LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
+            try {
+                String downloadUrl = getDownloadUrl();
+                String executableName = getExecutableName();
+                File pluginBinDir = getPluginBinDirectory();
+                File executableFile = new File(pluginBinDir, executableName);
+
+                downloadAndExtract(new URI(downloadUrl).toURL(), executableFile);
+                this.executablePath = executableFile.getAbsolutePath();
+                LOGGER.info("Successfully provisioned Bitwarden CLI at: " + this.executablePath);
+                return true;
+            } catch (IOException | URISyntaxException e) {
+                LOGGER.log(Level.SEVERE, "Failed to provision the Bitwarden executable.", e);
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Constructs the singleton BitwardenExecutableManager.
+     * Detects the OS, determines the target path, and downloads the executable if it doesn't exist.
+     */
+    public boolean provisionExecutable() {
+        String executableName = getExecutableName();
+        File pluginBinDir = getPluginBinDirectory();
+        File executableFile = new File(pluginBinDir, executableName);
+
+        if (executableFile.exists()) {
+            this.executablePath = executableFile.getAbsolutePath();
+            return true;
+        }
+
+        return downloadLatestExecutable();
     }
 
     /**
@@ -126,29 +169,13 @@ public final class BitwardenCLIManager {
      * @return The full path to the 'bw' executable.
      */
     public String getExecutablePath() {
-        if (executablePath == null) {
-            throw new IllegalStateException(
-                    "Bitwarden executable could not be initialized. Please check the Jenkins logs for errors.");
+        if (executablePath != null && new File(executablePath).exists()) {
+            return executablePath;
         }
-        return executablePath;
-    }
-
-    /**
-     * Deletes the Bitwarden CLI executable on Jenkins shutdown.
-     * The latest version will be automatically redownloaded at next start.
-     *
-     * <p>Invoked at shutdown via {@link Terminator}.
-     * Skips cleanup if the executable was never initialized.</p>
-     */
-    @Terminator
-    public void cleanup() {
-        try {
-            File executable = new File(this.getExecutablePath());
-            if (executable.exists() && executable.delete()) {
-                LOGGER.info("Deleted Bitwarden CLI executable on shutdown.");
-            }
-        } catch (Exception e) {
-            LOGGER.warning("Failed to delete Bitwarden CLI executable on shutdown: " + e.getMessage());
+        if (provisionExecutable()) {
+            return executablePath;
+        } else {
+            throw new IllegalStateException("Bitwarden CLI is not installed and could not be downloaded.");
         }
     }
 
@@ -159,15 +186,12 @@ public final class BitwardenCLIManager {
      */
     private File getPluginBinDirectory() {
         LOGGER.fine("Getting plugin bin directory.");
-        File pluginsDir = new File(Jenkins.get().getRootDir(), "plugins");
-        File pluginDir = new File(pluginsDir, "bitwarden-credentials-provider-plugin");
+        File pluginDir = PluginDirectoryProvider.pluginDirectory();
         File binDir = new File(pluginDir, "bin");
         if (!binDir.exists()) {
-            if (!binDir.mkdirs()) {
-                String errorMessage = "Could not create plugin bin directory: " + binDir.getAbsolutePath()
-                        + "\nDoes Jenkins have proper file permissions?";
-                LOGGER.severe(errorMessage);
-                throw new RuntimeException(errorMessage);
+            if (!binDir.mkdir()) {
+                throw new RuntimeException("Could not create plugin bin directory: " + binDir.getAbsolutePath()
+                        + "\nDoes Jenkins have proper file permissions?");
             } else {
                 LOGGER.fine("Created plugin bin directory: " + binDir.getAbsolutePath());
             }
@@ -175,29 +199,5 @@ public final class BitwardenCLIManager {
             LOGGER.fine("Plugin bin directory already exists: " + binDir.getAbsolutePath());
         }
         return binDir;
-    }
-
-    /**
-     * Represents supported operating systems for the Bitwarden CLI.
-     */
-    private enum OS {
-        WINDOWS,
-        MAC,
-        LINUX;
-
-        /**
-         * Detects the current operating system.
-         *
-         * @return the detected OS enum
-         * @throws UnsupportedOperationException if OS is not supported
-         */
-        static OS detect() {
-            String osName = System.getProperty("os.name").toLowerCase();
-            if (osName.contains("win")) return WINDOWS;
-            if (osName.contains("mac")) return MAC;
-            if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) return LINUX;
-            LOGGER.fine(() -> "Detected OS: " + osName);
-            throw new UnsupportedOperationException("Unsupported OS: " + osName);
-        }
     }
 }

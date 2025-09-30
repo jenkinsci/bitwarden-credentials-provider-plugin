@@ -2,14 +2,14 @@ package com.mwdle.bitwarden;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.mwdle.BitwardenConfig;
 import com.mwdle.BitwardenCredentialsProvider;
-import com.mwdle.BitwardenGlobalConfig;
 import com.mwdle.model.BitwardenStatus;
 import hudson.Extension;
+import hudson.security.ACL;
 import hudson.util.Secret;
 import java.io.IOException;
 import java.util.Collections;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
@@ -26,18 +26,13 @@ public class BitwardenSessionManager {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenSessionManager.class.getName());
 
-    /**
-     * A lock to ensure that the session token refresh process is thread-safe. This prevents
-     * multiple concurrent jobs from attempting to log in at the same time when the session
-     * is found to be invalid.
-     */
-    private final ReentrantLock lock = new ReentrantLock();
+    private final Object lock = new Object();
     /**
      * The cached Bitwarden session token. This token is stored in memory and reused across
      * builds to prevent API rate-limiting and improve secret fetching performance. It is refreshed by
      * {@link #getNewSessionToken(StandardUsernamePasswordCredentials, StringCredentials, String)} when it becomes invalid.
      */
-    private Secret sessionToken;
+    private volatile Secret sessionToken;
 
     /**
      * Provides global access to the single instance of this manager, as managed by Jenkins.
@@ -59,26 +54,19 @@ public class BitwardenSessionManager {
      * @throws InterruptedException If the CLI command is interrupted.
      */
     public Secret getSessionToken() throws IOException, InterruptedException {
-        LOGGER.fine("Checking if cached Bitwarden session token is valid.");
         if (isTokenValid()) {
             LOGGER.fine("Cached Bitwarden session token is valid. Returning cached token.");
             return sessionToken;
         }
-
         LOGGER.fine("Token invalid or missing. Attempting to acquire lock to refresh token.");
-        lock.lock();
-        try {
-            LOGGER.fine("Lock acquired.");
-
+        synchronized (lock) {
             // Double-check if another thread renewed the token while we were waiting for the lock.
             if (isTokenValid()) {
                 LOGGER.fine("Another thread refreshed the token while waiting for lock. Returning refreshed token.");
                 return sessionToken;
             }
-
-            LOGGER.info("Refreshing Bitwarden session token.");
             // If we are the thread responsible for refreshing, perform the full login.
-            BitwardenGlobalConfig config = BitwardenGlobalConfig.get();
+            BitwardenConfig config = BitwardenConfig.getInstance();
             StandardUsernamePasswordCredentials apiKey =
                     Jenkins.get().getExtensionList(CredentialsProvider.class).stream()
                             .filter(p -> !(p instanceof BitwardenCredentialsProvider))
@@ -86,7 +74,7 @@ public class BitwardenSessionManager {
                                     .getCredentialsInItemGroup(
                                             StandardUsernamePasswordCredentials.class,
                                             Jenkins.get(),
-                                            Jenkins.getAuthentication2(),
+                                            ACL.SYSTEM2,
                                             Collections.emptyList())
                                     .stream())
                             .filter(c -> c.getId().equals(config.getApiCredentialId()))
@@ -96,27 +84,19 @@ public class BitwardenSessionManager {
                     .filter(p -> !(p instanceof BitwardenCredentialsProvider))
                     .flatMap(p -> p
                             .getCredentialsInItemGroup(
-                                    StringCredentials.class,
-                                    Jenkins.get(),
-                                    Jenkins.getAuthentication2(),
-                                    Collections.emptyList())
+                                    StringCredentials.class, Jenkins.get(), ACL.SYSTEM2, Collections.emptyList())
                             .stream())
                     .filter(c -> c.getId().equals(config.getMasterPasswordCredentialId()))
                     .findFirst()
                     .orElse(null);
 
             if (apiKey == null || masterPassword == null) {
-                LOGGER.severe(
-                        "API Key or Master Password credentials not found. Cannot refresh Bitwarden session token.");
                 throw new IOException(
-                        "Could not find API Key or Master Password credentials configured for the Bitwarden plugin.");
+                        "Could not find API Key or Master Password credentials. Cannot refresh Bitwarden session token.");
             }
 
-            LOGGER.info("Found credentials. Getting new Bitwarden session token.");
+            LOGGER.info("Found Bitwarden API key and Master Password. Fetching new Bitwarden session token.");
             return this.sessionToken = getNewSessionToken(apiKey, masterPassword, config.getServerUrl());
-        } finally {
-            lock.unlock();
-            LOGGER.fine("Lock released.");
         }
     }
 
@@ -153,20 +133,16 @@ public class BitwardenSessionManager {
             serverUrl = "https://vault.bitwarden.com";
         }
         BitwardenCLI.configServer(serverUrl);
-        try {
-            BitwardenCLI.login(apiKey);
-        } catch (IOException e) {
-            LOGGER.severe("Bitwarden login failed: " + e.getMessage());
-            throw new BitwardenAuthenticationException(
-                    "Bitwarden login failed. Please check the API Key (Client ID/Secret) and server URL in the global configuration.",
-                    e);
-        }
-        try {
-            return BitwardenCLI.unlock(masterPassword);
-        } catch (IOException e) {
-            LOGGER.severe("Bitwarden unlock failed: " + e.getMessage());
-            throw new BitwardenAuthenticationException(
-                    "Bitwarden unlock failed. Please check the Master Password credential.", e);
-        }
+        BitwardenCLI.login(apiKey);
+        return BitwardenCLI.unlock(masterPassword);
+    }
+
+    /**
+     * Invalidates the current session token (if any exists).
+     * The next call to getSessionToken() will be forced to perform a full re-authentication.
+     */
+    public void invalidateSessionToken() {
+        this.sessionToken = null;
+        LOGGER.info("Session token has been invalidated.");
     }
 }

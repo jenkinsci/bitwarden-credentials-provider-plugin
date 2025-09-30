@@ -20,7 +20,7 @@ import org.mockito.MockedStatic;
  * This test verifies that the setters call save() and the static get() method works as expected.
  */
 @DisplayName("BitwardenGlobalConfig")
-class BitwardenGlobalConfigTest {
+class BitwardenConfigTest {
 
     @TempDir
     Path tempDir;
@@ -46,33 +46,16 @@ class BitwardenGlobalConfigTest {
 
     @Test
     @DisplayName("get() should retrieve the singleton instance")
-    void getShouldRetrieveInstance() {
-        BitwardenGlobalConfig config = new BitwardenGlobalConfig();
+    void getInstanceShouldRetrieveInstance() {
+        BitwardenConfig config = new BitwardenConfig();
         @SuppressWarnings("unchecked")
         ExtensionList<GlobalConfiguration> extensionList = mock(ExtensionList.class);
-        when(extensionList.get(BitwardenGlobalConfig.class)).thenReturn(config);
+        when(extensionList.get(BitwardenConfig.class)).thenReturn(config);
         when(GlobalConfiguration.all()).thenReturn(extensionList);
 
-        BitwardenGlobalConfig result = BitwardenGlobalConfig.get();
+        BitwardenConfig result = BitwardenConfig.getInstance();
 
         assertNotNull(result, "The get() method should not return null.");
         assertEquals(config, result, "The get() method should return the correct singleton instance.");
-    }
-
-    @Test
-    @DisplayName("setters should call save()")
-    void settersShouldCallSave() {
-        BitwardenGlobalConfig config = spy(new BitwardenGlobalConfig());
-
-        doNothing().when(config).save();
-
-        config.setServerUrl("test");
-        verify(config, times(1)).save();
-
-        config.setApiCredentialId("test");
-        verify(config, times(2)).save();
-
-        config.setMasterPasswordCredentialId("test");
-        verify(config, times(3)).save();
     }
 }

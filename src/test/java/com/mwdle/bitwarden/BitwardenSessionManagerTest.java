@@ -5,7 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.mwdle.BitwardenGlobalConfig;
+import com.mwdle.BitwardenConfig;
 import com.mwdle.model.BitwardenStatus;
 import hudson.ExtensionList;
 import hudson.model.ItemGroup;
@@ -27,23 +27,23 @@ import org.springframework.security.core.Authentication;
 public class BitwardenSessionManagerTest {
 
     private MockedStatic<Jenkins> mockedJenkins;
-    private MockedStatic<BitwardenGlobalConfig> mockedConfig;
+    private MockedStatic<BitwardenConfig> mockedConfig;
     private MockedStatic<BitwardenCLI> mockedCli;
     private Jenkins jenkinsMock;
-    private BitwardenGlobalConfig configMock;
+    private BitwardenConfig configMock;
 
     private BitwardenSessionManager manager;
 
     @BeforeEach
     void setUp() {
         mockedJenkins = mockStatic(Jenkins.class);
-        mockedConfig = mockStatic(BitwardenGlobalConfig.class);
+        mockedConfig = mockStatic(BitwardenConfig.class);
         mockedCli = mockStatic(BitwardenCLI.class);
 
         jenkinsMock = mock(Jenkins.class);
-        configMock = mock(BitwardenGlobalConfig.class);
+        configMock = mock(BitwardenConfig.class);
         when(Jenkins.get()).thenReturn(jenkinsMock);
-        when(BitwardenGlobalConfig.get()).thenReturn(configMock);
+        when(BitwardenConfig.getInstance()).thenReturn(configMock);
 
         manager = new BitwardenSessionManager();
     }

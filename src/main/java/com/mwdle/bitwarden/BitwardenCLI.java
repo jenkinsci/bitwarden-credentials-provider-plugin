@@ -3,10 +3,13 @@ package com.mwdle.bitwarden;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mwdle.PluginDirectoryProvider;
 import com.mwdle.model.BitwardenItem;
+import com.mwdle.model.BitwardenItemMetadata;
 import com.mwdle.model.BitwardenStatus;
 import hudson.util.Secret;
 import java.io.BufferedReader;
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
@@ -47,6 +50,18 @@ public final class BitwardenCLI {
     }
 
     /**
+     * Fetches the Bitwarden CLI version as a String
+     *
+     * @throws IOException          If the CLI command fails.
+     * @throws InterruptedException If the CLI command is interrupted.
+     */
+    public static String version() throws IOException, InterruptedException {
+        LOGGER.info("Fetching Bitwarden CLI version");
+        ProcessBuilder pb = bitwardenCommand("--version");
+        return executeCommand(pb);
+    }
+
+    /**
      * Logs into the Bitwarden CLI using the API key.
      *
      * @param apiKey The Jenkins credential containing the Bitwarden Client ID and Client Secret.
@@ -55,12 +70,23 @@ public final class BitwardenCLI {
      */
     public static void login(StandardUsernamePasswordCredentials apiKey) throws IOException, InterruptedException {
         LOGGER.info("Logging in with API key credentials.");
-        ProcessBuilder pb = bitwardenCommand("login", "--apikey", "--quiet");
+        ProcessBuilder pb = bitwardenCommand("login", "--apikey");
         Map<String, String> env = pb.environment();
         env.put("BW_CLIENTID", apiKey.getUsername());
         env.put("BW_CLIENTSECRET", apiKey.getPassword().getPlainText());
-        executeCommand(pb);
-        LOGGER.info("Login successful.");
+        try {
+            executeCommand(pb);
+            LOGGER.info("Login successful.");
+        } catch (IOException e) {
+            if (e.getMessage().contains("FetchError")) {
+                throw new BitwardenConnectionException("Could not connect to the Bitwarden server to log in.", e);
+            } else if (e.getMessage().contains("Username or password is incorrect")
+                    || e.getMessage().contains("Invalid API Key")
+                    || e.getMessage().contains("Incorrect client_secret")) {
+                throw new BitwardenAuthenticationException("Bitwarden login failed. Check API Key credentials.", e);
+            }
+            throw new IOException(e);
+        }
     }
 
     /**
@@ -75,9 +101,8 @@ public final class BitwardenCLI {
         try {
             executeCommand(pb);
             LOGGER.info("Logout successful.");
-        } catch (IOException e) {
-            LOGGER.warning("Logout failed (likely already logged out). " + e.getMessage());
-        }
+        } catch (IOException ignored) {
+        } // If logout fails we are likely already logged out.
     }
 
     /**
@@ -93,8 +118,16 @@ public final class BitwardenCLI {
         ProcessBuilder pb = bitwardenCommand("unlock", "--raw", "--passwordenv", "BITWARDEN_MASTER_PASSWORD");
         Map<String, String> env = pb.environment();
         env.put("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
-        LOGGER.info("Vault unlocked successfully.");
-        return Secret.fromString(executeCommand(pb));
+        try {
+            return Secret.fromString(executeCommand(pb));
+        } catch (IOException e) {
+            if (e.getMessage().contains("FetchError")) {
+                throw new BitwardenConnectionException("Could not connect to the Bitwarden server to log in.", e);
+            } else if (e.getMessage().contains("Invalid master password")) {
+                throw new BitwardenAuthenticationException("Bitwarden login failed. Check API Key credentials.", e);
+            }
+            throw new IOException(e);
+        }
     }
 
     /**
@@ -105,10 +138,18 @@ public final class BitwardenCLI {
      */
     public static void sync(Secret sessionToken) throws IOException, InterruptedException {
         LOGGER.info("Syncing vault.");
-        ProcessBuilder pb = bitwardenCommand("sync", "--quiet");
+        ProcessBuilder pb = bitwardenCommand("sync");
         pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
-        executeCommand(pb);
-        LOGGER.info("Vault sync complete.");
+        try {
+            executeCommand(pb);
+            LOGGER.info("Vault sync complete.");
+        } catch (IOException e) {
+            if (e.getMessage().contains("FetchError")) {
+                throw new BitwardenConnectionException(
+                        "Could not connect to the Bitwarden server to sync the vault.", e);
+            }
+            throw new IOException(e);
+        }
     }
 
     /**
@@ -120,30 +161,48 @@ public final class BitwardenCLI {
      * @throws InterruptedException If the CLI command is interrupted.
      */
     public static BitwardenStatus status(Secret sessionToken) throws IOException, InterruptedException {
-        LOGGER.info("Fetching CLI status.");
         ProcessBuilder pb = bitwardenCommand("status");
         pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
         String json = executeCommand(pb);
-        LOGGER.info("CLI status fetched successfully.");
-        LOGGER.fine(() -> "Status JSON: " + json);
+        LOGGER.fine(() -> "CLI status fetched successfully. JSON: " + json);
         return OBJECT_MAPPER.readValue(json, BitwardenStatus.class);
     }
 
     /**
-     * Fetches a list of all items from the vault.
+     * Fetches a list of all items from the vault and deserializes them into
+     * lightweight metadata objects suitable for caching.
      *
      * @param sessionToken The active session token to use for authentication.
-     * @return A List of {@link BitwardenItem} objects.
+     * @return A List of {@link BitwardenItemMetadata} objects.
      * @throws IOException          If the CLI command fails or JSON parsing fails.
-     * @throws InterruptedException If the CLI command is interrupted.
+     * @throws InterruptedException If the command is interrupted.
      */
-    public static List<BitwardenItem> listItems(Secret sessionToken) throws IOException, InterruptedException {
-        LOGGER.info("Fetching vault items.");
+    public static List<BitwardenItemMetadata> listItemsMetadata(Secret sessionToken)
+            throws IOException, InterruptedException {
         ProcessBuilder pb = bitwardenCommand("list", "items");
         pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
         String json = executeCommand(pb);
-        LOGGER.info("Vault items fetched successfully.");
-        return OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
+        List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
+        LOGGER.info(() -> "Successfully deserialized metadata for " + metadataList.size() + " items.");
+        return metadataList;
+    }
+
+    /**
+     * Fetches a single, complete item from the vault by its ID.
+     *
+     * @param sessionToken The active session token.
+     * @param itemId       The UUID of the item to fetch.
+     * @return A complete BitwardenItem object.
+     * @throws IOException          If the CLI command fails or JSON parsing fails.
+     * @throws InterruptedException If the command is interrupted.
+     */
+    public static BitwardenItem getItem(Secret sessionToken, String itemId) throws IOException, InterruptedException {
+        LOGGER.info(() -> "Fetching single vault item with ID: " + itemId);
+        ProcessBuilder pb = bitwardenCommand("get", "item", itemId);
+        pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
+        String json = executeCommand(pb);
+        LOGGER.info(() -> "Single vault item " + itemId + " fetched successfully.");
+        return OBJECT_MAPPER.readValue(json, BitwardenItem.class);
     }
 
     /**
@@ -169,6 +228,10 @@ public final class BitwardenCLI {
      */
     private static String executeCommand(ProcessBuilder pb) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Executing command: " + String.join(" ", pb.command()));
+        Map<String, String> env = pb.environment();
+        File bitwardenDataDir =
+                new File(PluginDirectoryProvider.pluginDirectory().getAbsolutePath(), "bwcli");
+        env.put("BITWARDENCLI_APPDATA_DIR", bitwardenDataDir.getAbsolutePath());
         pb.redirectErrorStream(true);
         Process process = pb.start();
         StringBuilder output = new StringBuilder();
@@ -182,7 +245,6 @@ public final class BitwardenCLI {
         int exitCode = process.waitFor();
         if (exitCode != 0) {
             String errorMsg = "Command failed with exit code " + exitCode + ". Output: " + output;
-            LOGGER.severe(errorMsg);
             throw new IOException(errorMsg);
         }
         return output.toString().trim();
