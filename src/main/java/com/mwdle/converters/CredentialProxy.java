@@ -2,6 +2,7 @@ package com.mwdle.converters;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.mwdle.Messages;
 import com.mwdle.bitwarden.BitwardenCLI;
 import com.mwdle.bitwarden.BitwardenSessionManager;
 import com.mwdle.model.BitwardenItem;
@@ -44,12 +45,8 @@ public class CredentialProxy implements InvocationHandler, Serializable {
         boolean isFileType = FileCredentials.class.isAssignableFrom(itemDescriptor.clazz);
         boolean isDuplicate = !credentialId.equals(this.itemName);
 
-        StringBuilder idStringBuilder = new StringBuilder();
-        idStringBuilder.append(String.format("BW ID: %s", this.itemId));
-        if (isDuplicate) {
-            idStringBuilder.append(", non-unique name");
-        }
-        String idString = idStringBuilder.toString();
+        String duplicateLabel = isDuplicate ? ", " + Messages.description_nonUniqueLabel() : "";
+        String idString = String.format("%s %s%s", Messages.description_idLabel(), this.itemId, duplicateLabel);
         if (isFileType) {
             this.itemDescription = idString;
         } else {

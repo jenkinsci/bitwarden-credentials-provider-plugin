@@ -46,7 +46,7 @@ public class BitwardenCredentialsStore extends CredentialsStore {
 
     @Override
     public String getDisplayName() {
-        return "Bitwarden";
+        return Messages.BitwardenCredentialsStore_DisplayName();
     }
 
     @Override
@@ -120,7 +120,7 @@ public class BitwardenCredentialsStore extends CredentialsStore {
 
         @Override
         public String getDisplayName() {
-            return "Bitwarden";
+            return Messages.BitwardenCredentialsStore_DisplayName();
         }
     }
 }

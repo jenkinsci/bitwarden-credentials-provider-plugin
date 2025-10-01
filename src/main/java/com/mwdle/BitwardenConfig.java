@@ -13,8 +13,10 @@ import hudson.Extension;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
+import jakarta.annotation.Nonnull;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
+import java.util.Objects;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.GlobalConfiguration;
@@ -38,6 +40,11 @@ import org.kohsuke.stapler.verb.POST;
 public class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
+    /**
+     * A transient, in-memory snapshot of the configuration as it was last loaded or saved.
+     * Used for "dirty checking" to see if critical settings have changed.
+     */
+    private transient BitwardenConfig loadedConfig;
 
     /** The URL of the self-hosted Bitwarden/Vaultwarden server. */
     private String serverUrl;
@@ -45,10 +52,7 @@ public class BitwardenConfig extends GlobalConfiguration {
     private String apiCredentialId;
     /** The Jenkins credential ID for the Bitwarden Master Password. */
     private String masterPasswordCredentialId;
-
-    /**
-     * The cache duration in minutes for the list of item metadata.
-     */
+    /* The cache duration in minutes for the list of item metadata. */
     private int cacheDuration = 5; // Default to 5 minutes
 
     /**
@@ -60,6 +64,12 @@ public class BitwardenConfig extends GlobalConfiguration {
         LOGGER.fine("BitwardenGlobalConfig loaded: serverUrl=" + serverUrl
                 + ", apiCredentialId=" + apiCredentialId
                 + ", masterPasswordCredentialId=" + masterPasswordCredentialId);
+    }
+
+    @Override
+    @Nonnull
+    public String getDisplayName() {
+        return Messages.BitwardenConfig_DisplayName();
     }
 
     /**
@@ -109,6 +119,17 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
+     * Creates a simple copy of this object for state comparison.
+     */
+    private BitwardenConfig snapshot() {
+        BitwardenConfig snapshot = new BitwardenConfig();
+        snapshot.serverUrl = this.serverUrl;
+        snapshot.apiCredentialId = this.apiCredentialId;
+        snapshot.masterPasswordCredentialId = this.masterPasswordCredentialId;
+        return snapshot;
+    }
+
+    /**
      * A helper method to check if the essential configuration is present.
      */
     public boolean isConfigured() {
@@ -128,8 +149,12 @@ public class BitwardenConfig extends GlobalConfiguration {
     @Override
     public void save() {
         super.save();
-        LOGGER.info("Plugin configuration saved successfully. Applying configuration...");
-        if (isConfigured()) {
+        boolean configChanged = loadedConfig == null
+                || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
+                || !Objects.equals(this.apiCredentialId, loadedConfig.apiCredentialId)
+                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId);
+        if (isConfigured() && configChanged) {
+            LOGGER.info("Plugin configuration saved successfully. Applying configuration...");
             Timer.get().submit(() -> {
                 BitwardenSessionManager.getInstance().invalidateSessionToken();
                 BitwardenCredentialsProvider.getInstance().invalidateCache();
@@ -138,6 +163,7 @@ public class BitwardenConfig extends GlobalConfiguration {
                 }
             });
         }
+        this.loadedConfig = snapshot();
     }
 
     /**
@@ -211,11 +237,12 @@ public class BitwardenConfig extends GlobalConfiguration {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         try {
             LOGGER.info("Manual cache refresh triggered by administrator.");
+            BitwardenSessionManager.getInstance().invalidateSessionToken();
             BitwardenCredentialsProvider.getInstance().updateCache();
-            return FormValidation.ok("A background refresh has been started.");
+            return FormValidation.ok(Messages.validation_refreshStarted());
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Failed to start manual cache refresh", e);
-            return FormValidation.error("Failed to start cache refresh: " + e.getMessage());
+            return FormValidation.error(Messages.validation_refreshError(e.getMessage()));
         }
     }
 
@@ -227,9 +254,9 @@ public class BitwardenConfig extends GlobalConfiguration {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         try {
             String currentVersion = BitwardenCLI.version();
-            return FormValidation.ok("Currently installed version: " + currentVersion);
+            return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
         } catch (Exception e) {
-            return FormValidation.error("Failed to execute: " + e.getMessage());
+            return FormValidation.error(Messages.validation_cliError(e.getMessage()));
         }
     }
 
@@ -243,10 +270,10 @@ public class BitwardenConfig extends GlobalConfiguration {
             LOGGER.info("Manual Bitwarden CLI update triggered by administrator.");
             BitwardenCLIManager.getInstance().downloadLatestExecutable();
             String newVersion = BitwardenCLI.version();
-            return FormValidation.ok("Successfully downloaded Bitwarden CLI. New version: " + newVersion);
+            return FormValidation.ok(Messages.validation_cliUpdateOk(newVersion));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
-            return FormValidation.error("Failed to update Bitwarden CLI: " + e.getMessage());
+            return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
         }
     }
 }
