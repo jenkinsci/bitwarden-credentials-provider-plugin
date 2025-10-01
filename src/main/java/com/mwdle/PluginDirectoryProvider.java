@@ -1,6 +1,5 @@
 package com.mwdle;
 
-import hudson.PluginWrapper;
 import java.io.File;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
@@ -10,6 +9,7 @@ import jenkins.model.Jenkins;
  */
 public final class PluginDirectoryProvider {
 
+    private static final String PLUGIN_DIR_NAME = "bitwarden-credentials-provider-data";
     private static final Logger LOGGER = Logger.getLogger(PluginDirectoryProvider.class.getName());
     private static volatile File pluginDirectory;
     private static final Object lock = new Object();
@@ -17,7 +17,7 @@ public final class PluginDirectoryProvider {
     /**
      *
      */
-    public static File pluginDirectory() {
+    public static File getPluginDataDirectory() {
         File result = pluginDirectory;
         if (result != null) {
             return result;
@@ -27,12 +27,7 @@ public final class PluginDirectoryProvider {
             if (pluginDirectory != null) {
                 return pluginDirectory;
             }
-            PluginWrapper plugin = Jenkins.get().getPluginManager().whichPlugin(BitwardenCredentialsProvider.class);
-            if (plugin == null) {
-                throw new IllegalStateException("Could not find the wrapper for the Bitwarden plugin.");
-            }
-            File pluginsDir = new File(Jenkins.get().getRootDir(), "plugins");
-            File dir = new File(pluginsDir, plugin.getShortName());
+            File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
             if (!dir.exists()) {
                 if (!dir.mkdirs()) {
                     String errorMessage = "Could not create plugin directory: " + dir.getAbsolutePath()

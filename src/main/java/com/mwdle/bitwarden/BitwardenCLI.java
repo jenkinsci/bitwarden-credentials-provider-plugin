@@ -3,6 +3,7 @@ package com.mwdle.bitwarden;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.mwdle.Messages;
 import com.mwdle.PluginDirectoryProvider;
 import com.mwdle.model.BitwardenItem;
 import com.mwdle.model.BitwardenItemMetadata;
@@ -83,7 +84,7 @@ public final class BitwardenCLI {
             } else if (e.getMessage().contains("Username or password is incorrect")
                     || e.getMessage().contains("Invalid API Key")
                     || e.getMessage().contains("Incorrect client_secret")) {
-                throw new BitwardenAuthenticationException("Bitwarden login failed. Check API Key credentials.", e);
+                throw new BitwardenAuthenticationException(Messages.exception_loginError(), e);
             }
             throw new IOException(e);
         }
@@ -124,7 +125,7 @@ public final class BitwardenCLI {
             if (e.getMessage().contains("FetchError")) {
                 throw new BitwardenConnectionException("Could not connect to the Bitwarden server to log in.", e);
             } else if (e.getMessage().contains("Invalid master password")) {
-                throw new BitwardenAuthenticationException("Bitwarden login failed. Check API Key credentials.", e);
+                throw new BitwardenAuthenticationException(Messages.exception_unlockError(), e);
             }
             throw new IOException(e);
         }
@@ -230,7 +231,7 @@ public final class BitwardenCLI {
         LOGGER.fine(() -> "Executing command: " + String.join(" ", pb.command()));
         Map<String, String> env = pb.environment();
         File bitwardenDataDir =
-                new File(PluginDirectoryProvider.pluginDirectory().getAbsolutePath(), "bwcli");
+                new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
         env.put("BITWARDENCLI_APPDATA_DIR", bitwardenDataDir.getAbsolutePath());
         pb.redirectErrorStream(true);
         Process process = pb.start();

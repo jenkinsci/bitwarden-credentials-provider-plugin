@@ -186,7 +186,7 @@ public final class BitwardenCLIManager {
      */
     private File getPluginBinDirectory() {
         LOGGER.fine("Getting plugin bin directory.");
-        File pluginDir = PluginDirectoryProvider.pluginDirectory();
+        File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
         File binDir = new File(pluginDir, "bin");
         if (!binDir.exists()) {
             if (!binDir.mkdir()) {

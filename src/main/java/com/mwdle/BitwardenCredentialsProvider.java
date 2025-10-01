@@ -53,7 +53,7 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
      * Helper method to get the file where the cache will be persisted.
      */
     private XmlFile getCacheFile() {
-        File pluginDir = PluginDirectoryProvider.pluginDirectory();
+        File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
         return new XmlFile(new XStream2(), new File(pluginDir, "cache.xml"));
     }
 
