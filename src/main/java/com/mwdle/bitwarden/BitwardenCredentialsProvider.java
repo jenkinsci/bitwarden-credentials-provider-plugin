@@ -129,4 +129,9 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
         }
         return result;
     }
+
+    @Override
+    public String getIconClassName() {
+        return "symbol-icon plugin-bitwarden-credentials-provider";
+    }
 }
