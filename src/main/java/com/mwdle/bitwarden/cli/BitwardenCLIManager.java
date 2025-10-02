@@ -189,7 +189,7 @@ public final class BitwardenCLIManager {
         File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
         File binDir = new File(pluginDir, "bin");
         if (!binDir.exists()) {
-            if (!binDir.mkdir()) {
+            if (!binDir.mkdirs()) {
                 throw new RuntimeException("Could not create plugin bin directory: " + binDir.getAbsolutePath()
                         + "\nDoes Jenkins have proper file permissions?");
             } else {
