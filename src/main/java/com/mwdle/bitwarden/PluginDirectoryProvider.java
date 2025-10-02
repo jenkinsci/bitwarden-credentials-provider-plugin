@@ -15,6 +15,11 @@ public final class PluginDirectoryProvider {
     private static final Object lock = new Object();
 
     /**
+     * A private constructor to prevent instantiation of this utility class.
+     */
+    private PluginDirectoryProvider() {}
+
+    /**
      *
      */
     public static File getPluginDataDirectory() {

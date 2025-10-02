@@ -35,6 +35,11 @@ public final class BitwardenCLI {
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
     /**
+     * A private constructor to prevent instantiation of this utility class.
+     */
+    private BitwardenCLI() {}
+
+    /**
      * Creates a ProcessBuilder for a Bitwarden CLI command, using the managed executable.
      * This centralizes the logic for finding the 'bw' executable path.
      *
