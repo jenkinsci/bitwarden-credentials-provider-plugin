@@ -3,11 +3,18 @@
         Specifies how long (in minutes) Jenkins will cache the list of your Bitwarden items.
     </p>
     <p>
-        A higher value reduces the number of calls to the Bitwarden server and improves UI performance,
-        but it also means there will be a longer delay before newly created or renamed items appear in Jenkins.
-        The content of the secrets themselves is always fetched live and is never cached.
+        This duration sets the maximum age for both your credential <i>list</i> and the <i>secret values</i>. A higher value means fewer network calls, but a longer delay before any changes you make in Bitwarden appear in Jenkins.
     </p>
     <p>
-        A minimum value of 1 minute is enforced. Default is 5 minutes.
+        Behind the scenes, this setting controls how often the plugin runs a <b><code>bw sync</code></b> to update the Bitwarden CLI's own local, encrypted database.
+    </p>
+    <p>
+        Crucially, the plugin <b>never caches your actual secret values</b> (passwords, keys, etc.). They are only "fetched live" from the CLI's local database at the exact moment a build needs them.
+    </p>
+    <p>
+        This design also means Jenkins can continue to use your secrets even if it temporarily loses its internet connection, as it can read from the last successful sync.
+    </p>
+    <p>
+        A minimum value of 1 minute is enforced. The default is 5 minutes.
     </p>
 </div>
