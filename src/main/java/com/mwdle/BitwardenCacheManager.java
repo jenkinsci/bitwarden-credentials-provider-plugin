@@ -51,6 +51,18 @@ public class BitwardenCacheManager {
     }
 
     /**
+     * Public method to allow external callers (like the global config) to update the cache.
+     * It's safe to call this even before the cache is initialized.
+     */
+    public void updateCache() {
+        getCache().refresh(CACHE_NAME);
+    }
+
+    public void invalidateCache() {
+        getCache().invalidate(CACHE_NAME);
+    }
+
+    /**
      * Schedules a background task to prime the Bitwarden item cache after Jenkins starts.
      * <p>
      * This method is automatically invoked by Jenkins's startup sequence due to the
@@ -145,17 +157,5 @@ public class BitwardenCacheManager {
             }
         }
         return result;
-    }
-
-    /**
-     * Public method to allow external callers (like the global config) to update the cache.
-     * It's safe to call this even before the cache is initialized.
-     */
-    public void updateCache() {
-        getCache().refresh(CACHE_NAME);
-    }
-
-    public void invalidateCache() {
-        getCache().invalidate(CACHE_NAME);
     }
 }
