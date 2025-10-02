@@ -23,6 +23,7 @@ import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 import net.sf.json.JSONObject;
+import org.jenkinsci.Symbol;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.kohsuke.stapler.AncestorInPath;
 import org.kohsuke.stapler.DataBoundSetter;
@@ -37,6 +38,7 @@ import org.kohsuke.stapler.verb.POST;
  * It makes the plugin's settings available on the "Configure System" page (/manage/configure).
  */
 @Extension
+@Symbol("bitwarden")
 public class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
