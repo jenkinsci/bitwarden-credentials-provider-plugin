@@ -25,7 +25,7 @@ public class LoginConverter extends CredentialConverter {
     /**
      * {@inheritDoc}
      * <p>
-     * Returns true if the item's type is {@link BitwardenItemType#LOGIN}.
+     * This implementation returns {@code true} if the item's type is {@link BitwardenItemType#LOGIN}.
      */
     @Override
     public boolean canConvert(BitwardenItemMetadata metadata) {
@@ -35,7 +35,8 @@ public class LoginConverter extends CredentialConverter {
     /**
      * {@inheritDoc}
      * <p>
-     * Returns true if the Bitwarden item contains a non-null {@code login} object.
+     * This implementation returns {@code true} if the Bitwarden item contains a non-null {@code login}
+     * object with either a username or a password, or both.
      */
     @Override
     public boolean canConvert(BitwardenItem item) {
@@ -48,10 +49,6 @@ public class LoginConverter extends CredentialConverter {
 
     /**
      * {@inheritDoc}
-     * <p>
-     * Creates a dynamic proxy that implements {@link StandardUsernamePasswordCredentials}.
-     * The proxy will fetch the username and password from Bitwarden on-demand when
-     * {@code getUsername()} or {@code getPassword()} are called.
      */
     @Override
     public StandardUsernamePasswordCredentials createProxy(
@@ -75,9 +72,8 @@ public class LoginConverter extends CredentialConverter {
     /**
      * {@inheritDoc}
      * <p>
-     * Constructs a {@link UsernamePasswordCredentialsImpl} using the username and password
-     * from the Bitwarden item. Safely handles nulls by returning empty strings.
-     * This means that either the username or password field must always be present if the fetch succeeds.
+     * This implementation constructs a {@link UsernamePasswordCredentialsImpl} using the username and
+     * password from the Bitwarden item. It safely handles null values by substituting empty strings.
      */
     @Override
     public StandardUsernamePasswordCredentials convert(
