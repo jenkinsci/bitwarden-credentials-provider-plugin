@@ -118,10 +118,10 @@ withCredentials([string(credentialsId: 'My Production API Key', variable: 'API_K
 
 Imagine you have two items named "Docker Hub". In the Jenkins UI, they would appear like this:
 
-* ID: `Docker Hub`, Description: `Docker Hub (BW ID: a1b2c3d4-...)`
-* ID: `e5f6a1b2-...`, Description: `Docker Hub (BW ID: e5f6a1b2-..., non-unique name)`
+* ID: `a1b2c3d4-...`, Name: `Docker Hub (BW ID: a1b2c3d4-..., non-unique name)`
+* ID: `e5f6a1b2-...`, Name: `Docker Hub (BW ID: e5f6a1b2-..., non-unique name)`
 
-To access the second one, you would copy its UUID from the UI and use that as the `credentialsId`.
+To access either one, you would copy its UUID from the UI and use that as the `credentialsId`.
 
 ```groovy
 // Jenkinsfile
@@ -129,6 +129,8 @@ withCredentials([usernamePassword(credentialsId: 'e5f6a1b2-c3d4-e5f6-a1b2-c3d4e5
     sh 'echo "Logging in with the specific Docker Hub account..."'
 }
 ```
+
+To avoid fetching secrets by their Bitwarden UUID, the solution is simple: *Always set a unique name for each item in your Bitwarden vault*.
 
 ## Supported Credential Types
 
