@@ -59,6 +59,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     private String masterPasswordCredentialId;
     /** The cache duration in minutes for the list of item metadata. */
     private int cacheDuration = 5; // Default to 5 minutes
+    /** A comma-separated list of suffixes to identify FileCredentials. */
+    private String fileCredentialSuffixes = ".env";
 
     /**
      * Called by Jenkins at startup to create the singleton instance of this class.
@@ -107,6 +109,10 @@ public class BitwardenConfig extends GlobalConfiguration {
         return cacheDuration;
     }
 
+    public String getFileCredentialSuffixes() {
+        return fileCredentialSuffixes;
+    }
+
     @DataBoundSetter
     public void setServerUrl(String serverUrl) {
         this.serverUrl = serverUrl;
@@ -125,6 +131,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setCacheDuration(int cacheDuration) {
         this.cacheDuration = (cacheDuration > 0) ? cacheDuration : 5;
+    }
+
+    @DataBoundSetter
+    public void setFileCredentialSuffixes(String fileCredentialSuffixes) {
+        this.fileCredentialSuffixes = fileCredentialSuffixes;
     }
 
     /**

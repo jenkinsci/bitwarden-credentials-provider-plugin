@@ -13,6 +13,9 @@
         <f:entry title="${%field.cacheDuration}" field="cacheDuration">
             <f:number default="5" min="1" />
         </f:entry>
+        <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
+            <f:textbox default=".env" />
+        </f:entry>
         <f:advanced title="${%section.advancedActions}">
             <f:entry title="${%field.cliManagement}" field="cliManagement">
                 <f:block>

@@ -63,10 +63,21 @@ credentials:
               secret: "${BITWARDEN_MASTER_PASSWORD}"
 unclassified:
   bitwarden:
+    # The URL of your self-hosted Bitwarden/Vaultwarden server.
+    # Leave blank for the official Bitwarden cloud.
     serverUrl: "https://vault.example.com"
+  
+    # The Jenkins credential ID for your Bitwarden API Key.
     apiCredentialId: "bitwarden-api-key"
+  
+    # The Jenkins credential ID for your Bitwarden Master Password.
     masterPasswordCredentialId: "bitwarden-master-password"
+  
+    # How often the plugin automatically syncs with the Bitwarden server (in minutes).
     cacheDuration: 10
+  
+    # Comma-separated list of suffixes for Secure Notes names to be treated as File Credentials.
+    fileCredentialSuffixes: ".env,.properties,.yaml"
 ```
 
 After saving the configuration, the plugin will attempt to log in and perform an initial sync. You can verify success by checking the Jenkins system log or by navigating to the main Credentials page after a few moments to see your Bitwarden items.

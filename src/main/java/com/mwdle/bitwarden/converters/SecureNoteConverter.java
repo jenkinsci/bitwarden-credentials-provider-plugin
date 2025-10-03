@@ -3,6 +3,7 @@ package com.mwdle.bitwarden.converters;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SecretBytes;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
@@ -10,6 +11,8 @@ import hudson.Extension;
 import hudson.model.Descriptor;
 import java.lang.reflect.Proxy;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.List;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
@@ -25,6 +28,24 @@ import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 public class SecureNoteConverter extends CredentialConverter {
 
     private static final Logger LOGGER = Logger.getLogger(SecureNoteConverter.class.getName());
+
+    /**
+     * Checks if a given item name ends with one of the user-configured suffixes for file credentials.
+     *
+     * @param name The name of the Bitwarden item.
+     * @return {@code true} if the name matches a configured suffix.
+     */
+    private boolean isFileCredential(String name) {
+        String suffixes = BitwardenConfig.getInstance().getFileCredentialSuffixes();
+        if (suffixes == null || suffixes.trim().isEmpty()) {
+            return false;
+        }
+        // Split by comma and trim whitespace from each entry
+        List<String> suffixList = Arrays.asList(suffixes.split("\\s*,\\s*"));
+        String lowerCaseName = name.trim().toLowerCase();
+        return suffixList.stream().anyMatch(lowerCaseName::endsWith);
+    }
+
 
     /**
      * {@inheritDoc}
@@ -58,8 +79,8 @@ public class SecureNoteConverter extends CredentialConverter {
     @Override
     public StandardCredentials createProxy(CredentialsScope scope, String id, BitwardenItemMetadata metadata) {
         LOGGER.fine(() -> "Creating PROXY credential for secure note: " + metadata.getId());
-        if (metadata.getName().trim().toLowerCase().endsWith(".env")) {
-            LOGGER.fine(() -> "Proxying as FileCredentials due to .env suffix");
+        if (isFileCredential(metadata.getName())) {
+            LOGGER.fine(() -> "Proxying as FileCredentials due to configured suffix");
             Descriptor<?> descriptor = Jenkins.get().getDescriptor(FileCredentialsImpl.class);
             if (descriptor == null) {
                 LOGGER.warning(
@@ -92,8 +113,8 @@ public class SecureNoteConverter extends CredentialConverter {
     @Override
     public StandardCredentials convert(CredentialsScope scope, String id, String description, BitwardenItem item) {
         LOGGER.fine(() -> "convert: id=" + id + " item id=" + item.getId() + " name='" + item.getName() + "'");
-        if (item.getName().trim().toLowerCase().endsWith(".env")) {
-            LOGGER.fine(() -> "convert: treating as FileCredentialsImpl due to .env suffix");
+        if (isFileCredential(item.getName())) {
+            LOGGER.fine(() -> "convert: treating as FileCredentialsImpl due to configured suffix");
             return new FileCredentialsImpl(
                     scope,
                     id,
