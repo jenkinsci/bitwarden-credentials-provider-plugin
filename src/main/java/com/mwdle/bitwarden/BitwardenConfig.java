@@ -14,11 +14,6 @@ import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jakarta.annotation.Nonnull;
-import java.lang.reflect.Proxy;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
@@ -31,20 +26,29 @@ import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
 
+import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+
 /**
  * Manages the system-wide configuration for the Bitwarden Credentials Provider plugin.
  * <p>
- * This class is a singleton discovered by Jenkins via its {@link Extension} annotation.
- * It makes the plugin's settings available on the "Configure System" page (/manage/configure).
+ * This class is a singleton managed by Jenkins, responsible for storing the plugin's global
+ * settings, presenting them in the "Configure System" UI, and handling the logic when the
+ * configuration is saved by a user or by JCasC.
  */
 @Extension
 @Symbol("bitwarden")
 public class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
+
     /**
      * A transient, in-memory snapshot of the configuration as it was last loaded or saved.
-     * Used for "dirty checking" to see if critical settings have changed.
+     * This is used to determine if critical settings have changed,
+     * preventing unnecessary re-authentication and cache refreshes on every save.
      */
     private transient BitwardenConfig loadedConfig;
 
@@ -54,20 +58,23 @@ public class BitwardenConfig extends GlobalConfiguration {
     private String apiCredentialId;
     /** The Jenkins credential ID for the Bitwarden Master Password. */
     private String masterPasswordCredentialId;
-    /* The cache duration in minutes for the list of item metadata. */
+    /** The cache duration in minutes for the list of item metadata. */
     private int cacheDuration = 5; // Default to 5 minutes
 
     /**
-     * Called by Jenkins at startup to create an instance of this class.
-     * The {@link #load()} method populates the fields from the saved XML configuration on disk.
+     * Called by Jenkins at startup to create the singleton instance of this class.
+     * The {@link #load()} method populates the fields from the persisted XML configuration on disk.
      */
     public BitwardenConfig() {
         load();
-        LOGGER.fine("BitwardenGlobalConfig loaded: serverUrl=" + serverUrl
-                + ", apiCredentialId=" + apiCredentialId
-                + ", masterPasswordCredentialId=" + masterPasswordCredentialId);
+        LOGGER.fine("BitwardenConfig loaded from disk.");
     }
 
+    /**
+     * Provides the display name for this configuration section in the "Configure System" page.
+     *
+     * @return The internationalized display name.
+     */
     @Override
     @Nonnull
     public String getDisplayName() {
@@ -116,12 +123,13 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     @DataBoundSetter
     public void setCacheDuration(int cacheDuration) {
-        // Use a default if the user enters an invalid number.
         this.cacheDuration = (cacheDuration > 0) ? cacheDuration : 5;
     }
 
     /**
-     * Creates a simple copy of this object for state comparison.
+     * Creates a simple, in-memory copy of this object's critical settings for state comparison.
+     *
+     * @return A new {@link BitwardenConfig} instance with copied fields.
      */
     private BitwardenConfig snapshot() {
         BitwardenConfig snapshot = new BitwardenConfig();
@@ -132,7 +140,9 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * A helper method to check if the essential configuration is present.
+     * A helper method to check if the essential configuration (API key and master password) is present.
+     *
+     * @return {@code true} if the plugin is configured with the minimum required credentials.
      */
     public boolean isConfigured() {
         return apiCredentialId != null
@@ -141,6 +151,18 @@ public class BitwardenConfig extends GlobalConfiguration {
                 && !masterPasswordCredentialId.isEmpty();
     }
 
+    /**
+     * The entry point for Jenkins when a user saves the global configuration from the UI.
+     * It binds the form data to this object's fields and then calls {@link #save()}.
+     * <p>
+     * By calling {@link #save()}, we create a single, unified hook that ensures changes made
+     * by both users (via this method) and by JCasC are handled consistently.
+     *
+     * @param req  The current web request.
+     * @param json The JSON object representing the form data for this configuration section.
+     * @return {@code true} to indicate success.
+     * @throws FormException if the form data cannot be processed.
+     */
     @Override
     public boolean configure(StaplerRequest2 req, JSONObject json) throws FormException {
         super.configure(req, json);
@@ -148,6 +170,12 @@ public class BitwardenConfig extends GlobalConfiguration {
         return true;
     }
 
+    /**
+     * The unified hook for all configuration changes, called by both the UI (via {@link #configure}) and JCasC.
+     * <p>
+     * This method performs a "dirty check" to see if any critical settings have actually changed.
+     * If they have, it triggers a background task to re-authenticate and refresh the credential cache.
+     */
     @Override
     public void save() {
         super.save();
@@ -155,8 +183,9 @@ public class BitwardenConfig extends GlobalConfiguration {
                 || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
                 || !Objects.equals(this.apiCredentialId, loadedConfig.apiCredentialId)
                 || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId);
+
         if (isConfigured() && configChanged) {
-            LOGGER.info("Plugin configuration saved successfully. Applying configuration...");
+            LOGGER.info("Bitwarden configuration has changed, triggering background re-authentication and sync.");
             Timer.get().submit(() -> {
                 BitwardenSessionManager.getInstance().invalidateSessionToken();
                 BitwardenCacheManager.getInstance().invalidateCache();
@@ -165,13 +194,16 @@ public class BitwardenConfig extends GlobalConfiguration {
                 }
             });
         }
+        // After any save, update our snapshot to the new state.
         this.loadedConfig = snapshot();
     }
 
     /**
-     * A credentials matcher for configuring the Bitwarden API and Master Password credentials that
-     *  - includes all credentials in the SYSTEM and GLOBAL scopes
-     *  - excludes credentials belonging to this provider to avoid a chicken-and-egg problem
+     * Creates a credentials matcher for the configuration dropdowns.
+     * This filter includes standard credentials but excludes any credentials that come from
+     * this plugin itself, preventing a "chicken-and-egg" problem.
+     *
+     * @return A {@link CredentialsMatcher} to filter the list of available credentials.
      */
     private CredentialsMatcher getCredentialsMatcher() {
         return CredentialsMatchers.allOf(
@@ -183,14 +215,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * Populates the dropdown list for the 'Bitwarden API Key Credential' field in the UI.
-     * <p>
-     * This method is called automatically by Jenkins's UI framework (Stapler)
-     * because its name follows the convention {@code doFill<FieldName>Items}.
+     * Populates the "Bitwarden API Key Credential" dropdown in the UI.
      *
-     * @param context The current Jenkins context, injected by Stapler.
-     * @param apiCredentialId The currently saved value of the field, for ensuring it's in the list.
-     * @return A {@link ListBoxModel} containing the credential options.
+     * @param context The current Jenkins context.
+     * @param apiCredentialId The currently saved value of the field.
+     * @return A {@link ListBoxModel} containing suitable credentials.
      */
     @POST
     public ListBoxModel doFillApiCredentialIdItems(
@@ -208,11 +237,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * Populates the dropdown list for the 'Bitwarden Master Password Credential' field in the UI.
+     * Populates the "Bitwarden Master Password Credential" dropdown in the UI.
      *
-     * @param context The current Jenkins context, injected by Stapler.
+     * @param context The current Jenkins context.
      * @param masterPasswordCredentialId The currently saved value of the field.
-     * @return A {@link ListBoxModel} containing the credential options.
+     * @return A {@link ListBoxModel} containing suitable credentials.
      */
     @POST
     public ListBoxModel doFillMasterPasswordCredentialIdItems(
@@ -230,9 +259,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * An action method called from the UI to trigger a non-destructive cache refresh.
+     * An action method for the "Refresh Now" button in the UI.
+     * <p>
+     * Forces a re-authentication and triggers a non-destructive background refresh of the cache.
      *
-     * @return A FormValidation object indicating the result of the action.
+     * @return A {@link FormValidation} object indicating the action has started.
      */
     @POST
     public FormValidation doRefreshCache() {
@@ -249,7 +280,9 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * Checks and displays the current version of the installed Bitwarden CLI.
+     * An action method for the "Check Version" button in the UI.
+     *
+     * @return A {@link FormValidation} object showing the installed CLI version or an error.
      */
     @POST
     public FormValidation doCheckCliVersion() {
@@ -263,7 +296,9 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * Forces a new download and installation of the Bitwarden CLI.
+     * An action method for the "Download Latest" button in the UI.
+     *
+     * @return A {@link FormValidation} object indicating the result of the download attempt.
      */
     @POST
     public FormValidation doForceUpdateCli() {
