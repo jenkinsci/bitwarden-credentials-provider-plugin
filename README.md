@@ -29,7 +29,7 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 1.  **Isolated Environment:** The plugin manages its own copy of the `bw` executable and maintains its own isolated data directory. This ensures it never interferes with a system-level Bitwarden CLI installation.
 2.  **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) in Jenkins.
 3.  **Persistence and Offline Access:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly, even if the Bitwarden server is unreachable or the controller is offline.
-4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance.
+4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 5.  **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
 
 ## Getting Started
