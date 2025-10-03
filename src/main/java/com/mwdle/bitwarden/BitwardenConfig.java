@@ -14,6 +14,11 @@ import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import jakarta.annotation.Nonnull;
+import java.lang.reflect.Proxy;
+import java.util.Collections;
+import java.util.Objects;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.GlobalConfiguration;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
@@ -25,12 +30,6 @@ import org.kohsuke.stapler.DataBoundSetter;
 import org.kohsuke.stapler.QueryParameter;
 import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
-
-import java.lang.reflect.Proxy;
-import java.util.Collections;
-import java.util.Objects;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 
 /**
  * Manages the system-wide configuration for the Bitwarden Credentials Provider plugin.
@@ -217,8 +216,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     /**
      * Populates the "Bitwarden API Key Credential" dropdown in the UI.
      *
-     * @param context The current Jenkins context.
-     * @param apiCredentialId The currently saved value of the field.
+     * @param context The current Jenkins context, automatically provided by Stapler.
+     * @param apiCredentialId The ID of the currently selected credential.
      * @return A {@link ListBoxModel} containing suitable credentials.
      */
     @POST
@@ -239,8 +238,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     /**
      * Populates the "Bitwarden Master Password Credential" dropdown in the UI.
      *
-     * @param context The current Jenkins context.
-     * @param masterPasswordCredentialId The currently saved value of the field.
+     * @param context The current Jenkins context, automatically provided by Stapler.
+     * @param masterPasswordCredentialId The ID of the currently selected credential.
      * @return A {@link ListBoxModel} containing suitable credentials.
      */
     @POST
