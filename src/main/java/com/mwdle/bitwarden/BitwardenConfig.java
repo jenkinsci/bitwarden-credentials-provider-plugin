@@ -62,10 +62,14 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     /**
      * Called by Jenkins at startup to create the singleton instance of this class.
-     * The {@link #load()} method populates the fields from the persisted XML configuration on disk.
+     * <p>
+     * The constructor first calls {@link #load()} to populate the fields from the persisted XML
+     * configuration on disk. It then takes an initial snapshot of the critical settings to
+     * enable checking for future configuration changes.
      */
     public BitwardenConfig() {
         load();
+        this.loadedConfig = snapshot();
         LOGGER.fine("BitwardenConfig loaded from disk.");
     }
 
@@ -298,6 +302,7 @@ public class BitwardenConfig extends GlobalConfiguration {
             String currentVersion = BitwardenCLI.version();
             return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
         } catch (Exception e) {
+            LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
             return FormValidation.error(Messages.validation_cliError(e.getMessage()));
         }
     }
