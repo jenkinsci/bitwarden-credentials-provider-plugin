@@ -18,10 +18,11 @@ import java.util.zip.ZipFile;
 import jenkins.model.Jenkins;
 
 /**
- * Manages the Bitwarden CLI executable lifecycle.
- *
- * <p>Handles OS detection, downloading, extraction, permission setting,
- * and cleanup of the executable on Jenkins shutdown.</p>
+ * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
+ * <p>
+ * This class handles OS detection, on-demand downloading from the official Bitwarden site,
+ * extraction of the executable, and provides a reliable, cached path for other components to use.
+ * It ensures the CLI is always available when needed, attempting to download it if it's missing.
  */
 @Extension
 public final class BitwardenCLIManager {
@@ -33,14 +34,14 @@ public final class BitwardenCLIManager {
     /**
      * Provides global access to the single instance of this manager, as managed by Jenkins.
      *
-     * @return The singleton instance of {@link BitwardenSessionManager}.
+     * @return The singleton instance of {@link BitwardenCLIManager}.
      */
     public static BitwardenCLIManager getInstance() {
         return Jenkins.get().getExtensionList(BitwardenCLIManager.class).get(0);
     }
 
     /**
-     * Represents supported operating systems for the Bitwarden CLI.
+     * Represents the operating systems supported by the Bitwarden CLI.
      */
     private enum OS {
         WINDOWS,
@@ -48,21 +49,25 @@ public final class BitwardenCLIManager {
         LINUX;
 
         /**
-         * Detects the current operating system.
+         * Detects the current operating system based on the {@code os.name} system property.
          *
-         * @return the detected OS enum
-         * @throws UnsupportedOperationException if OS is not supported
+         * @return the detected {@link OS} enum constant.
+         * @throws UnsupportedOperationException if the OS is not supported.
          */
         static OS detect() {
             String osName = System.getProperty("os.name").toLowerCase();
             if (osName.contains("win")) return WINDOWS;
             if (osName.contains("mac")) return MAC;
             if (osName.contains("nix") || osName.contains("nux") || osName.contains("aix")) return LINUX;
-            LOGGER.fine(() -> "Detected OS: " + osName);
             throw new UnsupportedOperationException("Unsupported OS: " + osName);
         }
     }
 
+    /**
+     * Determines the correct download URL for the Bitwarden CLI based on the detected OS.
+     *
+     * @return A string containing the direct download URL.
+     */
     private String getDownloadUrl() {
         OS os = OS.detect();
         return switch (os) {
@@ -72,16 +77,23 @@ public final class BitwardenCLIManager {
         };
     }
 
+    /**
+     * Determines the correct name for the Bitwarden CLI executable based on the detected OS.
+     *
+     * @return The name of the executable (e.g., "bw.exe" or "bw").
+     */
     private String getExecutableName() {
         OS os = OS.detect();
         return (os == OS.WINDOWS) ? "bw.exe" : "bw";
     }
 
     /**
-     * Downloads the zip archive, extracts the executable, and sets the necessary execute permissions.
-     * @param downloadUrl the URL of the zip archive to download
-     * @param targetFile the destination file for the extracted executable
-     * @throws IOException if the download or extraction fails
+     * Downloads a zip archive from a URL, finds the {@code bw} executable within it,
+     * extracts it to the target file, and sets it as executable.
+     *
+     * @param downloadUrl the URL of the zip archive to download.
+     * @param targetFile  the destination file for the extracted executable.
+     * @throws IOException if the download or extraction fails.
      */
     private void downloadAndExtract(URL downloadUrl, File targetFile) throws IOException {
         LOGGER.fine(() -> "Downloading Bitwarden CLI from URL: " + downloadUrl);
@@ -123,8 +135,11 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Downloads the latest Bitwarden CLI, overwriting any existing version.
-     * @return true on success, false on failure.
+     * Forces a download of the latest Bitwarden CLI, overwriting any existing version.
+     * <p>
+     * This method performs a blocking, network-intensive operation performed in a thread-safe manner.
+     *
+     * @return {@code true} on success, {@code false} on failure.
      */
     public boolean downloadLatestExecutable() {
         synchronized (provisionLock) {
@@ -147,8 +162,12 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Constructs the singleton BitwardenExecutableManager.
-     * Detects the OS, determines the target path, and downloads the executable if it doesn't exist.
+     * Ensures the Bitwarden CLI executable is present, downloading it if it does not exist.
+     * <p>
+     * This is the primary method for automatic, on-demand setup. It first checks if the
+     * executable exists and only performs the expensive download operation if necessary.
+     *
+     * @return {@code true} if the executable is present or was successfully downloaded, otherwise {@code false}.
      */
     public boolean provisionExecutable() {
         String executableName = getExecutableName();
@@ -165,8 +184,13 @@ public final class BitwardenCLIManager {
 
     /**
      * Gets the absolute path to the managed Bitwarden CLI executable.
+     * <p>
+     * This is the main entry point for getting the path to the CLI. It uses an in-memory cache
+     * for performance and is self-healing: if the executable is missing for any reason, it
+     * will automatically attempt to provision it on-demand.
      *
-     * @return The full path to the 'bw' executable.
+     * @return The full path to the {@code bw} executable.
+     * @throws IllegalStateException if the executable is not found and cannot be downloaded.
      */
     public String getExecutablePath() {
         if (executablePath != null && new File(executablePath).exists()) {
@@ -180,9 +204,10 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Gets a dedicated 'bin' directory within this plugin's home folder.
+     * Gets a dedicated 'bin' directory within the plugin's data directory for the executable.
      *
-     * @return A file handle to the 'bin' directory.
+     * @return A {@link File} handle to the 'bin' directory.
+     * @throws RuntimeException if the directory cannot be created.
      */
     private File getPluginBinDirectory() {
         LOGGER.fine("Getting plugin bin directory.");
