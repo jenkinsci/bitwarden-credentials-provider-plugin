@@ -95,7 +95,7 @@ public final class BitwardenCLIManager {
      * @param targetFile  the destination file for the extracted executable.
      * @throws IOException if the download or extraction fails.
      */
-    private void downloadAndExtract(URL downloadUrl, File targetFile) throws IOException {
+    void downloadAndExtract(URL downloadUrl, File targetFile) throws IOException {
         LOGGER.fine(() -> "Downloading Bitwarden CLI from URL: " + downloadUrl);
         File bwCliZip = File.createTempFile("bw-cli", ".zip");
         try {
