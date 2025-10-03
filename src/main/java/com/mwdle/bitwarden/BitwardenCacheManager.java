@@ -25,6 +25,13 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
 
+/**
+ * A thread-safe singleton that manages the lifecycle of the Bitwarden item metadata cache.
+ * <p>
+ * This class is the single source of truth for the list of credentials from Bitwarden. It handles
+ * asynchronous refreshing, persistence to disk for resilience, and provides safe, non-blocking
+ * access for the Jenkins UI and other components.
+ */
 @Extension
 public class BitwardenCacheManager {
 
@@ -34,9 +41,9 @@ public class BitwardenCacheManager {
     private transient volatile LoadingCache<String, List<BitwardenItemMetadata>> itemMetadataCache;
 
     /**
-     * Provides global access to the single instance of this provider.
+     * Provides global access to the single instance of this manager.
      *
-     * @return The singleton instance of this provider.
+     * @return The singleton instance of {@link BitwardenCacheManager}.
      */
     public static BitwardenCacheManager getInstance() {
         return Jenkins.get().getExtensionList(BitwardenCacheManager.class).get(0);
@@ -44,6 +51,8 @@ public class BitwardenCacheManager {
 
     /**
      * Helper method to get the file where the cache will be persisted.
+     *
+     * @return The {@link XmlFile} for the cache.
      */
     private XmlFile getCacheFile() {
         File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
@@ -51,40 +60,56 @@ public class BitwardenCacheManager {
     }
 
     /**
-     * Public method to allow external callers (like the global config) to update the cache.
-     * It's safe to call this even before the cache is initialized.
+     * Triggers a non-destructive, asynchronous refresh of the cache.
+     * This is the standard method for forcing an update from Bitwarden.
      */
     public void updateCache() {
         getCache().refresh(CACHE_NAME);
     }
 
+    /**
+     * Completely removes the credential list from the in-memory cache.
+     * The next request for credentials will trigger a full, but non-blocking reload.
+     * <p>
+     * Credential requests that occur during a full reload will receive an empty list of credentials,
+     * until the cache has finished repopulating.
+     */
     public void invalidateCache() {
         getCache().invalidate(CACHE_NAME);
     }
 
     /**
-     * Schedules a background task to prime the Bitwarden item cache after Jenkins starts.
+     * Schedules a background task to update the Bitwarden item cache after Jenkins starts.
      * <p>
-     * This method is automatically invoked by Jenkins's startup sequence due to the
-     * {@link Initializer} annotation. It only proceeds if the plugin has already been configured.
-     * <p>
-     * The cache update is submitted to a background thread to ensure this operation
-     * does not block or delay the main Jenkins startup process.
+     * This method is automatically invoked by Jenkins's startup sequence. It only proceeds
+     * if the plugin has been configured. The update is submitted to a background thread to
+     * ensure this operation does not block or delay the main Jenkins startup process.
      */
     @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED)
     public void triggerStartupCacheUpdate() {
         BitwardenConfig config = BitwardenConfig.getInstance();
         if (!config.isConfigured()) {
-            LOGGER.info("Bitwarden plugin is not configured. Skipping initial cache priming.");
+            LOGGER.info("Bitwarden plugin is not configured. Skipping initial cache update.");
             return;
         }
         Timer.get()
                 .submit(this::updateCache); // Don't delay Jenkins startup, run the cache update in a separate thread.
     }
 
+    /**
+     * Provides a safe, non-blocking way to get the current list of credential metadata.
+     * <p>
+     * This is the primary method for UI components. It returns the current cached data
+     * immediately (or an empty list if not yet populated) and triggers a background refresh
+     * if the data is stale or missing.
+     *
+     * @return The current list of {@link BitwardenItemMetadata}, which may be empty.
+     */
     public List<BitwardenItemMetadata> getMetadata() {
         LoadingCache<String, List<BitwardenItemMetadata>> cache = getCache();
         List<BitwardenItemMetadata> metadata = cache.getIfPresent(CACHE_NAME);
+        // Trigger a smart, non-blocking background refresh. The get() call will use the
+        // asynchronous reload() method if the data is stale or missing.
         Timer.get().submit(() -> {
             try {
                 cache.get(CACHE_NAME);
@@ -95,6 +120,14 @@ public class BitwardenCacheManager {
         return metadata != null ? metadata : Collections.emptyList();
     }
 
+    /**
+     * Performs the core logic of fetching the latest metadata from the Bitwarden CLI.
+     * This is a blocking, network-intensive operation. It also persists the result to disk on success.
+     *
+     * @return A fresh list of {@link BitwardenItemMetadata}.
+     * @throws IOException          if a CLI command fails.
+     * @throws InterruptedException if the thread is interrupted.
+     */
     private List<BitwardenItemMetadata> fetchData() throws IOException, InterruptedException {
         LOGGER.info("Bitwarden metadata cache is loading/refreshing...");
         BitwardenCLI.sync(BitwardenSessionManager.getInstance().getSessionToken());
@@ -109,6 +142,15 @@ public class BitwardenCacheManager {
         return metadata;
     }
 
+    /**
+     * Gets the singleton instance of the Guava {@link LoadingCache}.
+     * <p>
+     * This method uses a thread-safe, double-checked locking pattern to initialize the cache
+     * on its first use. It configures the cache for periodic background refreshing and
+     * attempts to populate it from the persisted XML file on disk after a Jenkins restart.
+     *
+     * @return The singleton cache instance.
+     */
     private LoadingCache<String, List<BitwardenItemMetadata>> getCache() {
         LoadingCache<String, List<BitwardenItemMetadata>> result = itemMetadataCache;
         if (result == null) {
