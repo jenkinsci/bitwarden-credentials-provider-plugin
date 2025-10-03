@@ -104,6 +104,7 @@ This plugin intelligently exposes every item in your vault as a native Jenkins c
 The Jenkins UI makes it easy to find the correct ID. The description for every credential shows both its name and its UUID, and will indicate if the name is non-unique.
 
 **Example: A Uniquely Named Secret**
+
 You can reference this item directly by its name in your `Jenkinsfile`.
 
 ```groovy
@@ -114,6 +115,7 @@ withCredentials([string(credentialsId: 'My Production API Key', variable: 'API_K
 ```
 
 **Example: Handling a Non-Unique Name**
+
 Imagine you have two items named "Docker Hub". In the Jenkins UI, they would appear like this:
 
 * ID: `Docker Hub`, Description: `Docker Hub (BW ID: a1b2c3d4-...)`
