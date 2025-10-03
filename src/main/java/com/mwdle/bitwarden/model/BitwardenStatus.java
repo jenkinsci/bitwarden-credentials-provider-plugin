@@ -7,10 +7,9 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
  * Represents the JSON response from the {@code bw status} command.
  * <p>
  * This class models the fields relevant to the plugin for checking the current
- * status of the Bitwarden CLI session.
+ * status of the Bitwarden CLI session (e.g., "unlocked", "locked").
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-// Suppress SpotBugs warning for fields populated by the Jackson JSON parser
 @SuppressFBWarnings("UWF_UNWRITTEN_FIELD")
 public class BitwardenStatus {
     /**

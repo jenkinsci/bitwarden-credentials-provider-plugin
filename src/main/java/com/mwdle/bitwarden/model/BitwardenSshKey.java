@@ -6,10 +6,10 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.Secret;
 
 /**
- * Represents the nested 'sshKey' object within a Bitwarden item JSON.
+ * Represents the nested {@code sshKey} object within a Bitwarden item JSON,
+ * containing the private and public key fields.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-// Suppress SpotBugs warning for fields populated by the Jackson JSON parser
 @SuppressFBWarnings("UWF_UNWRITTEN_FIELD")
 public class BitwardenSshKey {
     /**
@@ -23,13 +23,17 @@ public class BitwardenSshKey {
     private String publicKey;
 
     /**
-     * @return The private key text.
+     * Gets the private key text.
+     *
+     * @return The private key as a {@link Secret}.
      */
     public Secret getPrivateKey() {
         return privateKey;
     }
 
     /**
+     * Gets the public key text.
+     *
      * @return The public key text.
      */
     public String getPublicKey() {

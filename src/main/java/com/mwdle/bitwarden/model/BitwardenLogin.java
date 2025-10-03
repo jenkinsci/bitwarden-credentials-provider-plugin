@@ -5,7 +5,8 @@ import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import hudson.util.Secret;
 
 /**
- * Represents the nested 'login' object within a Bitwarden item JSON.
+ * Represents the nested {@code login} object within a Bitwarden item JSON,
+ * containing the username and password fields.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class BitwardenLogin {
@@ -21,14 +22,18 @@ public class BitwardenLogin {
     private Secret password;
 
     /**
-     * @return The username for this login.
+     * Gets the username for this login.
+     *
+     * @return The username as a {@link Secret}.
      */
     public Secret getUsername() {
         return username;
     }
 
     /**
-     * @return The password for this login.
+     * Gets the password for this login.
+     *
+     * @return The password as a {@link Secret}.
      */
     public Secret getPassword() {
         return password;

@@ -6,15 +6,12 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import hudson.util.Secret;
 
 /**
- * Represents a top-level Bitwarden item object, deserialized from the JSON output of the {@code bw} CLI.
+ * Represents a fully resolved Bitwarden item object, deserialized from the JSON output of {@code bw get item}.
  * <p>
- * This class models the fields relevant to the plugin for converting Bitwarden items
- * into Jenkins credentials.
+ * This class models all fields, including secrets, relevant to the plugin for converting a
+ * Bitwarden item into a concrete Jenkins credential.
  */
-// This Jackson annotation ensures that if the Bitwarden CLI adds new, unknown fields
-// to its JSON output in the future, the deserialization process will not fail.
 @JsonIgnoreProperties(ignoreUnknown = true)
-// Suppress SpotBugs warning for fields populated by the Jackson JSON parser
 @SuppressFBWarnings("UWF_UNWRITTEN_FIELD")
 public class BitwardenItem {
     /**
@@ -40,6 +37,8 @@ public class BitwardenItem {
     private BitwardenSshKey sshKey;
 
     /**
+     * Gets the unique UUID of the item.
+     *
      * @return The unique UUID of the item.
      */
     public String getId() {
@@ -47,6 +46,8 @@ public class BitwardenItem {
     }
 
     /**
+     * Gets the user-provided name of the item.
+     *
      * @return The user-provided name of the item.
      */
     public String getName() {
@@ -54,21 +55,27 @@ public class BitwardenItem {
     }
 
     /**
-     * @return The content of the item's "notes" field.
+     * Gets the content of the item's "notes" field.
+     *
+     * @return The content of the item's "notes" field as a {@link Secret}.
      */
     public Secret getNotes() {
         return notes;
     }
 
     /**
-     * @return The nested object containing login details, or null if not a Login item.
+     * Gets the nested object containing login details.
+     *
+     * @return The {@link BitwardenLogin} object, or {@code null} if this is not a Login item.
      */
     public BitwardenLogin getLogin() {
         return login;
     }
 
     /**
-     * @return The nested object containing SSH key details, or null if not an SSH Key item.
+     * Gets the nested object containing SSH key details.
+     *
+     * @return The {@link BitwardenSshKey} object, or {@code null} if this is not an SSH Key item.
      */
     public BitwardenSshKey getSshKey() {
         return sshKey;

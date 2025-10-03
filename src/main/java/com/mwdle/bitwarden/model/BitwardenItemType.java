@@ -23,19 +23,20 @@ public enum BitwardenItemType {
     private final int typeCode;
 
     /**
-     * TODO
-     * @param typeCode #TODO
+     * Constructs an enum constant with its corresponding integer code from the Bitwarden CLI.
+     *
+     * @param typeCode The integer code representing the item type.
      */
     BitwardenItemType(int typeCode) {
         this.typeCode = typeCode;
     }
 
     /**
-     * This annotation tells Jackson to use this method to create an
-     * enum instance from the integer value in the JSON.
+     * Deserializes an integer from JSON into the corresponding {@link BitwardenItemType}.
+     * This method is used by the Jackson library.
      *
      * @param typeCode The integer value from the "type" field in the JSON.
-     * @return The corresponding BitwardenItemType enum constant.
+     * @return The corresponding {@link BitwardenItemType}, or {@link #UNKNOWN} if not found.
      */
     @JsonCreator
     public static BitwardenItemType fromInteger(int typeCode) {
@@ -46,8 +47,7 @@ public enum BitwardenItemType {
     }
 
     /**
-     * This annotation tells Jackson that when serializing this enum, it should
-     * write out the integer value. (Less critical for us, but good practice).
+     * Serializes this enum constant into its corresponding integer code for JSON.
      *
      * @return The integer code for the enum constant.
      */
