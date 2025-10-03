@@ -20,7 +20,11 @@ import jenkins.model.Jenkins;
 import org.springframework.security.core.Authentication;
 
 /**
- * This provider is responsible for resolving Bitwarden credentials into real, usable Jenkins credentials.
+ * The main entry point for the plugin, responsible for providing Bitwarden-backed credentials to Jenkins.
+ * <p>
+ * This class is a singleton managed by Jenkins. Its primary role is to respond to requests for credentials
+ * (from pipelines or the UI) by fetching metadata from the {@link BitwardenCacheManager} and converting
+ * it into a list of lazy-loading {@link com.mwdle.bitwarden.converters.CredentialProxy} objects.
  */
 @Extension
 public class BitwardenCredentialsProvider extends CredentialsProvider {
@@ -37,6 +41,12 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
         return CredentialsProvider.all().get(BitwardenCredentialsProvider.class);
     }
 
+    /**
+     * Provides the {@link BitwardenCredentialsStore} to the Jenkins UI for the global credentials context.
+     *
+     * @param object The context for which the store is being requested.
+     * @return The singleton {@link BitwardenCredentialsStore} if the context is the Jenkins root, otherwise {@code null}.
+     */
     @Override
     public CredentialsStore getStore(ModelObject object) {
         if (object instanceof Jenkins) {
@@ -46,7 +56,16 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
     }
 
     /**
+     * The primary method for generating the list of all available Bitwarden credentials.
+     * <p>
+     * This method is safe for all consumers (UI and pipelines). It fetches the latest metadata from the
+     * cache, intelligently assigns a Jenkins ID (using the name for unique items and the UUID for
+     * items with duplicate names), and returns a list of credential proxies.
+     * <p>
+     * It will not block or throw exceptions if the cache is being refreshed or has failed to load,
+     * and will instead return an empty list.
      *
+     * @return A list of all available {@link Credentials} proxies from Bitwarden.
      */
     public List<Credentials> listCredentials() {
         if (!BitwardenConfig.getInstance().isConfigured()) {
@@ -84,23 +103,14 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
     }
 
     /**
-     * Called by Jenkins whenever a build needs to resolve credentials. This implementation fetches the
-     * complete list of items from the Bitwarden vault and dynamically converts them into Jenkins
-     * credentials on the fly.
+     * Called by Jenkins to get a list of credentials that are available in a given context.
      * <p>
-     * For each item retrieved from Bitwarden, this method creates <strong>two</strong> in-memory Jenkins
-     * credentials:
-     * <ol>
-     * <li>One where the credential ID is the Bitwarden item's <strong>name</strong>.</li>
-     * <li>One where the credential ID is the Bitwarden item's <strong>UUID</strong>.</li>
-     * </ol>
-     * This allows pipeline authors to reference the same secret using either its human-readable name or its
-     * unique, stable ID (e.g., {@code credentialsId: 'My Production API Key'}) or
-     * {@code credentialsId: 'a1b2c3d4-e5f6-...'}).
+     * This implementation delegates to {@link #listCredentials()} to get all available proxies
+     * and then filters that list to return only the credentials of the requested type.
      *
-     * @param type The class of credentials being requested.
-     * @param itemGroup The context in which the credentials are being requested.
-     * @param authentication The authentication context of the user or process.
+     * @param type               The class of credentials being requested.
+     * @param itemGroup          The context in which the credentials are being requested.
+     * @param authentication     The authentication context of the user or process.
      * @param domainRequirements Any domain requirements for the credentials.
      * @return A list of dynamically-generated credentials matching the request.
      */
@@ -130,6 +140,12 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
         return result;
     }
 
+    /**
+     * Provides the CSS class name for the SVG symbol used as this provider's icon.
+     * The corresponding SVG file is located in {@code src/main/resources/images/symbols/}.
+     *
+     * @return The CSS class name for the icon.
+     */
     @Override
     public String getIconClassName() {
         return "symbol-icon plugin-bitwarden-credentials-provider";
