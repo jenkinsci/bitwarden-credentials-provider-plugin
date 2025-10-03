@@ -215,8 +215,10 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     /**
      * Populates the "Bitwarden API Key Credential" dropdown in the UI.
+     * <p>
+     * This method is called by Stapler.
      *
-     * @param context The current Jenkins context, automatically provided by Stapler.
+     * @param context The current Jenkins context.
      * @param apiCredentialId The ID of the currently selected credential.
      * @return A {@link ListBoxModel} containing suitable credentials.
      */
@@ -237,8 +239,10 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     /**
      * Populates the "Bitwarden Master Password Credential" dropdown in the UI.
+     * <p>
+     * This method is called by Stapler.
      *
-     * @param context The current Jenkins context, automatically provided by Stapler.
+     * @param context The current Jenkins context.
      * @param masterPasswordCredentialId The ID of the currently selected credential.
      * @return A {@link ListBoxModel} containing suitable credentials.
      */
@@ -260,6 +264,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     /**
      * An action method for the "Refresh Now" button in the UI.
      * <p>
+     * This method is called by Stapler.
+     * <p>
      * Forces a re-authentication and triggers a non-destructive background refresh of the cache.
      *
      * @return A {@link FormValidation} object indicating the action has started.
@@ -280,6 +286,8 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     /**
      * An action method for the "Check Version" button in the UI.
+     * <p>
+     * This method is called by Stapler.
      *
      * @return A {@link FormValidation} object showing the installed CLI version or an error.
      */
@@ -296,6 +304,8 @@ public class BitwardenConfig extends GlobalConfiguration {
 
     /**
      * An action method for the "Download Latest" button in the UI.
+     * <p>
+     * This method is called by Stapler.
      *
      * @return A {@link FormValidation} object indicating the result of the download attempt.
      */
