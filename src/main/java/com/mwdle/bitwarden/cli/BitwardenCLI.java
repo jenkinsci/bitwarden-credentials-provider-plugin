@@ -247,7 +247,7 @@ public final class BitwardenCLI {
         Process process = pb.start();
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader =
-                     new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                new BufferedReader(new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
             String line;
             while ((line = reader.readLine()) != null) {
                 output.append(line);

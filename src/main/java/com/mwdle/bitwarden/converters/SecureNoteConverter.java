@@ -46,7 +46,6 @@ public class SecureNoteConverter extends CredentialConverter {
         return suffixList.stream().anyMatch(lowerCaseName::endsWith);
     }
 
-
     /**
      * {@inheritDoc}
      * <p>

@@ -108,7 +108,9 @@ class BitwardenSessionManagerTest {
             // GIVEN: Valid credentials are set up, but server URL is null
             setupValidCredentials(null);
             Secret newToken = Secret.fromString("new-session-token");
-            mockedCli.when(() -> BitwardenCLI.unlock(any(StringCredentials.class))).thenReturn(newToken);
+            mockedCli
+                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .thenReturn(newToken);
 
             // WHEN
             Secret resultToken = manager.getSessionToken();
@@ -129,7 +131,9 @@ class BitwardenSessionManagerTest {
             String customUrl = "https://vault.example.com";
             setupValidCredentials(customUrl);
             Secret newToken = Secret.fromString("custom-url-token");
-            mockedCli.when(() -> BitwardenCLI.unlock(any(StringCredentials.class))).thenReturn(newToken);
+            mockedCli
+                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .thenReturn(newToken);
 
             // WHEN
             manager.getSessionToken();
@@ -156,7 +160,9 @@ class BitwardenSessionManagerTest {
 
             // A subsequent call to unlock will return a new, valid token
             Secret refreshedToken = Secret.fromString("refreshed-token");
-            mockedCli.when(() -> BitwardenCLI.unlock(any(StringCredentials.class))).thenReturn(refreshedToken);
+            mockedCli
+                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .thenReturn(refreshedToken);
 
             // WHEN
             Secret resultToken = manager.getSessionToken();
@@ -254,7 +260,7 @@ class BitwardenSessionManagerTest {
         // Mock the CredentialsProvider to return our credentials
         CredentialsProvider provider = mock(CredentialsProvider.class);
         when(provider.getCredentialsInItemGroup(
-                eq(StandardUsernamePasswordCredentials.class), any(ItemGroup.class), any(), anyList()))
+                        eq(StandardUsernamePasswordCredentials.class), any(ItemGroup.class), any(), anyList()))
                 .thenReturn(Collections.singletonList(apiKey));
         when(provider.getCredentialsInItemGroup(eq(StringCredentials.class), any(ItemGroup.class), any(), anyList()))
                 .thenReturn(Collections.singletonList(masterPassword));

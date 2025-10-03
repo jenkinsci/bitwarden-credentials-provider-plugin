@@ -86,9 +86,9 @@ class BitwardenCLIManagerTest {
     class OsDetection {
         @ParameterizedTest(name = "should correctly identify {0}")
         @CsvSource({
-                "Windows 10, bw.exe, https://bitwarden.com/download/?app=cli&platform=windows",
-                "Linux, bw, https://bitwarden.com/download/?app=cli&platform=linux",
-                "Mac OS X, bw, https://bitwarden.com/download/?app=cli&platform=macos"
+            "Windows 10, bw.exe, https://bitwarden.com/download/?app=cli&platform=windows",
+            "Linux, bw, https://bitwarden.com/download/?app=cli&platform=linux",
+            "Mac OS X, bw, https://bitwarden.com/download/?app=cli&platform=macos"
         })
         void shouldReturnCorrectConfigForOs(String osName, String expectedExe, String expectedUrl) throws Exception {
             System.setProperty("os.name", osName);
@@ -136,11 +136,11 @@ class BitwardenCLIManagerTest {
         void shouldProvisionIfCacheIsEmpty() {
             // Stub provisionExecutable to return true and set the internal path field.
             doAnswer(invocation -> {
-                Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
-                pathField.setAccessible(true);
-                pathField.set(manager, "/fake/path/to/bw");
-                return true;
-            })
+                        Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
+                        pathField.setAccessible(true);
+                        pathField.set(manager, "/fake/path/to/bw");
+                        return true;
+                    })
                     .when(manager)
                     .provisionExecutable();
 
@@ -221,8 +221,7 @@ class BitwardenCLIManagerTest {
                 RuntimeException exception = assertThrows(
                         RuntimeException.class,
                         () -> manager.provisionExecutable(),
-                        "Should fail with a RuntimeException if the directory cannot be created."
-                );
+                        "Should fail with a RuntimeException if the directory cannot be created.");
 
                 assertTrue(exception.getMessage().contains("Could not create plugin bin directory"));
             }
@@ -310,7 +309,8 @@ class BitwardenCLIManagerTest {
             method.setAccessible(true);
 
             // WHEN & THEN
-            Exception exception = assertThrows(InvocationTargetException.class, () -> method.invoke(manager, fakeUrl, targetFile));
+            Exception exception =
+                    assertThrows(InvocationTargetException.class, () -> method.invoke(manager, fakeUrl, targetFile));
 
             // The exception will be wrapped in an InvocationTargetException by reflection.
             assertInstanceOf(IOException.class, exception.getCause());
