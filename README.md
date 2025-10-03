@@ -132,12 +132,12 @@ withCredentials([usernamePassword(credentialsId: 'e5f6a1b2-c3d4-e5f6-a1b2-c3d4e5
 
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
 
-| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                           |
-|---------------------|---------------------------------------|-----------------------------------------------------------------|
-| Login               | `StandardUsernamePasswordCredentials` |                                                                 |
-| Secure Note         | `StringCredentials`                   | The default for any secure note.                                |
-| Secure Note         | `FileCredentials`                     | If the note's name ends with `.env`. Useful for Docker Compose. |
-| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.     |
+| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                   |
+|---------------------|---------------------------------------|-------------------------------------------------------------------------|
+| Login               | `StandardUsernamePasswordCredentials` |                                                                         |
+| Secure Note         | `StringCredentials`                   | The default for any secure note.                                        |
+| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`).   |
+| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.             |
 
 ## License
 
