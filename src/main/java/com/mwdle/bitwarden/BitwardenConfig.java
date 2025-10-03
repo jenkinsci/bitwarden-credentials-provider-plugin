@@ -64,12 +64,10 @@ public class BitwardenConfig extends GlobalConfiguration {
      * Called by Jenkins at startup to create the singleton instance of this class.
      * <p>
      * The constructor first calls {@link #load()} to populate the fields from the persisted XML
-     * configuration on disk. It then takes an initial snapshot of the critical settings to
-     * enable checking for future configuration changes.
+     * configuration on disk.
      */
     public BitwardenConfig() {
         load();
-        this.loadedConfig = snapshot();
         LOGGER.fine("BitwardenConfig loaded from disk.");
     }
 
