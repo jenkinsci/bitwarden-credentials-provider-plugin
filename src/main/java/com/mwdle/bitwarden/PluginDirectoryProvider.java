@@ -5,7 +5,11 @@ import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 
 /**
- *
+ * A thread-safe utility class for providing a stable, dedicated data directory for the plugin.
+ * <p>
+ * This class ensures that all plugin data (such as the downloaded CLI, cache files, and CLI
+ * configuration) is stored in a consistent location within the Jenkins home directory. It uses a
+ * double-checked locking pattern to efficiently find and create this directory only once.
  */
 public final class PluginDirectoryProvider {
 
@@ -20,7 +24,14 @@ public final class PluginDirectoryProvider {
     private PluginDirectoryProvider() {}
 
     /**
+     * Gets the single, stable data directory for this plugin.
+     * <p>
+     * On the first call, this method will find or create the directory
+     * {@code $JENKINS_HOME/bitwarden-credentials-provider-data} and cache the path for all
+     * subsequent calls. The lookup and creation are performed in a thread-safe manner.
      *
+     * @return The {@link File} object representing the plugin's data directory.
+     * @throws RuntimeException if the directory cannot be created, which may indicate a file permissions issue.
      */
     public static File getPluginDataDirectory() {
         File result = pluginDirectory;
@@ -39,7 +50,7 @@ public final class PluginDirectoryProvider {
                             + "\nDoes Jenkins have proper file permissions?";
                     throw new RuntimeException(errorMessage);
                 } else {
-                    LOGGER.fine("Created plugin bin directory: " + dir.getAbsolutePath());
+                    LOGGER.fine("Created plugin data directory: " + dir.getAbsolutePath());
                 }
             }
             pluginDirectory = dir;
