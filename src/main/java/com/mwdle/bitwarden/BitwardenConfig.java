@@ -143,7 +143,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      *
      * @return A new {@link BitwardenConfig} instance with copied fields.
      */
-    protected BitwardenConfig snapshot() {
+    private BitwardenConfig snapshot() {
         BitwardenConfig snapshot = new BitwardenConfig();
         snapshot.serverUrl = this.serverUrl;
         snapshot.apiCredentialId = this.apiCredentialId;

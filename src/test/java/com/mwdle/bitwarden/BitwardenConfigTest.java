@@ -9,6 +9,7 @@ import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import hudson.util.FormValidation;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.nio.file.Path;
 import java.util.concurrent.ScheduledExecutorService;
 import jenkins.model.Jenkins;
@@ -63,7 +64,6 @@ class BitwardenConfigTest {
     private BitwardenConfig config;
     private AutoCloseable closeable;
 
-
     @BeforeEach
     void setUp() {
         closeable = MockitoAnnotations.openMocks(this);
@@ -116,6 +116,12 @@ class BitwardenConfigTest {
             loadedConfigField.set(config, snapshot);
         }
 
+        private BitwardenConfig invokeSnapshot(BitwardenConfig config) throws Exception {
+            Method snapshotMethod = BitwardenConfig.class.getDeclaredMethod("snapshot");
+            snapshotMethod.setAccessible(true);
+            return (BitwardenConfig) snapshotMethod.invoke(config);
+        }
+
         @Test
         @DisplayName("should not trigger refresh when config is unchanged")
         void shouldNotTriggerRefreshWhenUnchanged() throws Exception {
@@ -124,7 +130,7 @@ class BitwardenConfigTest {
             config.setApiCredentialId("api-id");
             config.setMasterPasswordCredentialId("master-id");
             // and we simulate a previous save by setting the snapshot
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
 
             // WHEN
             config.save();
@@ -141,7 +147,7 @@ class BitwardenConfigTest {
             // GIVEN: The config is not fully configured
             doReturn(false).when(config).isConfigured();
             // and we simulate a previous save
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
             // and a critical setting is changed
             config.setServerUrl("http://new-url");
 
@@ -160,7 +166,7 @@ class BitwardenConfigTest {
             config.setMasterPasswordCredentialId("master-id");
             doReturn(true).when(config).isConfigured();
             // and we simulate a previous save
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
             // and a non-critical setting is changed
             config.setCacheDuration(99);
 
@@ -177,7 +183,7 @@ class BitwardenConfigTest {
             // GIVEN: The config is fully configured
             doReturn(true).when(config).isConfigured();
             // and we simulate a previous save
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
             // and a critical setting is changed
             config.setServerUrl("http://new-url");
 
@@ -194,7 +200,7 @@ class BitwardenConfigTest {
             // GIVEN: The config is fully configured
             doReturn(true).when(config).isConfigured();
             // and we simulate a previous save
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
             // and a critical setting is changed
             config.setApiCredentialId("new-api-id");
 
@@ -211,7 +217,7 @@ class BitwardenConfigTest {
             // GIVEN: The config is fully configured
             doReturn(true).when(config).isConfigured();
             // and we simulate a previous save
-            setSnapshot(config, config.snapshot());
+            setSnapshot(config, invokeSnapshot(config));
             // and a critical setting is changed
             config.setMasterPasswordCredentialId("new-master-id");
 
@@ -312,5 +318,4 @@ class BitwardenConfigTest {
         }
     }
 }
-
 
