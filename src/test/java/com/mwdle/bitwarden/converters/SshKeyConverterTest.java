@@ -1,18 +1,31 @@
 package com.mwdle.bitwarden.converters;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.mwdle.bitwarden.model.BitwardenItem;
+import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import com.mwdle.bitwarden.model.BitwardenItemType;
 import com.mwdle.bitwarden.model.BitwardenSshKey;
+import hudson.model.Descriptor;
 import hudson.util.Secret;
+import java.lang.reflect.Proxy;
+import java.nio.file.Path;
+import jenkins.model.Jenkins;
+import jenkins.security.ConfidentialStore;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
+import org.mockito.MockedConstruction;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
 
 /**
  * Unit tests for the SshKeyConverter class.
@@ -20,132 +33,219 @@ import org.junit.jupiter.api.Test;
 @DisplayName("SshKeyConverter")
 class SshKeyConverterTest {
 
+    @TempDir
+    Path tempDir;
+
+    @Mock
+    private Jenkins jenkinsMock;
+
+    @Mock
+    private ConfidentialStore confidentialStoreMock;
+
+    private MockedStatic<Jenkins> mockedJenkins;
+    private MockedStatic<ConfidentialStore> mockedConfidentialStore;
+    private MockedStatic<Secret> mockedSecret;
+
     private SshKeyConverter converter;
+    private AutoCloseable closeable;
 
     @BeforeEach
     void setUp() {
+        closeable = MockitoAnnotations.openMocks(this);
+
+        mockedJenkins = mockStatic(Jenkins.class);
+        when(Jenkins.get()).thenReturn(jenkinsMock);
+        when(jenkinsMock.getLegacyInstanceId()).thenReturn("test-instance-id");
+        when(jenkinsMock.getRootDir()).thenReturn(tempDir.toFile());
+
+        mockedConfidentialStore = mockStatic(ConfidentialStore.class);
+        when(ConfidentialStore.get()).thenReturn(confidentialStoreMock);
+
+        mockedSecret = mockStatic(Secret.class);
+        mockedSecret.when(() -> Secret.fromString(anyString())).thenAnswer(invocation -> {
+            String plainText = invocation.getArgument(0);
+            Secret secretMock = mock(Secret.class);
+            when(secretMock.getPlainText()).thenReturn(plainText);
+            return secretMock;
+        });
+
         converter = new SshKeyConverter();
     }
 
+    @AfterEach
+    void tearDown() throws Exception {
+        mockedJenkins.close();
+        mockedConfidentialStore.close();
+        mockedSecret.close();
+        closeable.close();
+    }
+
     @Nested
-    @DisplayName("canConvert() method")
+    @DisplayName("canConvert methods")
     class CanConvert {
-
         @Test
-        @DisplayName("should return true for a valid SSH key item")
-        void shouldReturnTrueForValidItem() {
-            BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
-            when(sshKey.getPrivateKey()).thenReturn(Secret.fromString("-----BEGIN..."));
-
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getSshKey()).thenReturn(sshKey);
-
-            assertTrue(converter.canConvert(item), "Should be able to convert an item with a private key.");
+        @DisplayName("should return true for SSH_KEY metadata type")
+        void shouldReturnTrueForSshKeyMetadata() {
+            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
+            when(metadata.getItemType()).thenReturn(BitwardenItemType.SSH_KEY);
+            assertTrue(converter.canConvert(metadata));
         }
 
         @Test
-        @DisplayName("should return false for an item that is not an SSH key")
-        void shouldReturnFalseForNonSshKeyItem() {
+        @DisplayName("should return false for other metadata types")
+        void shouldReturnFalseForOtherMetadataTypes() {
+            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
+            when(metadata.getItemType()).thenReturn(BitwardenItemType.LOGIN);
+            assertFalse(converter.canConvert(metadata));
+        }
+
+        @Test
+        @DisplayName("should return true for an item with a private key")
+        void shouldReturnTrueForItemWithPrivateKey() {
+            BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
+            Secret privateKeySecret = Secret.fromString("-----BEGIN...");
+            when(sshKey.getPrivateKey()).thenReturn(privateKeySecret);
+            BitwardenItem item = mock(BitwardenItem.class);
+            when(item.getSshKey()).thenReturn(sshKey);
+            assertTrue(converter.canConvert(item));
+        }
+
+        @Test
+        @DisplayName("should return false for an item without SSH key data")
+        void shouldReturnFalseForItemWithoutSshKey() {
             BitwardenItem item = mock(BitwardenItem.class);
             when(item.getSshKey()).thenReturn(null);
-
-            assertFalse(converter.canConvert(item), "Should not convert an item with no SSH key data.");
+            assertFalse(converter.canConvert(item));
         }
 
         @Test
-        @DisplayName("should return false for an SSH key item with no private key")
-        void shouldReturnFalseForSshKeyItemWithNoPrivateKey() {
+        @DisplayName("should return false for an SSH key item without a private key")
+        void shouldReturnFalseForSshKeyItemWithoutPrivateKey() {
             BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
-            when(sshKey.getPrivateKey()).thenReturn(null); // The private key is missing
-
+            when(sshKey.getPrivateKey()).thenReturn(null);
             BitwardenItem item = mock(BitwardenItem.class);
             when(item.getSshKey()).thenReturn(sshKey);
+            assertFalse(converter.canConvert(item));
+        }
+    }
 
-            assertFalse(
-                    converter.canConvert(item), "Should not convert an SSH key item that is missing the private key.");
+    @Nested
+    @DisplayName("createProxy() method")
+    class CreateProxy {
+        @Test
+        @DisplayName("should create a valid proxy when descriptor is found")
+        void shouldCreateProxySuccessfully() {
+            // GIVEN
+            Descriptor<?> testDescriptor = new BasicSSHUserPrivateKey.DescriptorImpl();
+            when(jenkinsMock.getDescriptor(BasicSSHUserPrivateKey.class)).thenReturn(testDescriptor);
+            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
+            when(metadata.getId()).thenReturn("item-id");
+            when(metadata.getName()).thenReturn("Item Name");
+
+            // WHEN
+            SSHUserPrivateKey proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+
+            // THEN
+            assertNotNull(proxy);
+            assertInstanceOf(CredentialProxy.class, Proxy.getInvocationHandler(proxy));
+        }
+
+        @Test
+        @DisplayName("should return null when descriptor is not found")
+        void shouldReturnNullWhenDescriptorIsMissing() {
+            // GIVEN
+            when(jenkinsMock.getDescriptor(BasicSSHUserPrivateKey.class)).thenReturn(null);
+            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
+
+            // WHEN
+            SSHUserPrivateKey proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+
+            // THEN
+            assertNull(proxy);
         }
     }
 
     @Nested
     @DisplayName("convert() method")
     class Convert {
-
         @Test
         @DisplayName("should convert an SSH key and derive username from public key comment")
         void shouldConvertAndDeriveUsername() {
-            // End the mock private key with a newline to ensure it matches the convention from the
-            // BasicSSHUserPrivateKey class.
+            // GIVEN
             String privateKeyContent = "-----BEGIN RSA PRIVATE KEY-----\n...\n-----END RSA PRIVATE KEY-----\n";
-            String publicKeyContent = "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQC... jenkins@my-server";
-
+            String publicKeyContent = "ssh-rsa AAAAB3... jenkins@my-server";
             BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
-            when(sshKey.getPrivateKey()).thenReturn(Secret.fromString(privateKeyContent));
+            Secret privateKeySecret = Secret.fromString(privateKeyContent);
+            when(sshKey.getPrivateKey()).thenReturn(privateKeySecret);
             when(sshKey.getPublicKey()).thenReturn(publicKeyContent);
-
             BitwardenItem item = mock(BitwardenItem.class);
             when(item.getSshKey()).thenReturn(sshKey);
 
-            BasicSSHUserPrivateKey credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test SSH key", item);
+            // Mock the construction of BasicSSHUserPrivateKey to verify constructor args
+            try (MockedConstruction<BasicSSHUserPrivateKey> mockedConstruction = mockConstruction(
+                    BasicSSHUserPrivateKey.class,
+                    (mock, context) -> {
+                        // Assert that the constructor was called with the correct username
+                        assertEquals("jenkins", context.arguments().get(2));
+                        // Assert that the private key source contains the correct key
+                        BasicSSHUserPrivateKey.DirectEntryPrivateKeySource source =
+                                (BasicSSHUserPrivateKey.DirectEntryPrivateKeySource) context.arguments().get(3);
+                        assertEquals(privateKeyContent, source.getPrivateKey().getPlainText());
+                    })) {
+                // WHEN
+                converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test SSH key", item);
 
-            assertNotNull(credential);
-            assertInstanceOf(BasicSSHUserPrivateKey.class, credential);
-            assertEquals("cred-id", credential.getId());
-            assertEquals("A test SSH key", credential.getDescription());
-            assertEquals(
-                    "jenkins", credential.getUsername(), "Username should be derived from the public key comment.");
-            assertEquals(privateKeyContent, credential.getPrivateKeys().get(0));
+                // THEN
+                assertEquals(1, mockedConstruction.constructed().size());
+            }
         }
 
         @Test
-        @DisplayName("should convert an SSH key with an empty username if no comment exists")
+        @DisplayName("should have an empty username if public key has no comment")
         void shouldHandleNoUsernameComment() {
-            // End the mock private key with a newline to ensure it matches the convention from the
-            // BasicSSHUserPrivateKey class.
+            // GIVEN
             String privateKeyContent = "-----BEGIN OPENSSH PRIVATE KEY-----\n...\n-----END OPENSSH PRIVATE KEY-----\n";
-            String publicKeyContent = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA..."; // No comment
-
+            String publicKeyContent = "ssh-ed25519 AAAAC3..."; // No comment
             BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
-            when(sshKey.getPrivateKey()).thenReturn(Secret.fromString(privateKeyContent));
+            Secret privateKeySecret = Secret.fromString(privateKeyContent);
+            when(sshKey.getPrivateKey()).thenReturn(privateKeySecret);
             when(sshKey.getPublicKey()).thenReturn(publicKeyContent);
-
             BitwardenItem item = mock(BitwardenItem.class);
             when(item.getSshKey()).thenReturn(sshKey);
 
-            BasicSSHUserPrivateKey credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "Key without comment", item);
+            try (MockedConstruction<BasicSSHUserPrivateKey> mockedConstruction = mockConstruction(
+                    BasicSSHUserPrivateKey.class,
+                    (mock, context) -> assertEquals("", context.arguments().get(2)))) {
+                // WHEN
+                converter.convert(CredentialsScope.GLOBAL, "cred-id", "Key without comment", item);
 
-            // Assert against the expected fallback behavior of the credential class
-            assertEquals(
-                    System.getProperty("user.name"),
-                    credential.getUsername(),
-                    "An empty username should cause the credential to fall back to the system username.");
-            assertEquals(privateKeyContent, credential.getPrivateKeys().get(0));
+                // THEN
+                assertEquals(1, mockedConstruction.constructed().size());
+            }
         }
 
         @Test
-        @DisplayName("should convert an SSH key with an empty username if public key is null")
+        @DisplayName("should have an empty username if public key is null")
         void shouldHandleNullPublicKey() {
-            // End the mock private key with a newline to ensure it matches the convention from the
-            // BasicSSHUserPrivateKey class.
+            // GIVEN
             String privateKeyContent = "-----BEGIN EC PRIVATE KEY-----\n...\n-----END EC PRIVATE KEY-----\n";
-
             BitwardenSshKey sshKey = mock(BitwardenSshKey.class);
-            when(sshKey.getPrivateKey()).thenReturn(Secret.fromString(privateKeyContent));
+            Secret privateKeySecret = Secret.fromString(privateKeyContent);
+            when(sshKey.getPrivateKey()).thenReturn(privateKeySecret);
             when(sshKey.getPublicKey()).thenReturn(null); // Public key is null
-
             BitwardenItem item = mock(BitwardenItem.class);
             when(item.getSshKey()).thenReturn(sshKey);
 
-            BasicSSHUserPrivateKey credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "Key with null public key", item);
+            try (MockedConstruction<BasicSSHUserPrivateKey> mockedConstruction = mockConstruction(
+                    BasicSSHUserPrivateKey.class,
+                    (mock, context) -> assertEquals("", context.arguments().get(2)))) {
+                // WHEN
+                converter.convert(CredentialsScope.GLOBAL, "cred-id", "Key with null public key", item);
 
-            // FIXED: Assert against the expected fallback behavior of the credential class
-            assertEquals(
-                    System.getProperty("user.name"),
-                    credential.getUsername(),
-                    "An empty username should cause the credential to fall back to the system username.");
-            assertEquals(privateKeyContent, credential.getPrivateKeys().get(0));
+                // THEN
+                assertEquals(1, mockedConstruction.constructed().size());
+            }
         }
     }
 }
+
