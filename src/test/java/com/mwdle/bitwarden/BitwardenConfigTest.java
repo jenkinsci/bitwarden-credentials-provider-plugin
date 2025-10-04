@@ -1,6 +1,7 @@
 package com.mwdle.bitwarden;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.*;
 
 import com.mwdle.bitwarden.cli.BitwardenCLI;
@@ -14,11 +15,7 @@ import java.nio.file.Path;
 import java.util.concurrent.ScheduledExecutorService;
 import jenkins.model.Jenkins;
 import jenkins.util.Timer;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
@@ -249,7 +246,9 @@ class BitwardenConfigTest {
         @DisplayName("doRefreshCache should handle exceptions and return ERROR")
         void doRefreshCacheError() {
             // GIVEN: The session manager will throw an exception
-            doThrow(new RuntimeException("Test Exception")).when(sessionManagerMock).invalidateSessionToken();
+            doThrow(new RuntimeException("Test Exception"))
+                    .when(sessionManagerMock)
+                    .invalidateSessionToken();
 
             // WHEN
             FormValidation result = config.doRefreshCache();
@@ -318,4 +317,3 @@ class BitwardenConfigTest {
         }
     }
 }
-

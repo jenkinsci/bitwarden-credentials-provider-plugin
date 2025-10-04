@@ -10,11 +10,7 @@ import hudson.util.Secret;
 import java.io.IOException;
 import jenkins.model.Jenkins;
 import jenkins.security.ConfidentialStore;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.mockito.Mock;
@@ -37,6 +33,7 @@ class ModelDeserializationTest {
 
     @Mock
     private Jenkins jenkinsMock;
+
     @Mock
     private ConfidentialStore confidentialStoreMock;
 
@@ -67,7 +64,6 @@ class ModelDeserializationTest {
         mockedConfidentialStore.close();
         closeable.close();
     }
-
 
     @Nested
     @DisplayName("BitwardenItem Deserialization")
@@ -189,7 +185,8 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize metadata")
         void shouldDeserializeMetadata() throws JsonProcessingException {
-            String metadataJson = """
+            String metadataJson =
+                    """
                     {
                         "id": "uuid-123",
                         "name": "My Item",
@@ -207,13 +204,7 @@ class ModelDeserializationTest {
     @DisplayName("BitwardenItemType Deserialization")
     class BitwardenItemTypeTests {
         @ParameterizedTest
-        @CsvSource({
-                "1, LOGIN",
-                "2, SECURE_NOTE",
-                "3, CARD",
-                "4, IDENTITY",
-                "5, SSH_KEY"
-        })
+        @CsvSource({"1, LOGIN", "2, SECURE_NOTE", "3, CARD", "4, IDENTITY", "5, SSH_KEY"})
         @DisplayName("should correctly map known type codes")
         void shouldMapKnownTypeCodes(int code, BitwardenItemType expectedType) {
             assertEquals(expectedType, BitwardenItemType.fromInteger(code));
@@ -225,7 +216,6 @@ class ModelDeserializationTest {
             assertEquals(BitwardenItemType.UNKNOWN, BitwardenItemType.fromInteger(99));
         }
     }
-
 
     @Nested
     @DisplayName("BitwardenStatus Deserialization")

@@ -17,11 +17,7 @@ import java.lang.reflect.UndeclaredThrowableException;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
@@ -56,7 +52,9 @@ class CredentialProxyTest {
 
         mockedSessionManager = mockStatic(BitwardenSessionManager.class);
         when(BitwardenSessionManager.getInstance()).thenReturn(sessionManagerMock);
-        doReturn(Secret.fromString("test-session-token")).when(sessionManagerMock).getSessionToken();
+        doReturn(Secret.fromString("test-session-token"))
+                .when(sessionManagerMock)
+                .getSessionToken();
 
         mockedCli = mockStatic(BitwardenCLI.class);
         mockedConverter = mockStatic(CredentialConverter.class);
@@ -109,7 +107,9 @@ class CredentialProxyTest {
             mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenReturn(fullItem);
 
             CredentialConverter converter = mock(CredentialConverter.class);
-            mockedConverter.when(() -> CredentialConverter.findConverter(fullItem)).thenReturn(converter);
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(fullItem))
+                    .thenReturn(converter);
 
             StringCredentialsImpl resolvedCredential = mock(StringCredentialsImpl.class);
             when(resolvedCredential.getSecret()).thenReturn(Secret.fromString("my-secret-value"));
@@ -143,7 +143,8 @@ class CredentialProxyTest {
             mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenThrow(new IOException("CLI error"));
 
             // WHEN & THEN
-            UndeclaredThrowableException exception = assertThrows(UndeclaredThrowableException.class, testProxy::getSecret);
+            UndeclaredThrowableException exception =
+                    assertThrows(UndeclaredThrowableException.class, testProxy::getSecret);
             assertInstanceOf(IOException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("CLI error"));
         }
@@ -154,10 +155,13 @@ class CredentialProxyTest {
             // GIVEN
             BitwardenItem fullItem = mock(BitwardenItem.class);
             mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenReturn(fullItem);
-            mockedConverter.when(() -> CredentialConverter.findConverter(fullItem)).thenReturn(null); // No converter
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(fullItem))
+                    .thenReturn(null); // No converter
 
             // WHEN & THEN
-            UndeclaredThrowableException exception = assertThrows(UndeclaredThrowableException.class, testProxy::getSecret);
+            UndeclaredThrowableException exception =
+                    assertThrows(UndeclaredThrowableException.class, testProxy::getSecret);
             assertInstanceOf(IOException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("No suitable converter found"));
         }
@@ -210,4 +214,3 @@ class CredentialProxyTest {
         }
     }
 }
-

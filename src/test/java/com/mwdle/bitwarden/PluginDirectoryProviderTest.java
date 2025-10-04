@@ -120,4 +120,3 @@ class PluginDirectoryProviderTest {
         assertTrue(exception.getMessage().contains("Could not create plugin directory"));
     }
 }
-

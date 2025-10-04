@@ -1,21 +1,20 @@
 package com.mwdle.bitwarden;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.domains.Domain;
 import hudson.security.ACL;
 import hudson.security.Permission;
+import java.util.List;
 import jenkins.model.Jenkins;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.springframework.security.core.Authentication;
-
-import java.util.List;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the BitwardenCredentialsStore class.
@@ -43,7 +42,6 @@ class BitwardenCredentialsStoreTest {
     private MockedStatic<Messages> mockedMessages;
     private MockedStatic<Domain> mockedDomain;
 
-
     private BitwardenCredentialsStore store;
     private AutoCloseable closeable;
 
@@ -61,7 +59,6 @@ class BitwardenCredentialsStoreTest {
 
         // Mock the Domain.global() static method
         mockedDomain = mockStatic(Domain.class);
-
 
         store = new BitwardenCredentialsStore(providerMock);
     }
@@ -82,9 +79,9 @@ class BitwardenCredentialsStoreTest {
         @DisplayName("should return empty list if user lacks VIEW permission")
         void shouldReturnEmptyListWhenNoPermission() {
             // GIVEN: The user does not have the VIEW permission
-            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW)).thenReturn(false);
+            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW))
+                    .thenReturn(false);
             mockedDomain.when(Domain::global).thenReturn(mock(Domain.class));
-
 
             // WHEN
             List<Credentials> result = store.getCredentials(Domain.global());
@@ -98,11 +95,11 @@ class BitwardenCredentialsStoreTest {
         @DisplayName("should return empty list for non-global domains")
         void shouldReturnEmptyListForNonGlobalDomain() {
             // GIVEN: The user has permission, but the domain is not global
-            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW)).thenReturn(true);
+            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW))
+                    .thenReturn(true);
             Domain globalDomain = mock(Domain.class);
             Domain nonGlobalDomain = mock(Domain.class);
             mockedDomain.when(Domain::global).thenReturn(globalDomain);
-
 
             // WHEN
             List<Credentials> result = store.getCredentials(nonGlobalDomain);
@@ -118,7 +115,8 @@ class BitwardenCredentialsStoreTest {
             // GIVEN: The user has permission and the domain is global
             Domain globalDomain = mock(Domain.class);
             mockedDomain.when(Domain::global).thenReturn(globalDomain);
-            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW)).thenReturn(true);
+            when(aclMock.hasPermission2(authenticationMock, CredentialsProvider.VIEW))
+                    .thenReturn(true);
             List<Credentials> expectedCredentials = List.of(mock(Credentials.class));
             when(providerMock.listCredentials()).thenReturn(expectedCredentials);
 
@@ -180,4 +178,3 @@ class BitwardenCredentialsStoreTest {
         }
     }
 }
-

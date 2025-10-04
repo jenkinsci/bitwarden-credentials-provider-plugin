@@ -1,5 +1,8 @@
 package com.mwdle.bitwarden.converters;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
@@ -9,6 +12,8 @@ import com.mwdle.bitwarden.model.BitwardenItemType;
 import com.mwdle.bitwarden.model.BitwardenLogin;
 import hudson.model.Descriptor;
 import hudson.util.Secret;
+import java.lang.reflect.Proxy;
+import java.nio.file.Path;
 import jenkins.model.Jenkins;
 import jenkins.security.ConfidentialStore;
 import org.junit.jupiter.api.*;
@@ -16,12 +21,6 @@ import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-
-import java.lang.reflect.Proxy;
-import java.nio.file.Path;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the LoginConverter class.
@@ -150,13 +149,15 @@ class LoginConverterTest {
         void shouldCreateProxySuccessfully() {
             // GIVEN: The concrete Descriptor implementation
             Descriptor<?> testDescriptor = new UsernamePasswordCredentialsImpl.DescriptorImpl();
-            when(jenkinsMock.getDescriptor(UsernamePasswordCredentialsImpl.class)).thenReturn(testDescriptor);
+            when(jenkinsMock.getDescriptor(UsernamePasswordCredentialsImpl.class))
+                    .thenReturn(testDescriptor);
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
             when(metadata.getId()).thenReturn("item-id");
             when(metadata.getName()).thenReturn("Item Name");
 
             // WHEN
-            StandardUsernamePasswordCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardUsernamePasswordCredentials proxy =
+                    converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
 
             // THEN
             assertNotNull(proxy);
@@ -167,11 +168,13 @@ class LoginConverterTest {
         @DisplayName("should return null when descriptor is not found")
         void shouldReturnNullWhenDescriptorIsMissing() {
             // GIVEN
-            when(jenkinsMock.getDescriptor(UsernamePasswordCredentialsImpl.class)).thenReturn(null);
+            when(jenkinsMock.getDescriptor(UsernamePasswordCredentialsImpl.class))
+                    .thenReturn(null);
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
 
             // WHEN
-            StandardUsernamePasswordCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardUsernamePasswordCredentials proxy =
+                    converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
 
             // THEN
             assertNull(proxy);
@@ -247,4 +250,3 @@ class LoginConverterTest {
         }
     }
 }
-

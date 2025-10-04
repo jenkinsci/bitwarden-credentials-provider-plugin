@@ -106,7 +106,9 @@ class BitwardenCredentialsProviderTest {
             when(cacheManagerMock.getMetadata()).thenReturn(List.of(uniqueItem));
 
             CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter.when(() -> CredentialConverter.findConverter(uniqueItem)).thenReturn(converterMock);
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(uniqueItem))
+                    .thenReturn(converterMock);
             when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
 
             // WHEN
@@ -126,7 +128,8 @@ class BitwardenCredentialsProviderTest {
             when(cacheManagerMock.getMetadata()).thenReturn(List.of(item1, item2));
 
             CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter.when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
                     .thenReturn(converterMock);
             when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
 
@@ -154,7 +157,8 @@ class BitwardenCredentialsProviderTest {
             when(cacheManagerMock.getMetadata()).thenReturn(List.of(item1, item2, item3));
 
             CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter.when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
                     .thenReturn(converterMock);
             when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
 
@@ -183,8 +187,12 @@ class BitwardenCredentialsProviderTest {
             when(cacheManagerMock.getMetadata()).thenReturn(List.of(convertibleItem, ignoredItem));
 
             CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter.when(() -> CredentialConverter.findConverter(convertibleItem)).thenReturn(converterMock);
-            mockedConverter.when(() -> CredentialConverter.findConverter(ignoredItem)).thenReturn(null); // No
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(convertibleItem))
+                    .thenReturn(converterMock);
+            mockedConverter
+                    .when(() -> CredentialConverter.findConverter(ignoredItem))
+                    .thenReturn(null); // No
             // converter
 
             when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
@@ -207,8 +215,8 @@ class BitwardenCredentialsProviderTest {
             // WHEN
             List<Credentials> noItemGroup = provider.getCredentialsInItemGroup(
                     Credentials.class, null, mockAuthentication, Collections.emptyList());
-            List<Credentials> noAuth = provider.getCredentialsInItemGroup(
-                    Credentials.class, mockItemGroup, null, Collections.emptyList());
+            List<Credentials> noAuth =
+                    provider.getCredentialsInItemGroup(Credentials.class, mockItemGroup, null, Collections.emptyList());
 
             // THEN
             assertTrue(noItemGroup.isEmpty());
@@ -238,7 +246,8 @@ class BitwardenCredentialsProviderTest {
             BitwardenCredentialsProvider providerSpy = spy(provider);
 
             Credentials stringCred = mock(StringCredentials.class);
-            Credentials userPassCred = mock(com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class);
+            Credentials userPassCred =
+                    mock(com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class);
             List<Credentials> allCredentials = List.of(stringCred, userPassCred);
             doReturn(allCredentials).when(providerSpy).listCredentials();
 

@@ -1,5 +1,9 @@
 package com.mwdle.bitwarden.cli;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.Mockito.*;
+
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.BitwardenConfig;
@@ -7,6 +11,11 @@ import com.mwdle.bitwarden.model.BitwardenStatus;
 import hudson.ExtensionList;
 import hudson.model.ItemGroup;
 import hudson.util.Secret;
+import java.io.IOException;
+import java.lang.reflect.Field;
+import java.util.Collections;
+import java.util.List;
+import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.junit.jupiter.api.*;
@@ -14,16 +23,6 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
 import org.springframework.security.core.Authentication;
-
-import java.io.IOException;
-import java.lang.reflect.Field;
-import java.util.Collections;
-import java.util.List;
-import java.util.stream.Stream;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the BitwardenSessionManager class.
@@ -134,9 +133,7 @@ class BitwardenSessionManagerTest {
             Secret initialToken = Secret.fromString("initial-token");
             sessionTokenField.set(manager, initialToken);
 
-            mockedCli
-                    .when(() -> BitwardenCLI.status(initialToken))
-                    .thenThrow(new IOException("Network error"));
+            mockedCli.when(() -> BitwardenCLI.status(initialToken)).thenThrow(new IOException("Network error"));
 
             Secret refreshedToken = Secret.fromString("refreshed-token");
             mockedCli
@@ -249,7 +246,7 @@ class BitwardenSessionManagerTest {
             List<StandardUsernamePasswordCredentials> apiKeys, List<StringCredentials> masterPasswords) {
         CredentialsProvider provider = mock(CredentialsProvider.class);
         when(provider.getCredentialsInItemGroup(
-                eq(StandardUsernamePasswordCredentials.class), any(ItemGroup.class), any(), anyList()))
+                        eq(StandardUsernamePasswordCredentials.class), any(ItemGroup.class), any(), anyList()))
                 .thenReturn(apiKeys);
         when(provider.getCredentialsInItemGroup(eq(StringCredentials.class), any(ItemGroup.class), any(), anyList()))
                 .thenReturn(masterPasswords);

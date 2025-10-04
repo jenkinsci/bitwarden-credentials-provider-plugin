@@ -16,11 +16,7 @@ import java.lang.reflect.Proxy;
 import java.nio.file.Path;
 import jenkins.model.Jenkins;
 import jenkins.security.ConfidentialStore;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.Mock;
 import org.mockito.MockedConstruction;
@@ -182,14 +178,14 @@ class SshKeyConverterTest {
             when(item.getSshKey()).thenReturn(sshKey);
 
             // Mock the construction of BasicSSHUserPrivateKey to verify constructor args
-            try (MockedConstruction<BasicSSHUserPrivateKey> mockedConstruction = mockConstruction(
-                    BasicSSHUserPrivateKey.class,
-                    (mock, context) -> {
+            try (MockedConstruction<BasicSSHUserPrivateKey> mockedConstruction =
+                    mockConstruction(BasicSSHUserPrivateKey.class, (mock, context) -> {
                         // Assert that the constructor was called with the correct username
                         assertEquals("jenkins", context.arguments().get(2));
                         // Assert that the private key source contains the correct key
                         BasicSSHUserPrivateKey.DirectEntryPrivateKeySource source =
-                                (BasicSSHUserPrivateKey.DirectEntryPrivateKeySource) context.arguments().get(3);
+                                (BasicSSHUserPrivateKey.DirectEntryPrivateKeySource)
+                                        context.arguments().get(3);
                         assertEquals(privateKeyContent, source.getPrivateKey().getPlainText());
                     })) {
                 // WHEN
@@ -248,4 +244,3 @@ class SshKeyConverterTest {
         }
     }
 }
-

@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.ExtensionList;
-
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
@@ -16,13 +15,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-
 import jenkins.model.Jenkins;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
-import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
 
@@ -92,11 +86,13 @@ class BitwardenCLIManagerTest {
         @DisplayName("should provision executable if path is not cached")
         void shouldProvisionIfCacheIsEmpty() {
             doAnswer(invocation -> {
-                Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
-                pathField.setAccessible(true);
-                pathField.set(manager, "/fake/path/to/bw");
-                return true;
-            }).when(manager).provisionExecutable();
+                        Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
+                        pathField.setAccessible(true);
+                        pathField.set(manager, "/fake/path/to/bw");
+                        return true;
+                    })
+                    .when(manager)
+                    .provisionExecutable();
 
             String path = manager.getExecutablePath();
 

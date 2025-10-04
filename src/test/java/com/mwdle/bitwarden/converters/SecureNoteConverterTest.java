@@ -1,5 +1,8 @@
 package com.mwdle.bitwarden.converters;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SecretBytes;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
@@ -8,6 +11,9 @@ import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
 import hudson.util.Secret;
+import java.lang.reflect.Proxy;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import jenkins.model.Jenkins;
 import jenkins.security.ConfidentialStore;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
@@ -22,13 +28,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.MockitoAnnotations;
-
-import java.lang.reflect.Proxy;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the SecureNoteConverter class.
@@ -78,13 +77,14 @@ class SecureNoteConverterTest {
         });
 
         mockedSecretBytes = mockStatic(SecretBytes.class);
-        mockedSecretBytes.when(() -> SecretBytes.fromRawBytes(any(byte[].class))).thenAnswer(invocation -> {
-            byte[] bytes = invocation.getArgument(0);
-            SecretBytes secretBytesMock = mock(SecretBytes.class);
-            when(secretBytesMock.getPlainData()).thenReturn(bytes);
-            return secretBytesMock;
-        });
-
+        mockedSecretBytes
+                .when(() -> SecretBytes.fromRawBytes(any(byte[].class)))
+                .thenAnswer(invocation -> {
+                    byte[] bytes = invocation.getArgument(0);
+                    SecretBytes secretBytesMock = mock(SecretBytes.class);
+                    when(secretBytesMock.getPlainData()).thenReturn(bytes);
+                    return secretBytesMock;
+                });
 
         mockedConfig = mockStatic(BitwardenConfig.class);
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
@@ -147,7 +147,8 @@ class SecureNoteConverterTest {
         void shouldCreateStringProxy() {
             // GIVEN
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class)).thenReturn(new StringCredentialsImpl.DescriptorImpl());
+            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class))
+                    .thenReturn(new StringCredentialsImpl.DescriptorImpl());
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
             when(metadata.getName()).thenReturn("my-api-key");
 
@@ -165,7 +166,8 @@ class SecureNoteConverterTest {
         void shouldCreateFileProxy() {
             // GIVEN
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env, .properties");
-            when(jenkinsMock.getDescriptor(FileCredentialsImpl.class)).thenReturn(new FileCredentialsImpl.DescriptorImpl());
+            when(jenkinsMock.getDescriptor(FileCredentialsImpl.class))
+                    .thenReturn(new FileCredentialsImpl.DescriptorImpl());
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
             when(metadata.getName()).thenReturn("config.properties");
 
@@ -216,8 +218,8 @@ class SecureNoteConverterTest {
             when(item.getNotes()).thenReturn(notesSecret);
 
             // WHEN
-            StringCredentials credential = (StringCredentials) converter.convert(
-                    CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
+            StringCredentials credential = (StringCredentials)
+                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
 
             // THEN
             assertNotNull(credential);
@@ -238,8 +240,8 @@ class SecureNoteConverterTest {
             when(item.getNotes()).thenReturn(notesSecret);
 
             // WHEN
-            FileCredentials credential = (FileCredentials) converter.convert(
-                    CredentialsScope.GLOBAL, "cred-id", "A test .env file", item);
+            FileCredentials credential =
+                    (FileCredentials) converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test .env file", item);
 
             // THEN
             assertNotNull(credential);
@@ -255,4 +257,3 @@ class SecureNoteConverterTest {
         }
     }
 }
-
