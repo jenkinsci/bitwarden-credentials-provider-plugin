@@ -1,12 +1,25 @@
 package com.mwdle.bitwarden.model;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
+import hudson.util.Secret;
+import java.io.IOException;
+import jenkins.model.Jenkins;
+import jenkins.security.ConfidentialStore;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
+import org.mockito.Mock;
+import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
 
 /**
  * Unit tests for the data model classes.
@@ -17,11 +30,44 @@ import org.junit.jupiter.api.Test;
 class ModelDeserializationTest {
 
     private ObjectMapper objectMapper;
+    private MockedStatic<Secret> mockedSecret;
+    private MockedStatic<Jenkins> mockedJenkins;
+    private MockedStatic<ConfidentialStore> mockedConfidentialStore;
+    private AutoCloseable closeable;
+
+    @Mock
+    private Jenkins jenkinsMock;
+    @Mock
+    private ConfidentialStore confidentialStoreMock;
 
     @BeforeEach
     void setUp() {
-        this.objectMapper = new ObjectMapper();
+        closeable = MockitoAnnotations.openMocks(this);
+        objectMapper = new ObjectMapper();
+
+        mockedJenkins = mockStatic(Jenkins.class);
+        when(Jenkins.get()).thenReturn(jenkinsMock);
+
+        mockedConfidentialStore = mockStatic(ConfidentialStore.class);
+        when(ConfidentialStore.get()).thenReturn(confidentialStoreMock);
+
+        mockedSecret = mockStatic(Secret.class);
+        mockedSecret.when(() -> Secret.fromString(anyString())).thenAnswer(invocation -> {
+            String plainText = invocation.getArgument(0);
+            Secret secretMock = mock(Secret.class);
+            when(secretMock.getPlainText()).thenReturn(plainText);
+            return secretMock;
+        });
     }
+
+    @AfterEach
+    void tearDown() throws Exception {
+        mockedSecret.close();
+        mockedJenkins.close();
+        mockedConfidentialStore.close();
+        closeable.close();
+    }
+
 
     @Nested
     @DisplayName("BitwardenItem Deserialization")
@@ -138,6 +184,50 @@ class ModelDeserializationTest {
     }
 
     @Nested
+    @DisplayName("BitwardenItemMetadata Deserialization")
+    class BitwardenItemMetadataTests {
+        @Test
+        @DisplayName("should correctly deserialize metadata")
+        void shouldDeserializeMetadata() throws JsonProcessingException {
+            String metadataJson = """
+                    {
+                        "id": "uuid-123",
+                        "name": "My Item",
+                        "type": 1
+                    }
+                    """;
+            BitwardenItemMetadata metadata = objectMapper.readValue(metadataJson, BitwardenItemMetadata.class);
+            assertEquals("uuid-123", metadata.getId());
+            assertEquals("My Item", metadata.getName());
+            assertEquals(BitwardenItemType.LOGIN, metadata.getItemType());
+        }
+    }
+
+    @Nested
+    @DisplayName("BitwardenItemType Deserialization")
+    class BitwardenItemTypeTests {
+        @ParameterizedTest
+        @CsvSource({
+                "1, LOGIN",
+                "2, SECURE_NOTE",
+                "3, CARD",
+                "4, IDENTITY",
+                "5, SSH_KEY"
+        })
+        @DisplayName("should correctly map known type codes")
+        void shouldMapKnownTypeCodes(int code, BitwardenItemType expectedType) {
+            assertEquals(expectedType, BitwardenItemType.fromInteger(code));
+        }
+
+        @Test
+        @DisplayName("should map unknown type code to UNKNOWN")
+        void shouldMapUnknownCodeToUnknown() {
+            assertEquals(BitwardenItemType.UNKNOWN, BitwardenItemType.fromInteger(99));
+        }
+    }
+
+
+    @Nested
     @DisplayName("BitwardenStatus Deserialization")
     class BitwardenStatusTests {
         @Test
@@ -158,6 +248,33 @@ class ModelDeserializationTest {
 
             assertNotNull(status);
             assertEquals("unlocked", status.getStatus());
+        }
+    }
+
+    @Nested
+    @DisplayName("SecretDeserializer")
+    class SecretDeserializerTests {
+        // A simple wrapper class to test the deserializer in isolation
+        private static class SecretWrapper {
+            @JsonDeserialize(using = SecretDeserializer.class)
+            public Secret secretField;
+        }
+
+        @Test
+        @DisplayName("should deserialize a string into a Secret object")
+        void shouldDeserializeStringToSecret() throws IOException {
+            String json = "{\"secretField\": \"my-secret-value\"}";
+            SecretWrapper wrapper = objectMapper.readValue(json, SecretWrapper.class);
+            assertNotNull(wrapper.secretField);
+            assertEquals("my-secret-value", wrapper.secretField.getPlainText());
+        }
+
+        @Test
+        @DisplayName("should deserialize a null value to a null Secret")
+        void shouldDeserializeNullToNull() throws IOException {
+            String json = "{\"secretField\": null}";
+            SecretWrapper wrapper = objectMapper.readValue(json, SecretWrapper.class);
+            assertNull(wrapper.secretField);
         }
     }
 }
