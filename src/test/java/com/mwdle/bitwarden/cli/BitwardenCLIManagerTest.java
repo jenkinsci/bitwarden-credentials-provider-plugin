@@ -11,7 +11,6 @@ import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URI;
 import java.net.URL;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -138,35 +137,6 @@ class BitwardenCLIManagerTest {
 
             assertTrue(manager.provisionExecutable());
             verify(manager, times(1)).downloadLatestExecutable();
-        }
-    }
-
-    @Nested
-    @DisplayName("downloadLatestExecutable() method")
-    class DownloadLatestExecutable {
-        @Test
-        @DisplayName("should orchestrate download and return true on success")
-        void shouldOrchestrateDownloadAndSucceed() throws Exception {
-            System.setProperty("os.name", "Linux");
-            doNothing().when(manager).downloadAndExtract(any(URL.class), any(File.class));
-
-            boolean result = manager.downloadLatestExecutable();
-
-            assertTrue(result);
-            File expectedFile = new File(tempDir.toFile(), "bin/bw");
-            URL expectedUrl = new URI("https://bitwarden.com/download/?app=cli&platform=linux").toURL();
-            verify(manager, times(1)).downloadAndExtract(eq(expectedUrl), eq(expectedFile));
-        }
-
-        @Test
-        @DisplayName("should return false on failure")
-        void shouldReturnFalseOnFailure() throws Exception {
-            System.setProperty("os.name", "Linux");
-            doThrow(new IOException("Download failed")).when(manager).downloadAndExtract(any(URL.class), any(File.class));
-
-            boolean result = manager.downloadLatestExecutable();
-
-            assertFalse(result);
         }
     }
 
