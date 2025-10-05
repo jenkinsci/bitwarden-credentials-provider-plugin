@@ -49,33 +49,30 @@ This plugin is fully compatible with the Jenkins Configuration as Code plugin an
 ```yaml
 credentials:
   system:
-    stores:
-      jenkins:
-        credentials:
+    domainCredentials:
+      - credentials:
           - usernamePassword:
+              scope: GLOBAL
               id: "bitwarden-api-key"
-              scope: GLOBAL
-              username: "client.your-client-id"
-              password: "${BITWARDEN_CLIENT_SECRET}"
+              username: "${BITWARDEN_CLIENT_ID}" # Uses value provided by environment variable
+              password: "${BITWARDEN_CLIENT_SECRET}" # Uses value provided by environment variable
+              description: "Bitwarden CLI API Credentials"
           - string:
-              id: "bitwarden-master-password"
               scope: GLOBAL
-              secret: "${BITWARDEN_MASTER_PASSWORD}"
+              id: "bitwarden-master-password"
+              secret: '${BITWARDEN_MASTER_PASSWORD}' # Uses value provided by environment variable
+              description: "Bitwarden CLI Master Password"
 unclassified:
   bitwarden:
     # The URL of your self-hosted Bitwarden/Vaultwarden server.
     # Leave blank for the official Bitwarden cloud.
     serverUrl: "https://vault.example.com"
-  
     # The Jenkins credential ID for your Bitwarden API Key.
     apiCredentialId: "bitwarden-api-key"
-  
     # The Jenkins credential ID for your Bitwarden Master Password.
     masterPasswordCredentialId: "bitwarden-master-password"
-  
     # How often the plugin automatically syncs with the Bitwarden server (in minutes).
     cacheDuration: 10
-  
     # Comma-separated list of suffixes for Secure Notes names to be treated as File Credentials.
     fileCredentialSuffixes: ".env,.properties,.yaml"
 ```
