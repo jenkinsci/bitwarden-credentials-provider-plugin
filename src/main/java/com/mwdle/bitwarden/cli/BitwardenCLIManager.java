@@ -16,6 +16,7 @@ import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 import jenkins.model.Jenkins;
+import org.kohsuke.stapler.verb.POST;
 
 /**
  * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
@@ -141,6 +142,7 @@ public final class BitwardenCLIManager {
      *
      * @return {@code true} on success, {@code false} on failure.
      */
+    @POST
     public boolean downloadLatestExecutable() {
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
