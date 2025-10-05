@@ -144,6 +144,7 @@ public final class BitwardenCLIManager {
      */
     @POST
     public boolean downloadLatestExecutable() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
             try {
