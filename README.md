@@ -3,9 +3,7 @@
 > [!NOTE]
 > This is a third-party plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
 
-[![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/bitwarden-credentials-provider.svg)](https://plugins.jenkins.io/bitwarden-credentials-provider)
 [![GitHub release](https://img.shields.io/github/release/mwdle/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/mwdle/bitwarden-credentials-provider-plugin/releases/latest)
-[![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/bitwarden-credentials-provider.svg?color=blue)](https://plugins.jenkins.io/bitwarden-credentials-provider)
 
 The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes the items in your [Bitwarden](https://bitwarden.com/) personal vault as a native Jenkins credential. It allows pipeline authors to access any secret on the fly by its name or ID, without requiring an administrator to manually create or sync credentials in the Jenkins UI.
 
