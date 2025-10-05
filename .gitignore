@@ -1,8 +1,5 @@
 target
 
-# Maven
-.mvn
-
 # mvn hpi:run
 work
 
