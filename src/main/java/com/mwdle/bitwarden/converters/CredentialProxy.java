@@ -95,21 +95,21 @@ public class CredentialProxy implements InvocationHandler, Serializable {
             case "getId":
                 return this.credentialId;
             case "getDescription":
-                return itemDescription;
+                return this.itemDescription;
             case "getScope":
                 return CredentialsScope.GLOBAL;
             case "forRun":
                 return proxy;
             case "toString":
-                return "BitwardenCredentialProxy(itemId=" + itemId + ")";
+                return "BitwardenCredentialProxy(itemId=" + this.itemId + ")";
             case "hashCode":
-                return itemId.hashCode();
+                return this.itemId.hashCode();
             case "getFileName":
                 return this.itemName;
             case "isUsernameSecret":
                 return true; // Always treat the username field as secret for each credential type containing a username
             case "getPassphrase":
-                return "";
+                return ""; // Bitwarden does not have a passphrase field for SSH Key secrets.
         }
 
         // "Slow path" for secret-related methods.
@@ -139,12 +139,12 @@ public class CredentialProxy implements InvocationHandler, Serializable {
      * @throws InterruptedException if the thread is interrupted.
      */
     private StandardCredentials resolveFullCredential() throws IOException, InterruptedException {
-        LOGGER.fine(() -> "Performing one-time lazy fetch for Bitwarden item: " + itemId);
+        LOGGER.fine(() -> "Performing one-time lazy fetch for Bitwarden item: " + this.itemId);
         BitwardenItem item =
                 BitwardenCLI.getItem(BitwardenSessionManager.getInstance().getSessionToken(), this.itemId);
 
         if (item == null) {
-            throw new IOException("Bitwarden item with ID " + itemId + " not found or could not be parsed.");
+            throw new IOException("Bitwarden item with ID " + this.itemId + " not found or could not be parsed.");
         }
 
         CredentialConverter converter = CredentialConverter.findConverter(item);
@@ -152,6 +152,6 @@ public class CredentialProxy implements InvocationHandler, Serializable {
             return converter.convert(CredentialsScope.GLOBAL, this.credentialId, this.itemDescription, item);
         }
 
-        throw new IOException("No suitable converter found for Bitwarden item ID: " + itemId);
+        throw new IOException("No suitable converter found for Bitwarden item ID: " + this.itemId);
     }
 }
