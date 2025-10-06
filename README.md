@@ -5,11 +5,9 @@
 
 [![GitHub release](https://img.shields.io/github/release/mwdle/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/mwdle/bitwarden-credentials-provider-plugin/releases/latest)
 
-The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes the items in your [Bitwarden](https://bitwarden.com/) personal vault as a native Jenkins credential. It allows pipeline authors to access any secret on the fly by its name or ID, without requiring an administrator to manually create or sync credentials in the Jenkins UI.
+The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes items from a **Bitwarden Password Manager** vault (including self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) as native Jenkins credentials. It allows pipeline authors to access any secret on the fly, without requiring an administrator to manually create or sync credentials in the Jenkins UI.
 
-> [!NOTE]
-> This plugin is designed specifically for the **Bitwarden Password Manager** product (or self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) and operates on **personal vaults**.
-> It does **not** integrate with the separate enterprise product **Bitwarden Secrets Manager**.
+This plugin integrates with personal vaults and organizations within the Password Manager product. It does **not** support the separate enterprise product, **Bitwarden Secrets Manager**.
 
 ## Table of Contents
 
@@ -30,6 +28,13 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 5.  **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
 
+> [!WARNING]
+> **Performance Consideration**
+>
+> The "live" fetching of secrets (Step 5) involves a call to the Bitwarden CLI, which is a relatively slow operation (it can take several seconds). While the plugin's caching makes most operations fast, any step in a pipeline that resolves a secret will incur this one-time performance cost.
+>
+> For this reason, it is not recommended to use credentials from this plugin for high-frequency operations, such as configuring the SCM for a GitHub Organization folder, which utilizes credentials multiple times on every scan.
+
 ## Getting Started
 
 You must first configure the plugin's global settings in **Manage Jenkins > Configure System**.
@@ -38,6 +43,15 @@ You must first configure the plugin's global settings in **Manage Jenkins > Conf
 -   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden service account's Client ID and Client Secret.
 -   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your service account's Master Password.
 -   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
+
+> [!IMPORTANT]
+> **Service Account Recommended**
+>
+> Because this plugin requires an account's Master Password, it is recommended that you **do not use your primary, personal Bitwarden account**.
+>
+> The best practice is to create a dedicated service account (a separate Bitwarden user) and grant it read-only access to only the secrets it needs using a **Bitwarden Organization**. You can then control which secrets the Jenkins user can access by placing them into specific **Collections** within that organization.
+>
+> **Note:** While creating an organization is free in self-hosted **Vaultwarden**, sharing with more than one other user on the official **Bitwarden** cloud requires a paid plan.
 
 ### Configuration as Code (JCasC)
 
