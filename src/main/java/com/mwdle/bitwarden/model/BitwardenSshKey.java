@@ -20,6 +20,8 @@ public class BitwardenSshKey {
     /**
      * The public key text, which may include a comment.
      */
+    // An SSH public key is public information by definition, not a secret.
+    // codeql[jenkins/plaintext-storage]
     private String publicKey;
 
     /**
