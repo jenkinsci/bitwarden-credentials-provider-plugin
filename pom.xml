@@ -11,7 +11,7 @@
 
   <groupId>io.jenkins.plugins</groupId>
   <artifactId>bitwarden-credentials-provider</artifactId>
-  <version>${changelist}</version>
+  <version>${revision}${changelist}</version>
   <packaging>hpi</packaging>
 
   <name>Bitwarden Credentials Provider</name>
@@ -40,7 +40,8 @@
   </scm>
 
   <properties>
-    <changelist>999999-SNAPSHOT</changelist>
+    <revision>1.0</revision>
+    <changelist>-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
     <jenkins.baseline>2.504</jenkins.baseline>
     <jenkins.minorVersion>3</jenkins.minorVersion>
