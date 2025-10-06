@@ -61,7 +61,7 @@ public class BitwardenConfig extends GlobalConfiguration {
     private int cacheDuration = 5; // Default to 5 minutes
     /** A comma-separated list of suffixes to identify FileCredentials. */
     // This field stores non-secret configuration strings, not secrets.
-    // codeql[jenkins/plaintext-storage]
+    // lgtm[jenkins/plaintext-storage]
     private String fileCredentialSuffixes = ".env";
 
     /**
