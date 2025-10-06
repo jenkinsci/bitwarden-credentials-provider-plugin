@@ -15,13 +15,13 @@
   <packaging>hpi</packaging>
 
   <name>Bitwarden Credentials Provider</name>
-  <description>A Jenkins plugin to fetch secrets from a Bitwarden or Vaultwarden vault and use them as native credentials.</description>
-  <url>https://github.com/jenkinsci/bitwarden-credentials-provider-plugin</url>
+  <description>A Jenkins credentials provider for Bitwarden that exposes vault items as native Jenkins credentials.</description>
+  <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
   <licenses>
     <license>
-      <name>MIT License</name>
-      <url>https://opensource.org/licenses/MIT</url>
+      <name>Apache License 2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
     </license>
   </licenses>
 
@@ -45,11 +45,10 @@
     <jenkins.baseline>2.504</jenkins.baseline>
     <jenkins.minorVersion>3</jenkins.minorVersion>
     <jenkins.version>${jenkins.baseline}.${jenkins.minorVersion}</jenkins.version>
+    <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
 
     <spotless.check.skip>false</spotless.check.skip>
     <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
-
-    <gitHubRepo>jenkinsci/bitwarden-credentials-provider-plugin</gitHubRepo>
   </properties>
 
   <dependencyManagement>
