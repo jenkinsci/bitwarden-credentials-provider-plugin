@@ -2,17 +2,6 @@
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
   <modelVersion>4.0.0</modelVersion>
 
-  <properties>
-    <changelist>999999-SNAPSHOT</changelist>
-    <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-    <jenkins.baseline>2.504</jenkins.baseline>
-    <jenkins.minorVersion>3</jenkins.minorVersion>
-    <jenkins.version>${jenkins.baseline}.${jenkins.minorVersion}</jenkins.version>
-
-    <spotless.check.skip>false</spotless.check.skip>
-    <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
-  </properties>
-
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
@@ -49,6 +38,17 @@
     <tag>${scmTag}</tag>
     <url>https://github.com/mwdle/bitwarden-credentials-provider-plugin</url>
   </scm>
+
+  <properties>
+    <changelist>999999-SNAPSHOT</changelist>
+    <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
+    <jenkins.baseline>2.504</jenkins.baseline>
+    <jenkins.minorVersion>3</jenkins.minorVersion>
+    <jenkins.version>${jenkins.baseline}.${jenkins.minorVersion}</jenkins.version>
+
+    <spotless.check.skip>false</spotless.check.skip>
+    <ban-junit4-imports.skip>false</ban-junit4-imports.skip>
+  </properties>
 
   <dependencyManagement>
     <dependencies>
