@@ -99,9 +99,8 @@ public class BitwardenCacheManager {
     /**
      * Provides a safe, non-blocking way to get the current list of credential metadata.
      * <p>
-     * This is the primary method for UI components. It returns the current cached data
-     * immediately (or an empty list if not yet populated) and triggers a background refresh
-     * if the data is stale or missing.
+     * This method returns the current cached data immediately (or an empty list if not yet populated)
+     * and triggers a background refresh if the data is stale or missing.
      *
      * @return The current list of {@link BitwardenItemMetadata}, which may be empty.
      */
