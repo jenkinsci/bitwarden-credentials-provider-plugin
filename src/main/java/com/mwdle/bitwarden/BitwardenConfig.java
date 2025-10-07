@@ -240,7 +240,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     @POST
     public ListBoxModel doFillApiCredentialIdItems(
             @AncestorInPath Jenkins context, @QueryParameter String apiCredentialId) {
-        context.checkPermission(Jenkins.ADMINISTER);
+        if (!context.hasPermission(Jenkins.MANAGE))
+            return new StandardListBoxModel().includeCurrentValue(apiCredentialId);
         return new StandardListBoxModel()
                 .includeEmptyValue()
                 .includeMatchingAs(
@@ -264,7 +265,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     @POST
     public ListBoxModel doFillMasterPasswordCredentialIdItems(
             @AncestorInPath Jenkins context, @QueryParameter String masterPasswordCredentialId) {
-        context.checkPermission(Jenkins.ADMINISTER);
+        if (!context.hasPermission(Jenkins.MANAGE))
+            return new StandardListBoxModel().includeCurrentValue(masterPasswordCredentialId);
         return new StandardListBoxModel()
                 .includeEmptyValue()
                 .includeMatchingAs(
@@ -287,7 +289,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doRefreshCache() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         try {
             LOGGER.info("Manual cache refresh triggered by administrator.");
             BitwardenSessionManager.getInstance().invalidateSessionToken();
@@ -308,7 +310,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doCheckCliVersion() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         try {
             String currentVersion = BitwardenCLI.version();
             return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
@@ -327,7 +329,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doForceUpdateCli() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         try {
             LOGGER.info("Manual Bitwarden CLI update triggered by administrator.");
             BitwardenCLIManager.getInstance().downloadLatestExecutable();
