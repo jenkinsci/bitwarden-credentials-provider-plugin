@@ -5,12 +5,17 @@ import static org.mockito.Mockito.*;
 
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.ExtensionList;
+import hudson.ProxyConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
-import java.net.URL;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
@@ -35,6 +40,7 @@ class BitwardenCLIManagerTest {
 
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
+    private MockedStatic<ProxyConfiguration> mockedProxy;
     private BitwardenCLIManager manager;
     private String originalOsName;
 
@@ -54,12 +60,15 @@ class BitwardenCLIManagerTest {
 
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
         mockedPluginDir.when(PluginDirectoryProvider::getPluginDataDirectory).thenReturn(tempDir.toFile());
+
+        mockedProxy = mockStatic(ProxyConfiguration.class);
     }
 
     @AfterEach
     void tearDown() {
         mockedJenkins.close();
         mockedPluginDir.close();
+        mockedProxy.close();
         System.setProperty("os.name", originalOsName);
     }
 
@@ -70,7 +79,7 @@ class BitwardenCLIManagerTest {
         @DisplayName("should return cached path if executable exists")
         void shouldReturnCachedPathIfExecutableExists() throws Exception {
             File executable = new File(tempDir.toFile(), "bw");
-            executable.createNewFile();
+            assertTrue(executable.createNewFile(), "Test setup failed: could not create fake executable.");
 
             Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
             pathField.setAccessible(true);
@@ -117,7 +126,7 @@ class BitwardenCLIManagerTest {
         void shouldSucceedIfExecutableExists() {
             System.setProperty("os.name", "Linux");
             File binDir = new File(tempDir.toFile(), "bin");
-            binDir.mkdirs();
+            assertTrue(binDir.mkdirs(), "Test setup failed: could not create bin directory.");
             File executable = new File(binDir, "bw");
             assertTrue(executable.isFile() || assertDoesNotThrow(executable::createNewFile));
 
@@ -141,6 +150,7 @@ class BitwardenCLIManagerTest {
     class DownloadAndExtract {
         @Test
         @DisplayName("should extract correct file from zip and set executable")
+        @SuppressWarnings("unchecked")
         void shouldExtractCorrectFileFromZip() throws Exception {
             System.setProperty("os.name", "Linux");
             String executableName = "bw";
@@ -150,12 +160,24 @@ class BitwardenCLIManagerTest {
             byte[] zipBytes = createTestZipWithContent(
                     new ZipContent("some-other-file.txt", "hello".getBytes()),
                     new ZipContent(executableName, executableContent));
-            URL fakeUrl = createFakeUrlWithContent(zipBytes);
+            URI fakeUri = new URI("https://fake.bitwarden.com/download.zip");
+
+            HttpClient mockClient = mock(HttpClient.class);
+            @SuppressWarnings("unchecked")
+            HttpResponse<InputStream> mockResponse = mock(HttpResponse.class);
+
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+
+            when(mockResponse.statusCode()).thenReturn(200);
+            when(mockResponse.body()).thenReturn(new java.io.ByteArrayInputStream(zipBytes));
+
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenReturn(mockResponse);
 
             java.lang.reflect.Method method =
-                    BitwardenCLIManager.class.getDeclaredMethod("downloadAndExtract", URL.class, File.class);
+                    BitwardenCLIManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
             method.setAccessible(true);
-            method.invoke(manager, fakeUrl, targetFile);
+            method.invoke(manager, fakeUri, targetFile);
 
             assertTrue(targetFile.exists(), "Target file should have been created");
             assertTrue(targetFile.canExecute(), "Target file should be executable");
@@ -164,17 +186,28 @@ class BitwardenCLIManagerTest {
 
         @Test
         @DisplayName("should throw IOException if executable not found in zip")
+        @SuppressWarnings("unchecked")
         void shouldThrowIfExecutableNotFound() throws Exception {
             System.setProperty("os.name", "Linux");
             byte[] zipBytes = createTestZipWithContent(new ZipContent("some-other-file.txt", "hello".getBytes()));
-            URL fakeUrl = createFakeUrlWithContent(zipBytes);
+            URI fakeUri = new URI("https://fake.bitwarden.com/download.zip");
             File targetFile = tempDir.resolve("bw_extracted").toFile();
+
+            HttpClient mockClient = mock(HttpClient.class);
+            @SuppressWarnings("unchecked")
+            HttpResponse<java.io.InputStream> mockResponse = mock(HttpResponse.class);
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+            when(mockResponse.statusCode()).thenReturn(200);
+            when(mockResponse.body()).thenReturn(new java.io.ByteArrayInputStream(zipBytes));
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenReturn(mockResponse);
+
             java.lang.reflect.Method method =
-                    BitwardenCLIManager.class.getDeclaredMethod("downloadAndExtract", URL.class, File.class);
+                    BitwardenCLIManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
             method.setAccessible(true);
 
             Exception exception =
-                    assertThrows(InvocationTargetException.class, () -> method.invoke(manager, fakeUrl, targetFile));
+                    assertThrows(InvocationTargetException.class, () -> method.invoke(manager, fakeUri, targetFile));
 
             assertInstanceOf(IOException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("Could not find 'bw' or 'bw.exe'"));
@@ -193,12 +226,6 @@ class BitwardenCLIManagerTest {
                 }
             }
             return baos.toByteArray();
-        }
-
-        private URL createFakeUrlWithContent(byte[] content) throws Exception {
-            URL urlMock = mock(URL.class);
-            when(urlMock.openStream()).thenReturn(new java.io.ByteArrayInputStream(content));
-            return urlMock;
         }
     }
 }

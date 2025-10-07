@@ -2,12 +2,15 @@ package com.mwdle.bitwarden.cli;
 
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.Extension;
+import hudson.ProxyConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
@@ -89,18 +92,27 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Downloads a zip archive from a URL, finds the {@code bw} executable within it,
-     * extracts it to the target file, and sets it as executable.
+     * Downloads a zip archive from a URL using Jenkins' proxy settings, finds the {@code bw} executable
+     * within it, extracts it to the target file, and sets it as executable.
      *
      * @param downloadUrl the URL of the zip archive to download.
      * @param targetFile  the destination file for the extracted executable.
      * @throws IOException if the download or extraction fails.
+     * @throws InterruptedException if the download is interrupted.
      */
-    private void downloadAndExtract(URL downloadUrl, File targetFile) throws IOException {
+    private void downloadAndExtract(URI downloadUrl, File targetFile) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Downloading Bitwarden CLI from URL: " + downloadUrl);
         File bwCliZip = File.createTempFile("bw-cli", ".zip");
         try {
-            try (InputStream in = downloadUrl.openStream()) {
+            HttpClient client = ProxyConfiguration.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder(downloadUrl).build();
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() != 200) {
+                throw new IOException("Failed to download file. Status code: " + response.statusCode());
+            }
+
+            try (InputStream in = response.body()) {
                 Files.copy(in, bwCliZip.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 LOGGER.fine("Downloaded zip to: " + bwCliZip.getAbsolutePath());
             }
@@ -153,12 +165,15 @@ public final class BitwardenCLIManager {
                 File pluginBinDir = getPluginBinDirectory();
                 File executableFile = new File(pluginBinDir, executableName);
 
-                downloadAndExtract(new URI(downloadUrl).toURL(), executableFile);
+                downloadAndExtract(new URI(downloadUrl), executableFile);
                 this.executablePath = executableFile.getAbsolutePath();
                 LOGGER.info("Successfully provisioned Bitwarden CLI at: " + this.executablePath);
                 return true;
-            } catch (IOException | URISyntaxException e) {
+            } catch (IOException | URISyntaxException | InterruptedException e) {
                 LOGGER.log(Level.SEVERE, "Failed to provision the Bitwarden executable.", e);
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 return false;
             }
         }
