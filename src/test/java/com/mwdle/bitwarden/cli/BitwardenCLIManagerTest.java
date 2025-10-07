@@ -128,7 +128,7 @@ class BitwardenCLIManagerTest {
             File binDir = new File(tempDir.toFile(), "bin");
             assertTrue(binDir.mkdirs(), "Test setup failed: could not create bin directory.");
             File executable = new File(binDir, "bw");
-            assertTrue(executable.isFile() || assertDoesNotThrow(executable::createNewFile));
+            assertTrue(assertDoesNotThrow(executable::createNewFile), "Test setup failed: could not create fake executable.");
 
             assertTrue(manager.provisionExecutable());
             verify(manager, never()).downloadLatestExecutable();
