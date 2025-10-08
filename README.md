@@ -97,6 +97,15 @@ unclassified:
 
 After saving the configuration, the plugin will attempt to log in and perform an initial sync. You can verify success by checking the Jenkins system log or by navigating to the main Credentials page after a few moments to see your Bitwarden items.
 
+### Troubleshooting and Diagnostics
+
+The plugin includes several actions in the **Manage Jenkins > Configure System > Bitwarden Credentials Provider > Advanced** section to help you diagnose and quickly configure the plugin without needing to check the system log.
+
+- **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
+- **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
+- **Verify Session Status:** Performs a fast, read-only check to see if the plugin currently has an active, unlocked session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
+- **Refresh Now:** Forces the plugin to invalidate its current session and credential list and start a new sync in the background. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
+
 ## Read-Only Credential Store
 
 > [!IMPORTANT]

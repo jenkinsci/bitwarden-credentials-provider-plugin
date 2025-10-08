@@ -357,4 +357,27 @@ public class BitwardenConfig extends GlobalConfiguration {
             return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
         }
     }
+
+    /**
+     * An action method for the "Verify Session" button in the UI.
+     * <p>
+     * This method is called by Stapler.
+     * It performs a fast, read-only check to see if the {@link com.mwdle.bitwarden.cli.BitwardenSessionManager}
+     * currently holds a valid, unlocked session token.
+     *
+     * @return A {@link FormValidation} object indicating if the current session is active or not.
+     */
+    @POST
+    public FormValidation doVerifySession() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        if (!isConfigured()) {
+            return FormValidation.warning(Messages.validation_sessionNotConfigured());
+        }
+        boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
+        if (isValid) {
+            return FormValidation.ok(Messages.validation_sessionOk());
+        } else {
+            return FormValidation.warning(Messages.validation_sessionNotFound());
+        }
+    }
 }

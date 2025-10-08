@@ -58,14 +58,14 @@ public class BitwardenSessionManager {
      * @throws InterruptedException If the CLI command is interrupted.
      */
     public Secret getSessionToken() throws IOException, InterruptedException {
-        if (isTokenValid()) {
+        if (isSessionValid()) {
             LOGGER.fine("Cached Bitwarden session token is valid. Returning cached token.");
             return sessionToken;
         }
         LOGGER.fine("Token invalid or missing. Attempting to acquire lock to refresh token.");
         synchronized (lock) {
             // Double-check if another thread renewed the token while we were waiting for the lock.
-            if (isTokenValid()) {
+            if (isSessionValid()) {
                 LOGGER.fine("Another thread refreshed the token while waiting for lock. Returning refreshed token.");
                 return sessionToken;
             }
@@ -109,7 +109,7 @@ public class BitwardenSessionManager {
      *
      * @return {@code true} if the token is present and the vault status is {@code unlocked}.
      */
-    private boolean isTokenValid() {
+    public boolean isSessionValid() {
         if (this.sessionToken == null) {
             LOGGER.fine("Session token is null — not valid.");
             return false;

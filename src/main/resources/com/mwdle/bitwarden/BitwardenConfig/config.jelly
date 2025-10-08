@@ -20,28 +20,31 @@
             <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
                 <f:textbox />
             </f:entry>
+            <f:entry title="${%field.verifySession}" field="verifySession">
+                <f:helpArea />
+                <f:validateButton
+                        title="${%button.verifySession}"
+                        progress="${%button.checking}"
+                        method="verifySession" />
+            </f:entry>
             <f:entry title="${%field.cliManagement}" field="cliManagement">
-                <f:block>
-                    <f:helpArea />
-                    <f:validateButton
-                            title="${%button.checkVersion}"
-                            progress="${%button.checking}"
-                            method="checkCliVersion" />
-                    <f:validateButton
-                            title="${%button.downloadLatest}"
-                            progress="${%button.downloading}"
-                            method="forceUpdateCli" />
-                </f:block>
+                <f:helpArea />
+                <f:validateButton
+                        title="${%button.checkVersion}"
+                        progress="${%button.checking}"
+                        method="checkCliVersion" />
+                <f:validateButton
+                        title="${%button.downloadLatest}"
+                        progress="${%button.downloading}"
+                        method="forceUpdateCli" />
             </f:entry>
             <f:entry title="${%field.refreshCache}" field="refreshCache">
-                <f:block>
-                    <f:helpArea />
-                    <f:validateButton
-                            title="${%button.refreshNow}"
-                            progress="${%button.refreshing}"
-                            method="refreshCache"
-                            with="serverUrl,apiCredentialId,masterPasswordCredentialId" />
-                </f:block>
+                <f:helpArea />
+                <f:validateButton
+                        title="${%button.refreshNow}"
+                        progress="${%button.refreshing}"
+                        method="refreshCache"
+                        with="serverUrl,apiCredentialId,masterPasswordCredentialId" />
             </f:entry>
         </f:advanced>
     </f:section>
