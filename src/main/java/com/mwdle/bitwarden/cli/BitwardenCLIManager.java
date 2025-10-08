@@ -1,13 +1,16 @@
 package com.mwdle.bitwarden.cli;
 
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
-import hudson.Extension;
+import hudson.ProxyConfiguration;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.net.URL;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.StandardCopyOption;
 import java.util.Enumeration;
@@ -15,8 +18,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.verb.POST;
 
 /**
  * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
@@ -25,20 +26,25 @@ import org.kohsuke.stapler.verb.POST;
  * extraction of the executable, and provides a reliable, cached path for other components to use.
  * It ensures the CLI is always available when needed, attempting to download it if it's missing.
  */
-@Extension
 public final class BitwardenCLIManager {
 
+    private static final BitwardenCLIManager INSTANCE = new BitwardenCLIManager();
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLIManager.class.getName());
     private volatile String executablePath;
     private final transient Object provisionLock = new Object();
 
     /**
-     * Provides global access to the single instance of this manager, as managed by Jenkins.
+     * A private constructor to prevent instantiation of this utility class.
+     */
+    private BitwardenCLIManager() {}
+
+    /**
+     * Provides global access to the single instance of this manager.
      *
      * @return The singleton instance of {@link BitwardenCLIManager}.
      */
     public static BitwardenCLIManager getInstance() {
-        return Jenkins.get().getExtensionList(BitwardenCLIManager.class).get(0);
+        return INSTANCE;
     }
 
     /**
@@ -65,11 +71,27 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Determines the correct download URL for the Bitwarden CLI based on the detected OS.
+     * Detects the current system architecture based on the {@code os.arch} system property and
+     * throws an exception there is no compatible Bitwarden executable available for download from the Bitwarden website.
+     *
+     * @throws UnsupportedOperationException if the architecture is not supported for automatic download.
+     */
+    private void checkSupportedArchitecture() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        if (!"amd64".equals(arch) && !"x86_64".equals(arch)) {
+            throw new UnsupportedOperationException(
+                    "Automatic download of Bitwarden CLI is not supported on this CPU architecture: " + arch
+                            + ". Please install the CLI manually and provide the path in the plugin configuration.");
+        }
+    }
+
+    /**
+     * Determines the correct download URL for the Bitwarden CLI based on the detected OS and architecture.
      *
      * @return A string containing the direct download URL.
      */
     private String getDownloadUrl() {
+        checkSupportedArchitecture();
         OS os = OS.detect();
         return switch (os) {
             case WINDOWS -> "https://bitwarden.com/download/?app=cli&platform=windows";
@@ -89,18 +111,27 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Downloads a zip archive from a URL, finds the {@code bw} executable within it,
-     * extracts it to the target file, and sets it as executable.
+     * Downloads a zip archive from a URL using Jenkins' proxy settings, finds the {@code bw} executable
+     * within it, extracts it to the target file, and sets it as executable.
      *
      * @param downloadUrl the URL of the zip archive to download.
      * @param targetFile  the destination file for the extracted executable.
      * @throws IOException if the download or extraction fails.
+     * @throws InterruptedException if the download is interrupted.
      */
-    private void downloadAndExtract(URL downloadUrl, File targetFile) throws IOException {
+    private void downloadAndExtract(URI downloadUrl, File targetFile) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Downloading Bitwarden CLI from URL: " + downloadUrl);
         File bwCliZip = File.createTempFile("bw-cli", ".zip");
         try {
-            try (InputStream in = downloadUrl.openStream()) {
+            HttpClient client = ProxyConfiguration.newHttpClient();
+            HttpRequest request = HttpRequest.newBuilder(downloadUrl).build();
+            HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
+
+            if (response.statusCode() != 200) {
+                throw new IOException("Failed to download file. Status code: " + response.statusCode());
+            }
+
+            try (InputStream in = response.body()) {
                 Files.copy(in, bwCliZip.toPath(), StandardCopyOption.REPLACE_EXISTING);
                 LOGGER.fine("Downloaded zip to: " + bwCliZip.getAbsolutePath());
             }
@@ -142,9 +173,7 @@ public final class BitwardenCLIManager {
      *
      * @return {@code true} on success, {@code false} on failure.
      */
-    @POST
     public boolean downloadLatestExecutable() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
             try {
@@ -153,12 +182,15 @@ public final class BitwardenCLIManager {
                 File pluginBinDir = getPluginBinDirectory();
                 File executableFile = new File(pluginBinDir, executableName);
 
-                downloadAndExtract(new URI(downloadUrl).toURL(), executableFile);
+                downloadAndExtract(new URI(downloadUrl), executableFile);
                 this.executablePath = executableFile.getAbsolutePath();
                 LOGGER.info("Successfully provisioned Bitwarden CLI at: " + this.executablePath);
                 return true;
-            } catch (IOException | URISyntaxException e) {
+            } catch (IOException | URISyntaxException | InterruptedException | UnsupportedOperationException e) {
                 LOGGER.log(Level.SEVERE, "Failed to provision the Bitwarden executable.", e);
+                if (e instanceof InterruptedException) {
+                    Thread.currentThread().interrupt();
+                }
                 return false;
             }
         }
@@ -196,13 +228,26 @@ public final class BitwardenCLIManager {
      * @throws IllegalStateException if the executable is not found and cannot be downloaded.
      */
     public String getExecutablePath() {
+        String userPath = BitwardenConfig.getInstance().getCliExecutablePath();
+        if (userPath != null && !userPath.trim().isEmpty()) {
+            File userCli = new File(userPath.trim());
+            if (userCli.exists() && userCli.canExecute()) {
+                LOGGER.fine(() -> "Using user-configured Bitwarden CLI path: " + userPath);
+                return userCli.getAbsolutePath();
+            } else {
+                LOGGER.warning("User-configured Bitwarden CLI path is invalid (does not exist or is not executable). "
+                        + "Falling back to automatic provisioning. Path: " + userPath);
+            }
+        }
         if (executablePath != null && new File(executablePath).exists()) {
             return executablePath;
         }
         if (provisionExecutable()) {
             return executablePath;
         } else {
-            throw new IllegalStateException("Bitwarden CLI is not installed and could not be downloaded.");
+            throw new IllegalStateException(
+                    "Bitwarden CLI is not installed and could not be downloaded automatically. "
+                            + "If on an unsupported architecture, please install it manually and set the path in the Jenkins configuration.");
         }
     }
 
@@ -213,18 +258,15 @@ public final class BitwardenCLIManager {
      * @throws RuntimeException if the directory cannot be created.
      */
     private File getPluginBinDirectory() {
-        LOGGER.fine("Getting plugin bin directory.");
         File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
         File binDir = new File(pluginDir, "bin");
-        if (!binDir.exists()) {
-            if (!binDir.mkdirs()) {
-                throw new RuntimeException("Could not create plugin bin directory: " + binDir.getAbsolutePath()
-                        + "\nDoes Jenkins have proper file permissions?");
-            } else {
-                LOGGER.fine("Created plugin bin directory: " + binDir.getAbsolutePath());
-            }
-        } else {
-            LOGGER.fine("Plugin bin directory already exists: " + binDir.getAbsolutePath());
+        try {
+            Files.createDirectories(binDir.toPath());
+            LOGGER.fine("Plugin bin directory is ready: " + binDir.getAbsolutePath());
+        } catch (IOException e) {
+            String errorMessage = "Could not create plugin bin directory: " + binDir.getAbsolutePath()
+                    + "\nDoes Jenkins have proper file permissions?";
+            throw new RuntimeException(errorMessage, e);
         }
         return binDir;
     }

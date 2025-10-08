@@ -1,6 +1,9 @@
 package com.mwdle.bitwarden;
 
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 
@@ -44,14 +47,14 @@ public final class PluginDirectoryProvider {
                 return pluginDirectory;
             }
             File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
-            if (!dir.exists()) {
-                if (!dir.mkdirs()) {
-                    String errorMessage = "Could not create plugin directory: " + dir.getAbsolutePath()
-                            + "\nDoes Jenkins have proper file permissions?";
-                    throw new RuntimeException(errorMessage);
-                } else {
-                    LOGGER.fine("Created plugin data directory: " + dir.getAbsolutePath());
-                }
+            try {
+                Files.createDirectories(dir.toPath());
+                LOGGER.fine("Plugin data directory is ready: " + dir.getAbsolutePath());
+            } catch (IOException e) {
+                String errorMessage = "Could not create plugin directory: " + dir.getAbsolutePath()
+                        + "\nDoes Jenkins have proper file permissions?";
+                LOGGER.log(Level.SEVERE, errorMessage, e);
+                throw new RuntimeException(errorMessage, e);
             }
             pluginDirectory = dir;
             return dir;

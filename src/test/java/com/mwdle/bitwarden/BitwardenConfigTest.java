@@ -316,4 +316,55 @@ class BitwardenConfigTest {
             assertTrue(result.getMessage().contains("Download failed"));
         }
     }
+
+    @Nested
+    @DisplayName("doVerifySession()")
+    class VerifySession {
+
+        @Test
+        @DisplayName("should return WARNING when not configured")
+        void shouldReturnWarningWhenNotConfigured() {
+            // GIVEN: The plugin is not configured
+            doReturn(false).when(config).isConfigured();
+
+            // WHEN
+            FormValidation result = config.doVerifySession();
+
+            // THEN
+            assertEquals(FormValidation.Kind.WARNING, result.kind);
+            assertTrue(result.getMessage().contains("Plugin is not configured"));
+            // Ensure no session check was even attempted
+            verify(sessionManagerMock, never()).isSessionValid();
+        }
+
+        @Test
+        @DisplayName("should return OK when session is valid")
+        void shouldReturnOkWhenSessionIsValid() {
+            // GIVEN: The plugin is configured and the session is valid
+            doReturn(true).when(config).isConfigured();
+            when(sessionManagerMock.isSessionValid()).thenReturn(true);
+
+            // WHEN
+            FormValidation result = config.doVerifySession();
+
+            // THEN
+            assertEquals(FormValidation.Kind.OK, result.kind);
+            assertTrue(result.getMessage().contains("Success! A valid session is active"));
+        }
+
+        @Test
+        @DisplayName("should return WARNING when session is not valid")
+        void shouldReturnWarningWhenSessionIsNotValid() {
+            // GIVEN: The plugin is configured but the session is not valid
+            doReturn(true).when(config).isConfigured();
+            when(sessionManagerMock.isSessionValid()).thenReturn(false);
+
+            // WHEN
+            FormValidation result = config.doVerifySession();
+
+            // THEN
+            assertEquals(FormValidation.Kind.WARNING, result.kind);
+            assertTrue(result.getMessage().contains("No active session found"));
+        }
+    }
 }

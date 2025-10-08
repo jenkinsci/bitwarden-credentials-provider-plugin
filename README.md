@@ -3,7 +3,8 @@
 > [!NOTE]
 > This is a third-party plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
 
-[![GitHub release](https://img.shields.io/github/release/mwdle/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/mwdle/bitwarden-credentials-provider-plugin/releases/latest)
+[![GitHub release](https://img.shields.io/github/release/jenkinsci/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/releases/latest)
+[![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/bitwarden-credentials-provider.svg?color=blue)](https://plugins.jenkins.io/bitwarden-credentials-provider)
 
 The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes items from a **Bitwarden Password Manager** vault (including self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) as native Jenkins credentials. It allows pipeline authors to access any secret on the fly, without requiring an administrator to manually create or sync credentials in the Jenkins UI.
 
@@ -22,11 +23,12 @@ This plugin integrates with personal vaults and organizations within the Passwor
 
 This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interactions with your vault. Its architecture is designed for performance, security, and resilience.
 
-1.  **Isolated Environment:** The plugin manages its own copy of the `bw` executable and maintains its own isolated data directory. This ensures it never interferes with a system-level Bitwarden CLI installation.
+1.  **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64` systems. Other architectures require manual installation and providing the path to the executable (see Getting Started).
 2.  **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) in Jenkins.
-3.  **Persistence and Offline Access:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly, even if the Bitwarden server is unreachable or the controller is offline.
+3.  **Persistence:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly.
 4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 5.  **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
+6.  **Offline Access:** The Bitwarden CLI's local vault ensures that the plugin will continue functioning even if the Bitwarden server is unreachable or the controller is offline.
 
 > [!WARNING]
 > **Performance Consideration**
@@ -43,6 +45,7 @@ You must first configure the plugin's global settings in **Manage Jenkins > Conf
 -   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden service account's Client ID and Client Secret.
 -   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your service account's Master Password.
 -   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
+-   **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
 
 > [!IMPORTANT]
 > **Service Account Recommended**
@@ -83,6 +86,9 @@ unclassified:
     apiCredentialId: "bitwarden-api-key"
     # The Jenkins credential ID for your Bitwarden Master Password.
     masterPasswordCredentialId: "bitwarden-master-password"
+    # (Optional) The absolute path to a manually installed `bw` executable.
+    # Required for non-x86_64 architectures like ARM/aarch64.
+    cliExecutablePath: "/usr/local/bin/bw"
     # How often the plugin automatically syncs with the Bitwarden server (in minutes).
     cacheDuration: 10
     # Comma-separated list of suffixes for Secure Notes names to be treated as File Credentials.
@@ -90,6 +96,15 @@ unclassified:
 ```
 
 After saving the configuration, the plugin will attempt to log in and perform an initial sync. You can verify success by checking the Jenkins system log or by navigating to the main Credentials page after a few moments to see your Bitwarden items.
+
+### Troubleshooting and Diagnostics
+
+The plugin includes several actions in the **Manage Jenkins > Configure System > Bitwarden Credentials Provider > Advanced** section to help you diagnose and quickly configure the plugin without needing to check the system log.
+
+- **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
+- **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
+- **Verify Session Status:** Performs a fast, read-only check to see if the plugin currently has an active, unlocked session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
+- **Refresh Now:** Forces the plugin to invalidate its current session and credential list and start a new sync in the background. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
 
 ## Read-Only Credential Store
 
@@ -145,12 +160,12 @@ To avoid fetching secrets by their Bitwarden UUID, the solution is simple: *Alwa
 
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
 
-| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                   |
-|---------------------|---------------------------------------|-------------------------------------------------------------------------|
-| Login               | `StandardUsernamePasswordCredentials` |                                                                         |
-| Secure Note         | `StringCredentials`                   | The default for any secure note.                                        |
-| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`).   |
-| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.             |
+| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                         |
+|---------------------|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.           |
+| Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                      |
+| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here. |
+| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.                                                                   |
 
 ## License
 
@@ -162,7 +177,7 @@ This plugin is maintained by a single developer. While every effort is made to t
 
 **Found a Bug?**
 
-If you encounter any issues, please help improve the plugin by opening an issue on the [GitHub Issues](https://github.com/mwdle/bitwarden-credentials-provider-plugin/issues) page.
+If you encounter any issues, please help improve the plugin by opening an issue on the [GitHub Issues](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues) page.
 
 **Want to Add a Feature or Fix?**
 

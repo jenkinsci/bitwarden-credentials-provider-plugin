@@ -57,6 +57,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     private String apiCredentialId;
     /** The Jenkins credential ID for the Bitwarden Master Password. */
     private String masterPasswordCredentialId;
+    /** The absolute path to a manually installed Bitwarden CLI executable. */
+    private String cliExecutablePath;
     /** The cache duration in minutes for the list of item metadata. */
     private int cacheDuration = 5; // Default to 5 minutes
     /** A comma-separated list of suffixes to identify FileCredentials. */
@@ -107,6 +109,10 @@ public class BitwardenConfig extends GlobalConfiguration {
         return masterPasswordCredentialId;
     }
 
+    public String getCliExecutablePath() {
+        return cliExecutablePath;
+    }
+
     public int getCacheDuration() {
         return cacheDuration;
     }
@@ -131,6 +137,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
+    public void setCliExecutablePath(String cliExecutablePath) {
+        this.cliExecutablePath = cliExecutablePath;
+    }
+
+    @DataBoundSetter
     public void setCacheDuration(int cacheDuration) {
         this.cacheDuration = (cacheDuration > 0) ? cacheDuration : 5;
     }
@@ -150,6 +161,7 @@ public class BitwardenConfig extends GlobalConfiguration {
         snapshot.serverUrl = this.serverUrl;
         snapshot.apiCredentialId = this.apiCredentialId;
         snapshot.masterPasswordCredentialId = this.masterPasswordCredentialId;
+        snapshot.cliExecutablePath = this.cliExecutablePath;
         return snapshot;
     }
 
@@ -196,7 +208,8 @@ public class BitwardenConfig extends GlobalConfiguration {
         boolean configChanged = loadedConfig == null
                 || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
                 || !Objects.equals(this.apiCredentialId, loadedConfig.apiCredentialId)
-                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId);
+                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId)
+                || !Objects.equals(this.cliExecutablePath, loadedConfig.cliExecutablePath);
 
         if (isConfigured() && configChanged) {
             LOGGER.info("Bitwarden configuration has changed, triggering background re-authentication and sync.");
@@ -240,7 +253,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     @POST
     public ListBoxModel doFillApiCredentialIdItems(
             @AncestorInPath Jenkins context, @QueryParameter String apiCredentialId) {
-        context.checkPermission(Jenkins.ADMINISTER);
+        if (!context.hasPermission(Jenkins.MANAGE))
+            return new StandardListBoxModel().includeCurrentValue(apiCredentialId);
         return new StandardListBoxModel()
                 .includeEmptyValue()
                 .includeMatchingAs(
@@ -264,7 +278,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     @POST
     public ListBoxModel doFillMasterPasswordCredentialIdItems(
             @AncestorInPath Jenkins context, @QueryParameter String masterPasswordCredentialId) {
-        context.checkPermission(Jenkins.ADMINISTER);
+        if (!context.hasPermission(Jenkins.MANAGE))
+            return new StandardListBoxModel().includeCurrentValue(masterPasswordCredentialId);
         return new StandardListBoxModel()
                 .includeEmptyValue()
                 .includeMatchingAs(
@@ -287,7 +302,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doRefreshCache() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         try {
             LOGGER.info("Manual cache refresh triggered by administrator.");
             BitwardenSessionManager.getInstance().invalidateSessionToken();
@@ -308,7 +323,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doCheckCliVersion() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
         try {
             String currentVersion = BitwardenCLI.version();
             return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
@@ -327,7 +342,11 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     @POST
     public FormValidation doForceUpdateCli() {
-        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        String userPath = getCliExecutablePath();
+        if (userPath != null && !userPath.trim().isEmpty()) {
+            return FormValidation.warning(Messages.validation_cliUpdateManual());
+        }
         try {
             LOGGER.info("Manual Bitwarden CLI update triggered by administrator.");
             BitwardenCLIManager.getInstance().downloadLatestExecutable();
@@ -336,6 +355,29 @@ public class BitwardenConfig extends GlobalConfiguration {
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
             return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
+        }
+    }
+
+    /**
+     * An action method for the "Verify Session" button in the UI.
+     * <p>
+     * This method is called by Stapler.
+     * It performs a fast, read-only check to see if the {@link com.mwdle.bitwarden.cli.BitwardenSessionManager}
+     * currently holds a valid, unlocked session token.
+     *
+     * @return A {@link FormValidation} object indicating if the current session is active or not.
+     */
+    @POST
+    public FormValidation doVerifySession() {
+        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        if (!isConfigured()) {
+            return FormValidation.warning(Messages.validation_sessionNotConfigured());
+        }
+        boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
+        if (isValid) {
+            return FormValidation.ok(Messages.validation_sessionOk());
+        } else {
+            return FormValidation.warning(Messages.validation_sessionNotFound());
         }
     }
 }

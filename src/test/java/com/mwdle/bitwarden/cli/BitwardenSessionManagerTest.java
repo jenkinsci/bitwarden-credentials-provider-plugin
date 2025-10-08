@@ -12,6 +12,7 @@ import hudson.ExtensionList;
 import hudson.model.ItemGroup;
 import hudson.util.Secret;
 import java.io.IOException;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.util.Collections;
 import java.util.List;
@@ -64,7 +65,9 @@ class BitwardenSessionManagerTest {
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
 
-        manager = new BitwardenSessionManager();
+        Constructor<BitwardenSessionManager> constructor = BitwardenSessionManager.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        manager = constructor.newInstance();
 
         sessionTokenField = BitwardenSessionManager.class.getDeclaredField("sessionToken");
         sessionTokenField.setAccessible(true);
