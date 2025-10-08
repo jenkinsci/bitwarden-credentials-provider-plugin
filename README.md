@@ -23,7 +23,7 @@ This plugin integrates with personal vaults and organizations within the Passwor
 
 This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interactions with your vault. Its architecture is designed for performance, security, and resilience.
 
-1.  **Isolated Environment:** The plugin manages its own copy of the `bw` executable and maintains its own isolated data directory. This ensures it never interferes with a system-level Bitwarden CLI installation.
+1.  **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64` systems. Other architectures require manual installation and providing the path to the executable (see Getting Started).
 2.  **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) in Jenkins.
 3.  **Persistence:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly.
 4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
@@ -45,6 +45,7 @@ You must first configure the plugin's global settings in **Manage Jenkins > Conf
 -   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden service account's Client ID and Client Secret.
 -   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your service account's Master Password.
 -   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
+-   **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
 
 > [!IMPORTANT]
 > **Service Account Recommended**
@@ -85,6 +86,9 @@ unclassified:
     apiCredentialId: "bitwarden-api-key"
     # The Jenkins credential ID for your Bitwarden Master Password.
     masterPasswordCredentialId: "bitwarden-master-password"
+    # (Optional) The absolute path to a manually installed `bw` executable.
+    # Required for non-x86_64 architectures like ARM/aarch64.
+    cliExecutablePath: "/usr/local/bin/bw"
     # How often the plugin automatically syncs with the Bitwarden server (in minutes).
     cacheDuration: 10
     # Comma-separated list of suffixes for Secure Notes names to be treated as File Credentials.

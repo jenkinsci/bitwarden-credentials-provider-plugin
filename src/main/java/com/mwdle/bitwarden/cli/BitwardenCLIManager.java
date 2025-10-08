@@ -1,5 +1,6 @@
 package com.mwdle.bitwarden.cli;
 
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.ProxyConfiguration;
 import java.io.File;
@@ -70,11 +71,27 @@ public final class BitwardenCLIManager {
     }
 
     /**
-     * Determines the correct download URL for the Bitwarden CLI based on the detected OS.
+     * Detects the current system architecture based on the {@code os.arch} system property and
+     * throws an exception there is no compatible Bitwarden executable available for download from the Bitwarden website.
+     *
+     * @throws UnsupportedOperationException if the architecture is not supported for automatic download.
+     */
+    private void checkSupportedArchitecture() {
+        String arch = System.getProperty("os.arch").toLowerCase();
+        if (!"amd64".equals(arch) && !"x86_64".equals(arch)) {
+            throw new UnsupportedOperationException(
+                    "Automatic download of Bitwarden CLI is not supported on this CPU architecture: " + arch
+                            + ". Please install the CLI manually and provide the path in the plugin configuration.");
+        }
+    }
+
+    /**
+     * Determines the correct download URL for the Bitwarden CLI based on the detected OS and architecture.
      *
      * @return A string containing the direct download URL.
      */
     private String getDownloadUrl() {
+        checkSupportedArchitecture();
         OS os = OS.detect();
         return switch (os) {
             case WINDOWS -> "https://bitwarden.com/download/?app=cli&platform=windows";
@@ -169,7 +186,7 @@ public final class BitwardenCLIManager {
                 this.executablePath = executableFile.getAbsolutePath();
                 LOGGER.info("Successfully provisioned Bitwarden CLI at: " + this.executablePath);
                 return true;
-            } catch (IOException | URISyntaxException | InterruptedException e) {
+            } catch (IOException | URISyntaxException | InterruptedException | UnsupportedOperationException e) {
                 LOGGER.log(Level.SEVERE, "Failed to provision the Bitwarden executable.", e);
                 if (e instanceof InterruptedException) {
                     Thread.currentThread().interrupt();
@@ -211,13 +228,26 @@ public final class BitwardenCLIManager {
      * @throws IllegalStateException if the executable is not found and cannot be downloaded.
      */
     public String getExecutablePath() {
+        String userPath = BitwardenConfig.getInstance().getCliExecutablePath();
+        if (userPath != null && !userPath.trim().isEmpty()) {
+            File userCli = new File(userPath.trim());
+            if (userCli.exists() && userCli.canExecute()) {
+                LOGGER.fine(() -> "Using user-configured Bitwarden CLI path: " + userPath);
+                return userCli.getAbsolutePath();
+            } else {
+                LOGGER.warning("User-configured Bitwarden CLI path is invalid (does not exist or is not executable). "
+                        + "Falling back to automatic provisioning. Path: " + userPath);
+            }
+        }
         if (executablePath != null && new File(executablePath).exists()) {
             return executablePath;
         }
         if (provisionExecutable()) {
             return executablePath;
         } else {
-            throw new IllegalStateException("Bitwarden CLI is not installed and could not be downloaded.");
+            throw new IllegalStateException(
+                    "Bitwarden CLI is not installed and could not be downloaded automatically. "
+                            + "If on an unsupported architecture, please install it manually and set the path in the Jenkins configuration.");
         }
     }
 
@@ -228,18 +258,15 @@ public final class BitwardenCLIManager {
      * @throws RuntimeException if the directory cannot be created.
      */
     private File getPluginBinDirectory() {
-        LOGGER.fine("Getting plugin bin directory.");
         File pluginDir = PluginDirectoryProvider.getPluginDataDirectory();
         File binDir = new File(pluginDir, "bin");
-        if (!binDir.exists()) {
-            if (!binDir.mkdirs()) {
-                throw new RuntimeException("Could not create plugin bin directory: " + binDir.getAbsolutePath()
-                        + "\nDoes Jenkins have proper file permissions?");
-            } else {
-                LOGGER.fine("Created plugin bin directory: " + binDir.getAbsolutePath());
-            }
-        } else {
-            LOGGER.fine("Plugin bin directory already exists: " + binDir.getAbsolutePath());
+        try {
+            Files.createDirectories(binDir.toPath());
+            LOGGER.fine("Plugin bin directory is ready: " + binDir.getAbsolutePath());
+        } catch (IOException e) {
+            String errorMessage = "Could not create plugin bin directory: " + binDir.getAbsolutePath()
+                    + "\nDoes Jenkins have proper file permissions?";
+            throw new RuntimeException(errorMessage, e);
         }
         return binDir;
     }

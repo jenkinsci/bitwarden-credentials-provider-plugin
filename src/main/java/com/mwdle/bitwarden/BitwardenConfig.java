@@ -57,6 +57,8 @@ public class BitwardenConfig extends GlobalConfiguration {
     private String apiCredentialId;
     /** The Jenkins credential ID for the Bitwarden Master Password. */
     private String masterPasswordCredentialId;
+    /** The absolute path to a manually installed Bitwarden CLI executable. */
+    private String cliExecutablePath;
     /** The cache duration in minutes for the list of item metadata. */
     private int cacheDuration = 5; // Default to 5 minutes
     /** A comma-separated list of suffixes to identify FileCredentials. */
@@ -107,6 +109,10 @@ public class BitwardenConfig extends GlobalConfiguration {
         return masterPasswordCredentialId;
     }
 
+    public String getCliExecutablePath() {
+        return cliExecutablePath;
+    }
+
     public int getCacheDuration() {
         return cacheDuration;
     }
@@ -131,6 +137,11 @@ public class BitwardenConfig extends GlobalConfiguration {
     }
 
     @DataBoundSetter
+    public void setCliExecutablePath(String cliExecutablePath) {
+        this.cliExecutablePath = cliExecutablePath;
+    }
+
+    @DataBoundSetter
     public void setCacheDuration(int cacheDuration) {
         this.cacheDuration = (cacheDuration > 0) ? cacheDuration : 5;
     }
@@ -150,6 +161,7 @@ public class BitwardenConfig extends GlobalConfiguration {
         snapshot.serverUrl = this.serverUrl;
         snapshot.apiCredentialId = this.apiCredentialId;
         snapshot.masterPasswordCredentialId = this.masterPasswordCredentialId;
+        snapshot.cliExecutablePath = this.cliExecutablePath;
         return snapshot;
     }
 
@@ -196,7 +208,8 @@ public class BitwardenConfig extends GlobalConfiguration {
         boolean configChanged = loadedConfig == null
                 || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
                 || !Objects.equals(this.apiCredentialId, loadedConfig.apiCredentialId)
-                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId);
+                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId)
+                || !Objects.equals(this.cliExecutablePath, loadedConfig.cliExecutablePath);
 
         if (isConfigured() && configChanged) {
             LOGGER.info("Bitwarden configuration has changed, triggering background re-authentication and sync.");
@@ -330,6 +343,10 @@ public class BitwardenConfig extends GlobalConfiguration {
     @POST
     public FormValidation doForceUpdateCli() {
         Jenkins.get().checkPermission(Jenkins.MANAGE);
+        String userPath = getCliExecutablePath();
+        if (userPath != null && !userPath.trim().isEmpty()) {
+            return FormValidation.warning(Messages.validation_cliUpdateManual());
+        }
         try {
             LOGGER.info("Manual Bitwarden CLI update triggered by administrator.");
             BitwardenCLIManager.getInstance().downloadLatestExecutable();

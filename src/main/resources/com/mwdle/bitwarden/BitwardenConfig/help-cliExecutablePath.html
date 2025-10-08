@@ -1,0 +1,19 @@
+<div>
+    <p>
+        Optionally, provide the absolute path to a manually installed Bitwarden CLI (<code>bw</code>) executable.
+    </p>
+    <p>
+        This is useful for Jenkins controllers running on CPU architectures for which the plugin
+        cannot automatically download a compatible executable (e.g., ARM/aarch64).
+        In such cases, you must install the CLI on the Jenkins controller yourself
+        (e.g., via <code>npm</code>) and provide the full path to the <code>bw</code> executable here.
+    </p>
+    <p>
+        If this field is set correctly, the plugin will use this path and skip the automatic download process. The specified file
+        must exist and be executable by the Jenkins user.
+    </p>
+    <p>
+        You can easily test this option by setting the path, pressing the <b>Apply</b> button,
+        and then using the <b>Check Version</b>.
+    </p>
+</div>

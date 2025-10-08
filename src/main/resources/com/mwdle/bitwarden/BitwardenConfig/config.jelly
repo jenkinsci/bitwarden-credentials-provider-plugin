@@ -17,6 +17,9 @@
             <f:textbox default=".env" />
         </f:entry>
         <f:advanced title="${%section.advancedActions}">
+            <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
+                <f:textbox />
+            </f:entry>
             <f:entry title="${%field.cliManagement}" field="cliManagement">
                 <f:block>
                     <f:helpArea />

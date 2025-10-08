@@ -3,6 +3,7 @@ package com.mwdle.bitwarden.cli;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.ProxyConfiguration;
 import java.io.ByteArrayOutputStream;
@@ -22,7 +23,9 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
 import org.mockito.MockedStatic;
+import org.mockito.MockitoAnnotations;
 
 /**
  * Unit tests for the BitwardenCLIManager class.
@@ -39,12 +42,19 @@ class BitwardenCLIManagerTest {
 
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
     private MockedStatic<ProxyConfiguration> mockedProxy;
+    private MockedStatic<BitwardenConfig> mockedConfig;
+
+    @Mock
+    private BitwardenConfig configMock;
+
     private BitwardenCLIManager manager;
     private String originalOsName;
+    private AutoCloseable closeable;
 
     @BeforeEach
     void setUp() throws Exception {
         originalOsName = System.getProperty("os.name");
+        closeable = MockitoAnnotations.openMocks(this);
 
         Constructor<BitwardenCLIManager> constructor = BitwardenCLIManager.class.getDeclaredConstructor();
         constructor.setAccessible(true);
@@ -55,21 +65,51 @@ class BitwardenCLIManagerTest {
         mockedPluginDir.when(PluginDirectoryProvider::getPluginDataDirectory).thenReturn(tempDir.toFile());
 
         mockedProxy = mockStatic(ProxyConfiguration.class);
+        mockedConfig = mockStatic(BitwardenConfig.class);
+        when(BitwardenConfig.getInstance()).thenReturn(configMock);
     }
 
     @AfterEach
-    void tearDown() {
+    void tearDown() throws Exception {
         mockedPluginDir.close();
         mockedProxy.close();
+        mockedConfig.close();
+        closeable.close();
         System.setProperty("os.name", originalOsName);
     }
 
     @Nested
     @DisplayName("getExecutablePath() method")
     class GetExecutablePath {
+
+        @Test
+        @DisplayName("should use user-provided path when it is valid")
+        void shouldUseUserProvidedPathWhenValid() throws IOException {
+            File manualCli = tempDir.resolve("manual-bw").toFile();
+            assertTrue(manualCli.createNewFile());
+            assertTrue(manualCli.setExecutable(true));
+            when(configMock.getCliExecutablePath()).thenReturn(manualCli.getAbsolutePath());
+
+            String path = manager.getExecutablePath();
+
+            assertEquals(manualCli.getAbsolutePath(), path);
+            verify(manager, never()).provisionExecutable();
+        }
+
+        @Test
+        @DisplayName("should fall back to automatic provisioning when user-provided path is invalid")
+        void shouldFallBackWhenUserPathIsInvalid() {
+            when(configMock.getCliExecutablePath()).thenReturn("/invalid/path/to/bw");
+            doReturn(false).when(manager).provisionExecutable(); // Simulate provisioning failure for this test
+
+            assertThrows(IllegalStateException.class, () -> manager.getExecutablePath());
+            verify(manager, times(1)).provisionExecutable();
+        }
+
         @Test
         @DisplayName("should return cached path if executable exists")
         void shouldReturnCachedPathIfExecutableExists() throws Exception {
+            when(configMock.getCliExecutablePath()).thenReturn(null); // No manual path
             File executable = new File(tempDir.toFile(), "bw");
             assertTrue(executable.createNewFile(), "Test setup failed: could not create fake executable.");
 
@@ -86,6 +126,7 @@ class BitwardenCLIManagerTest {
         @Test
         @DisplayName("should provision executable if path is not cached")
         void shouldProvisionIfCacheIsEmpty() {
+            when(configMock.getCliExecutablePath()).thenReturn(null);
             doAnswer(invocation -> {
                         Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
                         pathField.setAccessible(true);
@@ -104,6 +145,7 @@ class BitwardenCLIManagerTest {
         @Test
         @DisplayName("should throw IllegalStateException if provisioning fails")
         void shouldThrowExceptionIfProvisioningFails() {
+            when(configMock.getCliExecutablePath()).thenReturn(null);
             doReturn(false).when(manager).provisionExecutable();
             assertThrows(IllegalStateException.class, () -> manager.getExecutablePath());
             verify(manager, times(1)).provisionExecutable();
@@ -132,6 +174,7 @@ class BitwardenCLIManagerTest {
         @DisplayName("should attempt to download if executable is missing")
         void shouldDownloadIfMissing() {
             System.setProperty("os.name", "Linux");
+            System.setProperty("os.arch", "amd64");
             doReturn(true).when(manager).downloadLatestExecutable();
 
             assertTrue(manager.provisionExecutable());
