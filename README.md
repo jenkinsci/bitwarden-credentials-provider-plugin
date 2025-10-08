@@ -3,7 +3,8 @@
 > [!NOTE]
 > This is a third-party plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
 
-[![GitHub release](https://img.shields.io/github/release/mwdle/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/mwdle/bitwarden-credentials-provider-plugin/releases/latest)
+[![GitHub release](https://img.shields.io/github/release/jenkinsci/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/releases/latest)
+[![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/bitwarden-credentials-provider.svg?color=blue)](https://plugins.jenkins.io/bitwarden-credentials-provider)
 
 The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes items from a **Bitwarden Password Manager** vault (including self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) as native Jenkins credentials. It allows pipeline authors to access any secret on the fly, without requiring an administrator to manually create or sync credentials in the Jenkins UI.
 
@@ -24,9 +25,10 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 
 1.  **Isolated Environment:** The plugin manages its own copy of the `bw` executable and maintains its own isolated data directory. This ensures it never interferes with a system-level Bitwarden CLI installation.
 2.  **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) in Jenkins.
-3.  **Persistence and Offline Access:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly, even if the Bitwarden server is unreachable or the controller is offline.
+3.  **Persistence:** The metadata cache is persisted to a file on the Jenkins controller. This allows Jenkins to start up and serve credentials instantly.
 4.  **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 5.  **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
+6.  **Offline Access:** The Bitwarden CLI's local vault ensures that the plugin will continue functioning even if the Bitwarden server is unreachable or the controller is offline.
 
 > [!WARNING]
 > **Performance Consideration**
@@ -145,12 +147,12 @@ To avoid fetching secrets by their Bitwarden UUID, the solution is simple: *Alwa
 
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
 
-| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                   |
-|---------------------|---------------------------------------|-------------------------------------------------------------------------|
-| Login               | `StandardUsernamePasswordCredentials` |                                                                         |
-| Secure Note         | `StringCredentials`                   | The default for any secure note.                                        |
-| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`).   |
-| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.             |
+| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                         |
+|---------------------|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
+| Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.           |
+| Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                      |
+| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here. |
+| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.                                                                   |
 
 ## License
 
@@ -162,7 +164,7 @@ This plugin is maintained by a single developer. While every effort is made to t
 
 **Found a Bug?**
 
-If you encounter any issues, please help improve the plugin by opening an issue on the [GitHub Issues](https://github.com/mwdle/bitwarden-credentials-provider-plugin/issues) page.
+If you encounter any issues, please help improve the plugin by opening an issue on the [GitHub Issues](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues) page.
 
 **Want to Add a Feature or Fix?**
 
