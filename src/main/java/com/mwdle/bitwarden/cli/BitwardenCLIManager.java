@@ -1,7 +1,6 @@
 package com.mwdle.bitwarden.cli;
 
 import com.mwdle.bitwarden.PluginDirectoryProvider;
-import hudson.Extension;
 import hudson.ProxyConfiguration;
 import java.io.File;
 import java.io.IOException;
@@ -18,8 +17,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import jenkins.model.Jenkins;
-import org.kohsuke.stapler.verb.POST;
 
 /**
  * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
@@ -28,20 +25,25 @@ import org.kohsuke.stapler.verb.POST;
  * extraction of the executable, and provides a reliable, cached path for other components to use.
  * It ensures the CLI is always available when needed, attempting to download it if it's missing.
  */
-@Extension
 public final class BitwardenCLIManager {
 
+    private static final BitwardenCLIManager INSTANCE = new BitwardenCLIManager();
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLIManager.class.getName());
     private volatile String executablePath;
     private final transient Object provisionLock = new Object();
 
     /**
-     * Provides global access to the single instance of this manager, as managed by Jenkins.
+     * A private constructor to prevent instantiation of this utility class.
+     */
+    private BitwardenCLIManager() {}
+
+    /**
+     * Provides global access to the single instance of this manager.
      *
      * @return The singleton instance of {@link BitwardenCLIManager}.
      */
     public static BitwardenCLIManager getInstance() {
-        return Jenkins.get().getExtensionList(BitwardenCLIManager.class).get(0);
+        return INSTANCE;
     }
 
     /**
@@ -154,9 +156,7 @@ public final class BitwardenCLIManager {
      *
      * @return {@code true} on success, {@code false} on failure.
      */
-    @POST
     public boolean downloadLatestExecutable() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
             try {

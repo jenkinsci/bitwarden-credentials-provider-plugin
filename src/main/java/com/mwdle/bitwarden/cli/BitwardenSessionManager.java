@@ -5,7 +5,6 @@ import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredenti
 import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.BitwardenCredentialsProvider;
 import com.mwdle.bitwarden.model.BitwardenStatus;
-import hudson.Extension;
 import hudson.security.ACL;
 import hudson.util.Secret;
 import java.io.IOException;
@@ -21,11 +20,10 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
  * Bitwarden interactions are performed infrequently. It uses a high-performance, double-checked
  * locking pattern to provide concurrent access to the session token.
  */
-@Extension
 public class BitwardenSessionManager {
 
+    private static final BitwardenSessionManager INSTANCE = new BitwardenSessionManager();
     private static final Logger LOGGER = Logger.getLogger(BitwardenSessionManager.class.getName());
-
     private final Object lock = new Object();
     /**
      * The cached Bitwarden session token. This token is stored in memory and reused across
@@ -35,12 +33,17 @@ public class BitwardenSessionManager {
     private volatile Secret sessionToken;
 
     /**
-     * Provides global access to the single instance of this manager, as managed by Jenkins.
+     * A private constructor to prevent instantiation of this utility class.
+     */
+    private BitwardenSessionManager() {}
+
+    /**
+     * Provides global access to the single instance of this manager.
      *
      * @return The singleton instance of {@link BitwardenSessionManager}.
      */
     public static BitwardenSessionManager getInstance() {
-        return Jenkins.get().getExtensionList(BitwardenSessionManager.class).get(0);
+        return INSTANCE;
     }
 
     /**

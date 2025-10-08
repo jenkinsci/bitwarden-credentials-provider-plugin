@@ -4,12 +4,12 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.mwdle.bitwarden.PluginDirectoryProvider;
-import hudson.ExtensionList;
 import hudson.ProxyConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URI;
@@ -20,7 +20,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
-import jenkins.model.Jenkins;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.mockito.MockedStatic;
@@ -38,25 +37,19 @@ class BitwardenCLIManagerTest {
     @TempDir
     Path tempDir;
 
-    private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
     private MockedStatic<ProxyConfiguration> mockedProxy;
     private BitwardenCLIManager manager;
     private String originalOsName;
 
     @BeforeEach
-    void setUp() {
+    void setUp() throws Exception {
         originalOsName = System.getProperty("os.name");
-        manager = spy(new BitwardenCLIManager());
 
-        Jenkins jenkinsMock = mock(Jenkins.class);
-        @SuppressWarnings("unchecked")
-        ExtensionList<BitwardenCLIManager> extensionList = mock(ExtensionList.class);
-        when(extensionList.get(0)).thenReturn(manager);
-        when(jenkinsMock.getExtensionList(BitwardenCLIManager.class)).thenReturn(extensionList);
-        mockedJenkins = mockStatic(Jenkins.class);
-        mockedJenkins.when(Jenkins::get).thenReturn(jenkinsMock);
-        mockedJenkins.when(BitwardenCLIManager::getInstance).thenReturn(manager);
+        Constructor<BitwardenCLIManager> constructor = BitwardenCLIManager.class.getDeclaredConstructor();
+        constructor.setAccessible(true);
+        BitwardenCLIManager instance = constructor.newInstance();
+        manager = spy(instance);
 
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
         mockedPluginDir.when(PluginDirectoryProvider::getPluginDataDirectory).thenReturn(tempDir.toFile());
@@ -66,7 +59,6 @@ class BitwardenCLIManagerTest {
 
     @AfterEach
     void tearDown() {
-        mockedJenkins.close();
         mockedPluginDir.close();
         mockedProxy.close();
         System.setProperty("os.name", originalOsName);
@@ -128,7 +120,9 @@ class BitwardenCLIManagerTest {
             File binDir = new File(tempDir.toFile(), "bin");
             assertTrue(binDir.mkdirs(), "Test setup failed: could not create bin directory.");
             File executable = new File(binDir, "bw");
-            assertTrue(assertDoesNotThrow(executable::createNewFile), "Test setup failed: could not create fake executable.");
+            assertTrue(
+                    assertDoesNotThrow(executable::createNewFile),
+                    "Test setup failed: could not create fake executable.");
 
             assertTrue(manager.provisionExecutable());
             verify(manager, never()).downloadLatestExecutable();
