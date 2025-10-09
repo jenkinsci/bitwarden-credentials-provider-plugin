@@ -173,7 +173,8 @@ public final class BitwardenCLIManager {
      *
      * @return {@code true} on success, {@code false} on failure.
      */
-    // Jenkins Security Scan checks methods matching the Stapler web method naming scheme (e.g. doWhatever), but this method is not for Stapler.
+    // Jenkins Security Scan checks methods matching the Stapler web method naming scheme (e.g. doWhatever), but this
+    // method is not for Stapler.
     // lgtm[jenkins/no-permission-check]
     // lgtm[jenkins/csrf]
     public boolean downloadLatestExecutable() {
