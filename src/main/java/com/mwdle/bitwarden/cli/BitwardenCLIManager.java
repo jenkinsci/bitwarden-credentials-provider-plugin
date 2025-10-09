@@ -173,10 +173,10 @@ public final class BitwardenCLIManager {
      *
      * @return {@code true} on success, {@code false} on failure.
      */
-    // Jenkins Security Scan checks methods matching the Stapler web method naming scheme (e.g. doWhatever), but this
-    // method is not for Stapler.
-    // lgtm[jenkins/no-permission-check]
-    // lgtm[jenkins/csrf]
+    // Jenkins Security Scan checks methods matching the Stapler web method naming scheme (e.g. doWhatever).
+    // This method matches that naming convention but is not meant to be dispatched by Stapler.
+    // This annotation resolves those false positives in Jenkins Security Scan.
+    // lgtm[jenkins/csrf, jenkins/no-permission-check]
     public boolean downloadLatestExecutable() {
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
