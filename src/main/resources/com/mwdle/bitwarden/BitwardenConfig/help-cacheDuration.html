@@ -1,15 +1,18 @@
 <div>
     <p>
-        Specifies how long (in minutes) Jenkins will cache the list of your Bitwarden items.
+        Specifies the cache duration (in minutes) for the list of your Bitwarden items.
     </p>
     <p>
-        This duration sets the maximum age for both your credential <i>list</i> and the <i>secret values</i>. A higher value means fewer network calls, but a longer delay before any changes you make in Bitwarden appear in Jenkins.
+        This setting configures the <strong>on-demand refresh mechanism.</strong> It is <strong>not</strong> a background timer that runs at a fixed interval.
     </p>
     <p>
-        Behind the scenes, this setting controls how often the plugin runs a <b><code>bw sync</code></b> to update the Bitwarden CLI's own local, encrypted database.
+        Instead, when credentials are requested (e.g., by a pipeline or by opening the Credentials UI), the plugin checks the age of its cached item list. If the list is older than this duration, a background sync (<b><code>bw sync</code></b>) is automatically started to fetch the latest updates from your vault.
     </p>
     <p>
-        Crucially, the plugin <b>never caches your actual secret values</b> (passwords, keys, etc.). They are only "fetched live" from the CLI's local database at the exact moment a build needs them.
+        Crucially, this refresh operation does <strong>not</strong> slow down Jenkins. The request that triggers the refresh is served the existing (stale) data immediately, while the new, updated list is fetched in the background for all subsequent requests. This keeps the UI responsive and ensures pipelines start without delay.
+    </p>
+    <p>
+        <strong>Note:</strong> The plugin <b>never caches your actual secret values</b> (passwords, keys, etc.). They are fetched "live" from the CLI's local, encrypted database at the exact moment a build needs them. This cache duration only controls how often that local database is updated.
     </p>
     <p>
         This design also means Jenkins can continue to use your secrets even if it temporarily loses its internet connection, as it can read from the last successful sync.

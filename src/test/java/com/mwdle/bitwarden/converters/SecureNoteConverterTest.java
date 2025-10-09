@@ -23,6 +23,8 @@ import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.junit.jupiter.api.*;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EmptySource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
@@ -200,6 +202,30 @@ class SecureNoteConverterTest {
             when(metadata.getName()).thenReturn("my-file.env");
 
             assertNull(converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata));
+        }
+
+        @ParameterizedTest
+        @NullSource
+        @EmptySource
+        @ValueSource(strings = {" ", "  "})
+        @DisplayName("should create a StringCredentials proxy when suffixes are null or empty")
+        void shouldCreateStringProxyWhenSuffixesAreEmpty(String emptySuffixes) {
+            // GIVEN: The file credential suffixes are null or blank
+            when(configMock.getFileCredentialSuffixes()).thenReturn(emptySuffixes);
+            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class))
+                    .thenReturn(new StringCredentialsImpl.DescriptorImpl());
+
+            // An item that might otherwise be treated as a file
+            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
+            when(metadata.getName()).thenReturn("production.env");
+
+            // WHEN
+            StandardCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+
+            // THEN: It should be treated as a StringCredentials, not a FileCredentials
+            assertNotNull(proxy);
+            assertInstanceOf(StringCredentials.class, proxy);
+            assertInstanceOf(CredentialProxy.class, Proxy.getInvocationHandler(proxy));
         }
     }
 
