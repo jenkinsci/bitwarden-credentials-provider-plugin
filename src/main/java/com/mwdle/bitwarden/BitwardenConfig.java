@@ -64,7 +64,7 @@ public class BitwardenConfig extends GlobalConfiguration {
     /** A comma-separated list of suffixes to identify FileCredentials. */
     // This field stores non-secret configuration strings, not secrets.
     // lgtm[jenkins/plaintext-storage]
-    private String fileCredentialSuffixes = ".env";
+    private String fileCredentialSuffixes;
 
     /**
      * Called by Jenkins at startup to create the singleton instance of this class.
