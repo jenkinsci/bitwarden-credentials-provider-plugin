@@ -18,7 +18,6 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
-import jenkins.security.stapler.StaplerNotDispatchable;
 
 /**
  * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
@@ -176,8 +175,8 @@ public final class BitwardenCLIManager {
      */
     // Jenkins Security Scan checks methods matching the Stapler web method naming scheme (e.g. doWhatever).
     // This method matches that naming convention but is not meant to be dispatched by Stapler.
-    // Therefore, this annotation resolves false positives in Jenkins Security Scan.
-    @StaplerNotDispatchable
+    // This annotation resolves those false positives in Jenkins Security Scan.
+    @SuppressWarnings({"lgtm[jenkins/csrf]", "lgtm[jenkins/no-permission-check]"})
     public boolean downloadLatestExecutable() {
         synchronized (provisionLock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
