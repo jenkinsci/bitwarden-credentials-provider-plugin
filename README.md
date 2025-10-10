@@ -42,8 +42,8 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 You must first configure the plugin's global settings in **Manage Jenkins > Configure System**.
 
 -   **Bitwarden Server URL:** For self-hosted instances like Vaultwarden. Leave blank for the official Bitwarden cloud.
--   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden service account's Client ID and Client Secret.
--   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your service account's Master Password.
+-   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden Client ID and Client Secret.
+-   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
 -   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
 -   **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
 
