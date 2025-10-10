@@ -100,12 +100,21 @@ unclassified:
     fileCredentialSuffixes: ".env,.properties,.yaml"
 ```
 
-After saving the configuration, the plugin will attempt to log in and perform an initial sync. You can verify success by checking the Jenkins system log or by navigating to the main Credentials page after a few moments to see your Bitwarden items.
+After Jenkins starts with your JCasC configuration, the plugin will attempt to log in and perform an initial sync. You can verify that the configuration was applied successfully using the following steps:
+
+1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration**. In the "Advanced" section, click the **Verify Session Status** button.
+    * A **success message** immediately confirms that your configuration is correct and the plugin is working.
+    * If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
+
+2.  **Check the Credentials Page:** If the session is active, navigate to the main **Credentials** page from the Jenkins dashboard. Your Bitwarden items should be listed there.
+
+3.  **Check the Logs (if needed):** If the session is still not active after waiting, it likely indicates a configuration error (e.g., incorrect API key, master password, or server URL). Check the **Jenkins system log** for error messages from `com.mwdle.bitwarden` to diagnose the issue.
 
 ### Troubleshooting and Diagnostics
 
-The plugin includes several actions in the **Manage Jenkins > Configure System > Bitwarden Credentials Provider > Advanced** section to help you diagnose and quickly configure the plugin without needing to check the system log.
+The plugin includes several actions in the **Manage Jenkins > System > Bitwarden Credentials Provider > Advanced** section to help you diagnose and quickly configure the plugin without needing to check the system log.
 
+- **Verify Session Status:** Performs a check to see if the plugin currently has an active session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
 - **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
 - **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
 - **Verify Session Status:** Performs a fast, read-only check to see if the plugin currently has an active, unlocked session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
