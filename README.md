@@ -62,6 +62,9 @@ This plugin is fully compatible with the Jenkins Configuration as Code plugin an
 
 **Example `jenkins.yaml`:**
 ```yaml
+# The credentials section allows you to define your Bitwarden credentials within JCasC, if desired.
+# Please note that defining your credentials within JCasC (even if passing in from environment variable)
+# is inherently less secure than creating them manually via the Jenkins UI.
 credentials:
   system:
     domainCredentials:
@@ -77,6 +80,8 @@ credentials:
               id: "bitwarden-master-password"
               secret: '${BITWARDEN_MASTER_PASSWORD}' # Uses value provided by environment variable
               description: "Bitwarden CLI Master Password"
+              
+# Configure the plugin within the `unclassified` section:          
 unclassified:
   bitwarden:
     # The URL of your self-hosted Bitwarden/Vaultwarden server.
@@ -109,12 +114,9 @@ The plugin includes several actions in the **Manage Jenkins > Configure System >
 ## Read-Only Credential Store
 
 > [!IMPORTANT]
-> The Bitwarden credential store in the Jenkins UI is **read-only**.
+> The Bitwarden credential store in the Jenkins UI is **read-only**. This plugin only provides a view of the secrets in your vault; it does not manage them.
 >
-> This plugin provides a view of the secrets in your vault; it does not manage them.
->
-> - **Creating Credentials:** If you attempt to create a new credential within the Bitwarden store, Jenkins will show a harmless error, and the credential will **not** be created or saved.
-> - **Updating/Deleting Credentials:** Attempting to modify or delete credentials from this store will fail.
+> If you attempt to create/update/delete a credential within the Bitwarden store, Jenkins will show a harmless error, and the credential will **not** be created or saved.
 >
 > All credential management must be done directly in your Bitwarden vault. The changes will then appear in Jenkins after the next cache refresh.
 
@@ -154,18 +156,18 @@ withCredentials([usernamePassword(credentialsId: 'e5f6a1b2-c3d4-e5f6-a1b2-c3d4e5
 }
 ```
 
-To avoid fetching secrets by their Bitwarden UUID, the solution is simple: *Always set a unique name for each item in your Bitwarden vault*.
+To avoid having to fetch secrets by their Bitwarden UUID, the solution is simple: *Always set a unique name for each item in your Bitwarden vault*.
 
 ## Supported Credential Types
 
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
 
-| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                         |
-|---------------------|---------------------------------------|-------------------------------------------------------------------------------------------------------------------------------|
-| Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.           |
-| Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                      |
-| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here. |
-| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field.                                                                   |
+| Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                                                                    |
+|---------------------|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.                                                      |
+| Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                                                                 |
+| Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here.                                            |
+| SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field. If unable to parse, the Jenkins `SSHUserPrivateKey` defaults to the username the Jenkins Controller runs as. |
 
 ## License
 
