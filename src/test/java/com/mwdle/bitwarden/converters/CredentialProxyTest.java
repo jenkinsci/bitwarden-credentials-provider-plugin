@@ -3,7 +3,9 @@ package com.mwdle.bitwarden.converters;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
@@ -90,8 +92,28 @@ class CredentialProxyTest {
             // WHEN
             assertEquals("cred-id", testProxy.getId());
             assertEquals(stringDescriptor, testProxy.getDescriptor());
+            assertEquals("BitwardenCredentialProxy(itemId=item-id)", testProxy.toString());
+            assertEquals("item-id".hashCode(), testProxy.hashCode());
 
             // THEN: Verify that no expensive operations were performed
+            mockedCli.verify(() -> BitwardenCLI.getItem(any(), any()), never());
+        }
+
+        @Test
+        @DisplayName("should handle security metadata methods")
+        void shouldHandleSecurityMetadata() throws Throwable {
+            // GIVEN
+            CredentialProxy handler = new CredentialProxy("cred-id", "item-id", "Item Name", stringDescriptor);
+            Method isUsernameSecret = StandardUsernameCredentials.class.getMethod("isUsernameSecret");
+            Method getPassphrase = SSHUserPrivateKey.class.getMethod("getPassphrase");
+
+            // WHEN
+            boolean isSecret = (boolean) handler.invoke(null, isUsernameSecret, null);
+            String passphrase = (String) handler.invoke(null, getPassphrase, null);
+
+            // THEN
+            assertTrue(isSecret);
+            assertEquals("", passphrase);
             mockedCli.verify(() -> BitwardenCLI.getItem(any(), any()), never());
         }
     }
