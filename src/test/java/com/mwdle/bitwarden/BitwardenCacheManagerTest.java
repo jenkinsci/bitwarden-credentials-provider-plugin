@@ -1,27 +1,28 @@
 package com.mwdle.bitwarden;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.*;
-
 import com.google.common.cache.LoadingCache;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import hudson.ExtensionList;
+import hudson.XmlFile;
+import hudson.util.Secret;
+import jenkins.model.Jenkins;
+import jenkins.util.Timer;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.*;
+import org.springframework.security.core.Authentication;
+
+import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-import jenkins.model.Jenkins;
-import jenkins.util.Timer;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
-import org.springframework.security.core.Authentication;
+
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Unit tests for the BitwardenCacheManager class.
@@ -46,6 +47,7 @@ class BitwardenCacheManagerTest {
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
     private MockedStatic<BitwardenSessionManager> mockedSessionManager;
     private MockedStatic<BitwardenCLI> mockedCli;
+    private MockedStatic<Secret> mockedStaticSecret;
 
     // Mock instances of dependencies
     @Mock
@@ -66,11 +68,17 @@ class BitwardenCacheManagerTest {
     @Mock
     private Authentication authenticationMock;
 
+    @Mock
+    private Secret mockSecret;
+
+    @Mock
+    private ExtensionList<BitwardenCacheManager> extensionListMock;
+
     private BitwardenCacheManager cacheManager;
     private AutoCloseable closeable;
 
     @BeforeEach
-    void setUp() throws Exception {
+    void setUp() {
         closeable = MockitoAnnotations.openMocks(this);
 
         // Initialize all static mocks
@@ -80,6 +88,10 @@ class BitwardenCacheManagerTest {
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
         mockedSessionManager = mockStatic(BitwardenSessionManager.class);
         mockedCli = mockStatic(BitwardenCLI.class);
+
+        // Mock static Secret.toString for BitwardenCLI.sync
+        mockedStaticSecret = mockStatic(Secret.class);
+        mockedStaticSecret.when(() -> Secret.toString(any())).thenReturn("mock-secret");
 
         // Configure mocks to return singleton instances
         when(Jenkins.get()).thenReturn(jenkinsMock);
@@ -91,9 +103,6 @@ class BitwardenCacheManagerTest {
         when(configMock.getCacheDuration()).thenReturn(5);
 
         cacheManager = new BitwardenCacheManager();
-
-        // Inject a mock cache instance for all tests to bypass the untestable private getCache() method
-        injectMockCache();
     }
 
     @AfterEach
@@ -104,6 +113,9 @@ class BitwardenCacheManagerTest {
         mockedPluginDir.close();
         mockedSessionManager.close();
         mockedCli.close();
+        if (mockedStaticSecret != null) {
+            mockedStaticSecret.close();
+        }
         closeable.close();
     }
 
@@ -113,9 +125,44 @@ class BitwardenCacheManagerTest {
         cacheField.set(cacheManager, cacheMock);
     }
 
+    /**
+     * Resets the cache manager's internal cache to null, forcing re-initialization.
+     */
+    private void forceCacheReinitialization() throws NoSuchFieldException, IllegalAccessException {
+        Field cacheField = BitwardenCacheManager.class.getDeclaredField("itemMetadataCache");
+        cacheField.setAccessible(true);
+        cacheField.set(cacheManager, null);
+    }
+
+    @Nested
+    @DisplayName("getInstance()")
+    class GetInstance {
+        @Test
+        @DisplayName("should return singleton from ExtensionList")
+        void getInstanceShouldReturnSingleton() {
+            // GIVEN
+            when(jenkinsMock.getExtensionList(BitwardenCacheManager.class)).thenReturn(extensionListMock);
+            when(extensionListMock.get(0)).thenReturn(cacheManager);
+
+            // WHEN
+            BitwardenCacheManager instance = BitwardenCacheManager.getInstance();
+
+            // THEN
+            assertEquals(cacheManager, instance);
+            verify(jenkinsMock).getExtensionList(BitwardenCacheManager.class);
+            verify(extensionListMock).get(0);
+        }
+    }
+
     @Nested
     @DisplayName("triggerStartupCacheUpdate()")
     class TriggerStartupCacheUpdate {
+
+        @BeforeEach
+        void setUpNested() throws NoSuchFieldException, IllegalAccessException {
+            // Inject mock cache for *these tests only*
+            injectMockCache();
+        }
 
         @Test
         @DisplayName("should submit an update task when configured")
@@ -127,7 +174,7 @@ class BitwardenCacheManagerTest {
 
         @Test
         @DisplayName("should not submit an update task when not configured")
-        void shouldNotSubmitUpdateTaskWhenNotConfigured() {
+        void shouldNotSubmitUpdateTaskWhenConfigured() {
             when(configMock.isConfigured()).thenReturn(false);
             cacheManager.triggerStartupCacheUpdate();
             verify(executorMock, never()).submit(any(Runnable.class));
@@ -137,6 +184,12 @@ class BitwardenCacheManagerTest {
     @Nested
     @DisplayName("Public API Tests")
     class PublicApiTests {
+
+        @BeforeEach
+        void setUpNested() throws NoSuchFieldException, IllegalAccessException {
+            // Inject mock cache for *these tests only*
+            injectMockCache();
+        }
 
         @Test
         @DisplayName("getMetadata() should return cached data and trigger background refresh")
@@ -174,6 +227,23 @@ class BitwardenCacheManagerTest {
         }
 
         @Test
+        @DisplayName("getMetadata() should log background refresh failure")
+        void getMetadataShouldLogBackgroundRefreshFailure() throws ExecutionException {
+            // GIVEN
+            // This test covers the catch block in getMetadata's submitted lambda
+            when(cacheMock.get(anyString())).thenThrow(new ExecutionException("Cache load failed", null));
+            ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+
+            // WHEN
+            List<BitwardenItemMetadata> actualMetadata = cacheManager.getMetadata();
+            verify(executorMock).submit(taskCaptor.capture());
+
+            // THEN: The runnable should catch its own exception and not throw
+            assertDoesNotThrow(() -> taskCaptor.getValue().run());
+            assertTrue(actualMetadata.isEmpty());
+        }
+
+        @Test
         @DisplayName("updateCache() should call refresh on the underlying cache")
         void updateCacheShouldCallRefresh() {
             // WHEN
@@ -191,6 +261,164 @@ class BitwardenCacheManagerTest {
 
             // THEN
             verify(cacheMock, times(1)).invalidate(anyString());
+        }
+    }
+
+    @Nested
+    @DisplayName("Cache Initialization and Loading")
+    class CacheInitializationAndLoading {
+
+        @Test
+        @DisplayName("getCache() should load metadata from XmlFile if it exists")
+        void shouldLoadFromDiskOnInitialization() throws Exception {
+            // GIVEN: A cache file exists
+            List<BitwardenItemMetadata> diskMetadata = List.of(mock(BitwardenItemMetadata.class));
+
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> {
+                when(mock.exists()).thenReturn(true);
+                when(mock.read()).thenReturn(diskMetadata);
+            })) {
+                // WHEN: We force re-initialization *after* mocks are set
+                forceCacheReinitialization();
+                List<BitwardenItemMetadata> metadata = cacheManager.getMetadata(); // Triggers getCache()
+
+                // THEN
+                assertEquals(diskMetadata, metadata);
+                assertEquals(1, xmlFileMock.constructed().size());
+                verify(xmlFileMock.constructed().get(0)).exists();
+                verify(xmlFileMock.constructed().get(0)).read();
+                // Verify CLI was *not* called for the initial load
+                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(any()), never());
+            }
+        }
+
+        @Test
+        @DisplayName("getCache() should log warning on IOException")
+        void shouldLogWarningOnIOException() throws Exception {
+            // GIVEN
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> {
+                when(mock.exists()).thenReturn(true);
+                when(mock.read()).thenThrow(new IOException("Disk read error"));
+            })) {
+                // WHEN: We force re-initialization *after* mocks are set
+                forceCacheReinitialization();
+                List<BitwardenItemMetadata> metadata = cacheManager.getMetadata(); // Triggers getCache()
+
+                // THEN
+                assertTrue(metadata.isEmpty());
+                verify(xmlFileMock.constructed().get(0)).read();
+            }
+        }
+
+        @Test
+        @DisplayName("getCache() should log warning on ClassCastException")
+        void shouldLogWarningOnClassCastException() throws Exception {
+            // GIVEN
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> {
+                when(mock.exists()).thenReturn(true);
+                when(mock.read()).thenReturn("a-string-not-a-list"); // Simulates corrupt file
+            })) {
+                // WHEN: We force re-initialization *after* mocks are set
+                forceCacheReinitialization();
+                List<BitwardenItemMetadata> metadata = cacheManager.getMetadata(); // Triggers getCache()
+
+                // THEN
+                assertTrue(metadata.isEmpty());
+                verify(xmlFileMock.constructed().get(0)).read();
+            }
+        }
+
+        @Test
+        @DisplayName("fetchData() should be called by cache load and save to disk")
+        void shouldCallFetchDataAndSaveToDisk() throws Exception {
+            // GIVEN: No cache file exists, and CLI calls will succeed
+            List<BitwardenItemMetadata> mockCliMetadata = List.of(mock(BitwardenItemMetadata.class), mock(BitwardenItemMetadata.class));
+            when(sessionManagerMock.getSessionToken()).thenReturn(mockSecret);
+            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
+
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> when(mock.exists()).thenReturn(false))) {
+                // WHEN
+                forceCacheReinitialization();
+                List<BitwardenItemMetadata> metadata = cacheManager.getMetadata();
+                assertTrue(metadata.isEmpty(), "First call should be empty");
+
+                ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+                verify(executorMock, atLeast(1)).submit(taskCaptor.capture());
+                assertDoesNotThrow(() -> taskCaptor.getValue().run());
+
+                // THEN
+                InOrder inOrder = inOrder(sessionManagerMock);
+                inOrder.verify(sessionManagerMock, times(2)).getSessionToken(); // One for sync, one for list
+
+                mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
+                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
+                verify(xmlFileMock.constructed().get(1)).write(mockCliMetadata);
+
+                List<BitwardenItemMetadata> secondCallMetadata = cacheManager.getMetadata();
+                assertEquals(mockCliMetadata, secondCallMetadata);
+            }
+        }
+
+        @Test
+        @DisplayName("fetchData() should log warning on disk write failure")
+        void fetchDataShouldLogWarningOnDiskWriteFailure() throws Exception {
+            // GIVEN: No cache file exists, CLI calls succeed
+            List<BitwardenItemMetadata> mockCliMetadata = List.of(mock(BitwardenItemMetadata.class));
+            when(sessionManagerMock.getSessionToken()).thenReturn(mockSecret);
+            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
+
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> {
+                when(mock.exists()).thenReturn(false);
+                if (context.getCount() > 1) {
+                    doThrow(new IOException("Disk write error")).when(mock).write(any());
+                }
+            })) {
+                // WHEN
+                forceCacheReinitialization();
+                cacheManager.getMetadata(); // Triggers getCache()
+
+                ArgumentCaptor<Runnable> taskCaptor = ArgumentCaptor.forClass(Runnable.class);
+                verify(executorMock, atLeast(1)).submit(taskCaptor.capture());
+                assertDoesNotThrow(() -> taskCaptor.getValue().run());
+
+                // THEN
+                mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
+                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
+                verify(xmlFileMock.constructed().get(1)).write(mockCliMetadata);
+            }
+        }
+
+        @Test
+        @DisplayName("updateCache() should trigger fetchData() via reload")
+        void updateCacheShouldTriggerFetchData() throws Exception {
+            forceCacheReinitialization();
+            cacheManager.getMetadata(); // This populates the cache
+
+            ArgumentCaptor<Runnable> initialTaskCaptor = ArgumentCaptor.forClass(Runnable.class);
+            verify(executorMock).submit(initialTaskCaptor.capture());
+            initialTaskCaptor.getValue().run();
+            clearInvocations(sessionManagerMock);
+            clearInvocations(executorMock); // Clear executor mocks too
+            mockedCli.clearInvocations();
+
+            List<BitwardenItemMetadata> freshMetadata = List.of(mock(BitwardenItemMetadata.class));
+            when(sessionManagerMock.getSessionToken()).thenReturn(mockSecret);
+            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(freshMetadata);
+
+            // WHEN
+            cacheManager.updateCache(); // This calls cache.refresh(), which submits fetchData to the executor
+
+            // THEN
+            ArgumentCaptor<Runnable> reloadTaskCaptor = ArgumentCaptor.forClass(Runnable.class);
+            // The ListeningDecorator calls 'execute', not 'submit', for the reload task
+            verify(executorMock, times(1)).execute(reloadTaskCaptor.capture());
+
+            // Run the captured task, which is the one submitted by reload()
+            reloadTaskCaptor.getValue().run();
+
+            verify(sessionManagerMock, times(2)).getSessionToken(); // one for sync, one for list
+            mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
+            mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
         }
     }
 }
