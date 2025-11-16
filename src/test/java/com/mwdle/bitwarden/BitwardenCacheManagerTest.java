@@ -1,5 +1,8 @@
 package com.mwdle.bitwarden;
 
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
+
 import com.google.common.cache.LoadingCache;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
@@ -7,22 +10,18 @@ import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import hudson.ExtensionList;
 import hudson.XmlFile;
 import hudson.util.Secret;
-import jenkins.model.Jenkins;
-import jenkins.util.Timer;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.mockito.*;
-import org.springframework.security.core.Authentication;
-
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ScheduledExecutorService;
-
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import jenkins.model.Jenkins;
+import jenkins.util.Timer;
+import org.junit.jupiter.api.*;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.*;
+import org.springframework.security.core.Authentication;
 
 /**
  * Unit tests for the BitwardenCacheManager class.
@@ -332,11 +331,13 @@ class BitwardenCacheManagerTest {
         @DisplayName("fetchData() should be called by cache load and save to disk")
         void shouldCallFetchDataAndSaveToDisk() throws Exception {
             // GIVEN: No cache file exists, and CLI calls will succeed
-            List<BitwardenItemMetadata> mockCliMetadata = List.of(mock(BitwardenItemMetadata.class), mock(BitwardenItemMetadata.class));
+            List<BitwardenItemMetadata> mockCliMetadata =
+                    List.of(mock(BitwardenItemMetadata.class), mock(BitwardenItemMetadata.class));
             when(sessionManagerMock.getSessionToken()).thenReturn(mockSecret);
             mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
 
-            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> when(mock.exists()).thenReturn(false))) {
+            try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(
+                    XmlFile.class, (mock, context) -> when(mock.exists()).thenReturn(false))) {
                 // WHEN
                 forceCacheReinitialization();
                 List<BitwardenItemMetadata> metadata = cacheManager.getMetadata();
