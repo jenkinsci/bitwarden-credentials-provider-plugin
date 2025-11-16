@@ -3,6 +3,7 @@ package com.mwdle.bitwarden.converters;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SecretBytes;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.cloudbees.plugins.credentials.impl.BaseStandardCredentials;
 import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
@@ -107,10 +108,10 @@ public class SecureNoteConverter extends CredentialConverter {
      * {@inheritDoc}
      * <p>
      * This implementation returns a {@link StringCredentialsImpl} using the content of the
-     * {@code notes} field, or a {@link FileCredentialsImpl} if the item name ends with {@code .env}.
+     * {@code notes} field, or a {@link FileCredentialsImpl} depending on the result of {@link SecureNoteConverter#isFileCredential}.
      */
     @Override
-    public StandardCredentials convert(CredentialsScope scope, String id, String description, BitwardenItem item) {
+    public BaseStandardCredentials convert(CredentialsScope scope, String id, String description, BitwardenItem item) {
         LOGGER.fine(() -> "convert: id=" + id + " item id=" + item.getId() + " name='" + item.getName() + "'");
         if (isFileCredential(item.getName())) {
             LOGGER.fine(() -> "convert: treating as FileCredentialsImpl due to configured suffix");
