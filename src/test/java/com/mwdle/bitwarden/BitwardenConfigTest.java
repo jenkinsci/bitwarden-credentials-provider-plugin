@@ -720,10 +720,9 @@ class BitwardenConfigTest {
             when(jenkinsMock.hasPermission(Jenkins.MANAGE)).thenReturn(false);
 
             // WHEN
-            try (MockedConstruction<StandardListBoxModel> modelMock =
-                    mockConstruction(StandardListBoxModel.class, (mock, context) -> {
-                        when(mock.includeCurrentValue(anyString())).thenReturn(mock);
-                    })) {
+            try (MockedConstruction<StandardListBoxModel> modelMock = mockConstruction(
+                    StandardListBoxModel.class, (mock, context) -> when(mock.includeCurrentValue(anyString()))
+                            .thenReturn(mock))) {
 
                 config.doFillApiCredentialIdItems(jenkinsMock, "current-api-id");
                 config.doFillMasterPasswordCredentialIdItems(jenkinsMock, "current-master-id");
