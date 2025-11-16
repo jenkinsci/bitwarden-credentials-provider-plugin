@@ -39,13 +39,32 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 
 ## Getting Started
 
-You must first configure the plugin's global settings in **Manage Jenkins > Configure System**.
+You must first configure the plugin's global settings under **Manage Jenkins > System > Bitwarden Credentials Provider Configuration**.
 
 -   **Bitwarden Server URL:** For self-hosted instances like Vaultwarden. Leave blank for the official Bitwarden cloud.
 -   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden Client ID and Client Secret.
 -   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
 -   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
 -   **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
+
+You can verify that the configuration was applied successfully using the following steps:
+
+1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced**. Click the **Verify Session Status** button.
+    * A **success message** immediately confirms that your configuration is correct and the plugin is working.
+    * If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
+
+2.  **Check the Credentials Page:** If the session is active, navigate to the main **Credentials** page from the Jenkins dashboard. Your Bitwarden items should be listed there.
+
+3.  **Check the Logs (if needed):** If the session is still not active after waiting, it likely indicates a configuration error (e.g., incorrect API key, master password, or server URL). Check the **Jenkins system log** for error messages from `com.mwdle.bitwarden` to diagnose the issue.
+
+### Troubleshooting and Diagnostics
+
+The plugin includes several actions under **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced** to help you diagnose and quickly configure the plugin without needing to check the system log.
+
+- **Verify Session:** Performs a check to see if the plugin currently has an active session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
+- **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
+- **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
+- **Refresh Now:** Forces the plugin to invalidate its current session and credential list and start a new sync in the background. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
 
 > [!IMPORTANT]
 > **Service Account Recommended**
@@ -100,24 +119,7 @@ unclassified:
     fileCredentialSuffixes: ".env,.properties,.yaml"
 ```
 
-After Jenkins starts with your JCasC configuration, the plugin will attempt to log in and perform an initial sync. You can verify that the configuration was applied successfully using the following steps:
-
-1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration**. In the "Advanced" section, click the **Verify Session Status** button.
-    * A **success message** immediately confirms that your configuration is correct and the plugin is working.
-    * If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
-
-2.  **Check the Credentials Page:** If the session is active, navigate to the main **Credentials** page from the Jenkins dashboard. Your Bitwarden items should be listed there.
-
-3.  **Check the Logs (if needed):** If the session is still not active after waiting, it likely indicates a configuration error (e.g., incorrect API key, master password, or server URL). Check the **Jenkins system log** for error messages from `com.mwdle.bitwarden` to diagnose the issue.
-
-### Troubleshooting and Diagnostics
-
-The plugin includes several actions in the **Manage Jenkins > System > Bitwarden Credentials Provider > Advanced** section to help you diagnose and quickly configure the plugin without needing to check the system log.
-
-- **Verify Session:** Performs a check to see if the plugin currently has an active session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
-- **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
-- **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
-- **Refresh Now:** Forces the plugin to invalidate its current session and credential list and start a new sync in the background. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
+After Jenkins loads your JCasC configuration, the plugin will attempt to log in and perform an initial sync.
 
 ## Read-Only Credential Store
 
@@ -192,4 +194,3 @@ If you encounter any issues, please help improve the plugin by opening an issue 
 **Want to Add a Feature or Fix?**
 
 Pull Requests for realistic, reasonable, and well-tested improvements are welcome. I will do my best to review them in a timely manner.
-
