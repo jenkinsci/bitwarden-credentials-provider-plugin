@@ -119,4 +119,48 @@ class PluginDirectoryProviderTest {
                 assertThrows(RuntimeException.class, PluginDirectoryProvider::getPluginDataDirectory);
         assertTrue(exception.getMessage().contains("Could not create plugin directory"));
     }
+
+    @Test
+    @DisplayName("should handle concurrent requests with double-checked locking")
+    void shouldHandleConcurrentRequests() throws Exception {
+        // GIVEN
+        final int[] creationCount = {0};
+        File expectedDir = new File(tempDir.toFile(), "bitwarden-credentials-provider-data");
+
+        // Spy on the real Jenkins.get().getRootDir() to count invocations
+        doAnswer(invocation -> {
+                    // Simulate a delay to allow other threads to queue up
+                    Thread.sleep(200);
+                    creationCount[0]++;
+                    return tempDir.toFile();
+                })
+                .when(jenkinsMock)
+                .getRootDir();
+
+        // WHEN: Multiple threads request the directory concurrently
+        Runnable task = () -> {
+            try (MockedStatic<Jenkins> threadMockedJenkins = mockStatic(Jenkins.class)) {
+                threadMockedJenkins.when(Jenkins::get).thenReturn(jenkinsMock);
+                PluginDirectoryProvider.getPluginDataDirectory();
+            } catch (Exception e) {
+                fail("Test task failed with exception", e);
+            }
+        };
+
+        Thread t1 = new Thread(task);
+        Thread t2 = new Thread(task);
+        Thread t3 = new Thread(task);
+
+        t1.start();
+        t2.start();
+        t3.start();
+
+        t1.join();
+        t2.join();
+        t3.join();
+
+        // THEN: The directory should have been created exactly once
+        assertEquals(1, creationCount[0], "The directory should only be created once.");
+        assertTrue(expectedDir.exists());
+    }
 }
