@@ -76,7 +76,7 @@ public class LoginConverter extends CredentialConverter {
      * password from the Bitwarden item. It safely handles null values by substituting empty strings.
      */
     @Override
-    public StandardUsernamePasswordCredentials convert(
+    public UsernamePasswordCredentialsImpl convert(
             CredentialsScope scope, String id, String description, BitwardenItem item) {
         LOGGER.fine(() -> "convert: id=" + id + " item id=" + item.getId() + " name='" + item.getName() + "'");
         BitwardenLogin loginData = item.getLogin();
