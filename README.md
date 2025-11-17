@@ -168,6 +168,42 @@ withCredentials([usernamePassword(credentialsId: 'e5f6a1b2-c3d4-e5f6-a1b2-c3d4e5
 
 To avoid having to fetch secrets by their Bitwarden UUID, the solution is simple: *Always set a unique name for each item in your Bitwarden vault*.
 
+### Using with Pipeline Parameters
+
+You can use Bitwarden items to populate a `credentials()` parameter, but you **must omit the `credentialType` attribute.**
+
+This is because the plugin loads credentials dynamically, and they are not recognized by the `credentialType` filter (which expects a specific credential type).
+
+The trade-off is that the parameter dropdown will list *all* Jenkins credentials of *all types* (e.g., Secret Text, SSH Keys). Use the `description` field to guide users.
+
+**Example `Jenkinsfile`:**
+
+```groovy
+pipeline {
+    agent any
+    parameters {
+        credentials(
+                name: 'DOCKER_CREDENTIALS_ID',
+                // Note: credentialType is OMITTED.
+                // This allows dynamically-provided credentials (like Bitwarden's) to appear.
+                description: 'Select a "Username with password" credential for Docker',
+                defaultValue: 'docker-hub',
+                required: true
+        )
+    }
+    stages {
+        stage('Example') {
+            steps {
+                // The parameter is then used just like any other variable
+                withCredentials([usernamePassword(credentialsId: params.DOCKER_CREDENTIALS_ID, usernameVariable: 'DOCKER_USER', passwordVariable: 'DOCKER_PASS')]) {
+                    sh 'echo "Using credentials..."'
+                }
+            }
+        }
+    }
+}
+```
+
 ## Supported Credential Types
 
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
