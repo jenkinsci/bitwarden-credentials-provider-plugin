@@ -7,6 +7,7 @@ import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import hudson.model.Descriptor;
+import hudson.util.Secret;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
@@ -14,8 +15,6 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.logging.Logger;
-
-import hudson.util.Secret;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 
 /**
