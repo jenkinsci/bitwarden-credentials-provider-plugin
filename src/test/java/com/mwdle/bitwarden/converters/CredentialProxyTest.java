@@ -109,11 +109,11 @@ class CredentialProxyTest {
 
             // WHEN
             boolean isSecret = (boolean) handler.invoke(null, isUsernameSecret, null);
-            String passphrase = (String) handler.invoke(null, getPassphrase, null);
+            Secret passphrase = (Secret) handler.invoke(null, getPassphrase, null);
 
             // THEN
             assertTrue(isSecret);
-            assertEquals("", passphrase);
+            assertEquals("", passphrase.getPlainText());
             mockedCli.verify(() -> BitwardenCLI.getItem(any(), any()), never());
         }
     }
