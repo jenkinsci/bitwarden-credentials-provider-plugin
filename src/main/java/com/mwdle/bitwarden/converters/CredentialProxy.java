@@ -14,6 +14,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.UndeclaredThrowableException;
 import java.util.logging.Logger;
+
+import hudson.util.Secret;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 
 /**
@@ -109,7 +111,7 @@ public class CredentialProxy implements InvocationHandler, Serializable {
             case "isUsernameSecret":
                 return true; // Always treat the username field as secret for each credential type containing a username
             case "getPassphrase":
-                return ""; // Bitwarden does not have a passphrase field for SSH Key secrets.
+                return Secret.fromString(""); // Bitwarden does not have a passphrase field for SSH Key secrets.
         }
 
         // "Slow path" for secret-related methods.
