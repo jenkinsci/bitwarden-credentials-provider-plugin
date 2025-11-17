@@ -513,8 +513,7 @@ class BitwardenCLITest {
         @DisplayName("should return list of metadata on success")
         void shouldReturnListOfMetadata() throws IOException, InterruptedException {
             // GIVEN
-            String jsonOutput =
-                    """
+            String jsonOutput = """
                     [
                         {"id": "uuid-1", "name": "Item 1", "type": 1},
                         {"id": "uuid-2", "name": "Item 2", "type": 2}
@@ -565,8 +564,7 @@ class BitwardenCLITest {
         @DisplayName("should return full item on success")
         void shouldReturnFullItem() throws IOException, InterruptedException {
             // GIVEN
-            String jsonOutput =
-                    """
+            String jsonOutput = """
                     {
                         "id": "uuid-item-123",
                         "name": "My Login",
