@@ -72,8 +72,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize a standard Login item")
         void shouldDeserializeLoginItem() throws Exception {
-            String loginJson =
-                    """
+            String loginJson = """
                     {
                         "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
                         "name": "My Jenkins API Key",
@@ -104,8 +103,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize an SSH Key item")
         void shouldDeserializeSshKeyItem() throws Exception {
-            String sshKeyJson =
-                    """
+            String sshKeyJson = """
                     {
                         "id": "f0e9d8c7-b6a5-4f3e-2d1c-0b9a8f7e6d5c",
                         "name": "GitHub Deploy Key",
@@ -136,8 +134,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize a Secure Note item")
         void shouldDeserializeSecureNoteItem() throws Exception {
-            String secureNoteJson =
-                    """
+            String secureNoteJson = """
                     {
                         "id": "11223344-5566-7788-9900-aabbccddeeff",
                         "name": "My Secure Note",
@@ -161,8 +158,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should ignore unknown fields to allow for future CLI updates")
         void shouldHandleUnknownFieldsGracefully() {
-            String futureJson =
-                    """
+            String futureJson = """
                     {
                         "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
                         "name": "My Jenkins API Key",
@@ -185,8 +181,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize metadata")
         void shouldDeserializeMetadata() throws JsonProcessingException {
-            String metadataJson =
-                    """
+            String metadataJson = """
                     {
                         "id": "uuid-123",
                         "name": "My Item",
@@ -223,8 +218,7 @@ class ModelDeserializationTest {
         @Test
         @DisplayName("should correctly deserialize a status response")
         void shouldDeserializeStatus() throws Exception {
-            String statusJson =
-                    """
+            String statusJson = """
                     {
                         "serverUrl": "https://vault.bitwarden.com",
                         "lastSync": "2025-09-25T23:05:00.000Z",
