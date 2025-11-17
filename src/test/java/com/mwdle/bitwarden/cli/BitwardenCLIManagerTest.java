@@ -97,13 +97,25 @@ class BitwardenCLIManagerTest {
         }
 
         @Test
-        @DisplayName("should fall back to automatic provisioning when user-provided path is invalid")
-        void shouldFallBackWhenUserPathIsInvalid() {
-            when(configMock.getCliExecutablePath()).thenReturn("/invalid/path/to/bw");
-            doReturn(false).when(manager).provisionExecutable(); // Simulate provisioning failure for this test
-
+        @DisplayName("should throw IllegalStateException if provisioning fails")
+        void shouldThrowExceptionIfProvisioningFails() {
+            when(configMock.getCliExecutablePath()).thenReturn(null);
+            doReturn(false).when(manager).provisionExecutable();
             assertThrows(IllegalStateException.class, () -> manager.getExecutablePath());
             verify(manager, times(1)).provisionExecutable();
+        }
+
+        @Test
+        @DisplayName("should handle whitespace in user-provided path")
+        void shouldHandleWhitespaceInUserPath() throws IOException {
+            File manualCli = tempDir.resolve("manual bw with spaces").toFile();
+            assertTrue(manualCli.createNewFile());
+            assertTrue(manualCli.setExecutable(true));
+            when(configMock.getCliExecutablePath()).thenReturn("  " + manualCli.getAbsolutePath() + "  ");
+
+            String path = manager.getExecutablePath();
+
+            assertEquals(manualCli.getAbsolutePath(), path);
         }
 
         @Test
@@ -141,15 +153,6 @@ class BitwardenCLIManagerTest {
             assertEquals("/fake/path/to/bw", path);
             verify(manager, times(1)).provisionExecutable();
         }
-
-        @Test
-        @DisplayName("should throw IllegalStateException if provisioning fails")
-        void shouldThrowExceptionIfProvisioningFails() {
-            when(configMock.getCliExecutablePath()).thenReturn(null);
-            doReturn(false).when(manager).provisionExecutable();
-            assertThrows(IllegalStateException.class, () -> manager.getExecutablePath());
-            verify(manager, times(1)).provisionExecutable();
-        }
     }
 
     @Nested
@@ -162,10 +165,7 @@ class BitwardenCLIManagerTest {
             File binDir = new File(tempDir.toFile(), "bin");
             assertTrue(binDir.mkdirs(), "Test setup failed: could not create bin directory.");
             File executable = new File(binDir, "bw");
-            assertTrue(
-                    assertDoesNotThrow(executable::createNewFile),
-                    "Test setup failed: could not create fake executable.");
-
+            assertDoesNotThrow(executable::createNewFile, "Test setup failed: could not create fake executable.");
             assertTrue(manager.provisionExecutable());
             verify(manager, never()).downloadLatestExecutable();
         }
@@ -179,6 +179,126 @@ class BitwardenCLIManagerTest {
 
             assertTrue(manager.provisionExecutable());
             verify(manager, times(1)).downloadLatestExecutable();
+        }
+    }
+
+    @Nested
+    @DisplayName("downloadLatestExecutable() method")
+    class DownloadLatestExecutable {
+
+        @Test
+        @DisplayName("should succeed and set executable path on successful download")
+        @SuppressWarnings("unchecked")
+        void shouldSucceedAndSetExecutablePath() throws Exception {
+            System.setProperty("os.name", "Linux");
+            System.setProperty("os.arch", "amd64");
+
+            // Mock the HTTP client to simulate a successful download
+            HttpClient mockClient = mock(HttpClient.class);
+            HttpResponse<InputStream> mockResponse = mock(HttpResponse.class);
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+
+            // Create a dummy zip file with the executable
+            byte[] zipBytes = createTestZipWithContent(new ZipContent("bw", "executable-content".getBytes()));
+            when(mockResponse.statusCode()).thenReturn(200);
+            when(mockResponse.body()).thenReturn(new java.io.ByteArrayInputStream(zipBytes));
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenReturn(mockResponse);
+
+            assertTrue(manager.downloadLatestExecutable());
+
+            Field pathField = BitwardenCLIManager.class.getDeclaredField("executablePath");
+            pathField.setAccessible(true);
+            String executablePath = (String) pathField.get(manager);
+
+            assertNotNull(executablePath);
+            assertTrue(executablePath.endsWith("bin" + File.separator + "bw"));
+        }
+
+        @Test
+        @DisplayName("should return false when download fails with IOException")
+        @SuppressWarnings("unchecked")
+        void shouldFailOnIOException() throws Exception {
+            System.setProperty("os.name", "Windows 10");
+            System.setProperty("os.arch", "amd64");
+
+            // Mock the HTTP client to simulate a failed download
+            HttpClient mockClient = mock(HttpClient.class);
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenThrow(new IOException("Network error"));
+
+            assertFalse(manager.downloadLatestExecutable());
+        }
+
+        private byte[] createTestZipWithContent(ZipContent... contents) throws IOException {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            try (ZipOutputStream zos = new ZipOutputStream(baos)) {
+                for (ZipContent content : contents) {
+                    ZipEntry entry = new ZipEntry(content.name());
+                    zos.putNextEntry(entry);
+                    zos.write(content.content());
+                    zos.closeEntry();
+                }
+            }
+            return baos.toByteArray();
+        }
+
+        private record ZipContent(String name, byte[] content) {}
+    }
+
+    @Nested
+    @DisplayName("OS detection and architecture support")
+    class OsAndArchDetection {
+
+        @Test
+        @DisplayName("should detect Windows and return correct executable name")
+        void shouldDetectWindows() throws Exception {
+            System.setProperty("os.name", "Windows 10");
+            assertEquals("bw.exe", invokeGetExecutableName());
+        }
+
+        @Test
+        @DisplayName("should detect macOS and return correct executable name")
+        void shouldDetectMac() throws Exception {
+            System.setProperty("os.name", "Mac OS X");
+            assertEquals("bw", invokeGetExecutableName());
+        }
+
+        @Test
+        @DisplayName("should detect Linux and return correct executable name")
+        void shouldDetectLinux() throws Exception {
+            System.setProperty("os.name", "Linux");
+            assertEquals("bw", invokeGetExecutableName());
+        }
+
+        @Test
+        @DisplayName("should throw exception for unsupported OS")
+        void shouldThrowForUnsupportedOs() {
+            System.setProperty("os.name", "Solaris");
+            Exception exception = assertThrows(InvocationTargetException.class, this::invokeGetExecutableName);
+            assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
+        }
+
+        @Test
+        @DisplayName("should throw exception for unsupported architecture")
+        void shouldThrowForUnsupportedArchitecture() {
+            System.setProperty("os.name", "Linux");
+            System.setProperty("os.arch", "arm64"); // an unsupported arch
+            Exception exception = assertThrows(InvocationTargetException.class, this::invokeGetDownloadUrl);
+            assertInstanceOf(UnsupportedOperationException.class, exception.getCause());
+        }
+
+        private String invokeGetExecutableName() throws Exception {
+            java.lang.reflect.Method method = BitwardenCLIManager.class.getDeclaredMethod("getExecutableName");
+            method.setAccessible(true);
+            return (String) method.invoke(manager);
+        }
+
+        private void invokeGetDownloadUrl() throws Exception {
+            java.lang.reflect.Method method = BitwardenCLIManager.class.getDeclaredMethod("getDownloadUrl");
+            method.setAccessible(true);
+            method.invoke(manager);
         }
     }
 
@@ -248,6 +368,32 @@ class BitwardenCLIManagerTest {
 
             assertInstanceOf(IOException.class, exception.getCause());
             assertTrue(exception.getCause().getMessage().contains("Could not find 'bw' or 'bw.exe'"));
+        }
+
+        @Test
+        @DisplayName("should throw IOException on non-200 HTTP status")
+        @SuppressWarnings("unchecked")
+        void shouldThrowOnNon200Status() throws Exception {
+            URI fakeUri = new URI("https://fake.bitwarden.com/download.zip");
+            File targetFile = tempDir.resolve("bw_extracted").toFile();
+
+            HttpClient mockClient = mock(HttpClient.class);
+            HttpResponse<InputStream> mockResponse = mock(HttpResponse.class);
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+
+            when(mockResponse.statusCode()).thenReturn(404);
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenReturn(mockResponse);
+
+            java.lang.reflect.Method method =
+                    BitwardenCLIManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
+            method.setAccessible(true);
+
+            Exception exception =
+                    assertThrows(InvocationTargetException.class, () -> method.invoke(manager, fakeUri, targetFile));
+
+            assertInstanceOf(IOException.class, exception.getCause());
+            assertTrue(exception.getCause().getMessage().contains("Failed to download file"));
         }
 
         private record ZipContent(String name, byte[] content) {}
