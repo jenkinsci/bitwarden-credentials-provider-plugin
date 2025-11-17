@@ -7,6 +7,7 @@ import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import hudson.model.Descriptor;
+import hudson.util.Secret;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
@@ -109,7 +110,7 @@ public class CredentialProxy implements InvocationHandler, Serializable {
             case "isUsernameSecret":
                 return true; // Always treat the username field as secret for each credential type containing a username
             case "getPassphrase":
-                return ""; // Bitwarden does not have a passphrase field for SSH Key secrets.
+                return Secret.fromString(""); // Bitwarden does not have a passphrase field for SSH Key secrets.
         }
 
         // "Slow path" for secret-related methods.
