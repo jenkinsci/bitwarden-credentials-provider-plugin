@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -665,6 +666,26 @@ class BitwardenCLITest {
             assertDoesNotThrow(
                     BitwardenCLI::clearBitwardenAppData,
                     "Method should handle missing files gracefully without throwing exceptions");
+        }
+
+        @Test
+        @DisplayName("should log warning and handle IOException gracefully when deletion fails")
+        void shouldHandleIOExceptionGracefully() {
+            // GIVEN: We mock the static Files class to throw an error when deletion is attempted
+            try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+                mockedFiles
+                        .when(() -> Files.deleteIfExists(any(Path.class)))
+                        .thenThrow(new IOException("Simulated filesystem error (e.g., file locked)"));
+
+                // WHEN & THEN
+                // We verify that the method catches the exception and does not throw it
+                assertDoesNotThrow(
+                        BitwardenCLI::clearBitwardenAppData,
+                        "Method should catch IOException and log a warning instead of crashing");
+
+                // Ensure the code actually attempted the deletion
+                mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)), times(1));
+            }
         }
     }
 }
