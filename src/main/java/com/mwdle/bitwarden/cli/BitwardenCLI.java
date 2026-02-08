@@ -14,6 +14,8 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -37,6 +39,34 @@ public final class BitwardenCLI {
      * A private constructor to prevent instantiation of this utility class.
      */
     private BitwardenCLI() {}
+
+    /**
+     * Gets the isolated Jenkins data directory for the Bitwarden CLI.
+     *
+     * @return The File object representing the 'bwcli' subdirectory within the plugin data directory.
+     */
+    private static File getBitwardenDataDir() {
+        return new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
+    }
+
+    /**
+     * Clears the Bitwarden CLI application data by deleting data.json.
+     * Ensures the CLI always has a clean working state
+     * to mitigate potential corruption caused by updating the CLI and/or using newer CLI versions.
+     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
+     */
+    public static void clearBitwardenAppData() {
+        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
+        try {
+            if (Files.deleteIfExists(dataJsonPath))
+                LOGGER.info(
+                        "Bitwarden CLI application data file (data.json) was deleted successfully to ensure a clean state.");
+            else LOGGER.fine("No existing Bitwarden CLI application data found, skipping deletion.");
+        } catch (IOException e) {
+            LOGGER.warning(
+                    "Failed to delete Bitwarden CLI application data at: " + dataJsonPath + ": " + e.getMessage());
+        }
+    }
 
     /**
      * Creates a {@link ProcessBuilder} for a Bitwarden CLI command, using the managed executable.
@@ -240,8 +270,7 @@ public final class BitwardenCLI {
     private static String executeCommand(ProcessBuilder pb) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Executing command: " + String.join(" ", pb.command()));
         Map<String, String> env = pb.environment();
-        File bitwardenDataDir =
-                new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
+        File bitwardenDataDir = getBitwardenDataDir();
         env.put("BITWARDENCLI_APPDATA_DIR", bitwardenDataDir.getAbsolutePath());
         pb.redirectErrorStream(true);
         Process process = pb.start();

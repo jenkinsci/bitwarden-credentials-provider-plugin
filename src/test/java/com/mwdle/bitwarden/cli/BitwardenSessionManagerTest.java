@@ -152,7 +152,7 @@ class BitwardenSessionManagerTest {
         }
 
         @Test
-        @DisplayName("should create new token using default server URL when config is null or empty")
+        @DisplayName("should clear app data and create new token using default server URL")
         void shouldCreateNewTokenWithDefaultServerUrl() throws Exception {
             // GIVEN
             setupValidCredentials(null);
@@ -166,6 +166,8 @@ class BitwardenSessionManagerTest {
 
             // THEN
             assertEquals(newToken, resultToken);
+            mockedCli.verify(BitwardenCLI::logout, times(1));
+            mockedCli.verify(BitwardenCLI::clearBitwardenAppData, times(1));
             mockedCli.verify(() -> BitwardenCLI.configServer("https://vault.bitwarden.com"), times(1));
             mockedCli.verify(() -> BitwardenCLI.login(any(StandardUsernamePasswordCredentials.class)), times(1));
         }

@@ -139,6 +139,7 @@ public class BitwardenSessionManager {
             StandardUsernamePasswordCredentials apiKey, StringCredentials masterPassword, String serverUrl)
             throws IOException, InterruptedException {
         BitwardenCLI.logout();
+        BitwardenCLI.clearBitwardenAppData();
         if (serverUrl == null || serverUrl.isEmpty()) {
             LOGGER.fine("Server URL not set. Using default.");
             serverUrl = "https://vault.bitwarden.com";

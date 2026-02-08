@@ -15,6 +15,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
@@ -629,6 +630,62 @@ class BitwardenCLITest {
             // WHEN & THEN
             assertThrows(IOException.class, () -> BitwardenCLI.configServer(serverUrl));
             verifyExecuteCommandInternals();
+        }
+    }
+
+    @Nested
+    @DisplayName("clearBitwardenAppData()")
+    class ClearBitwardenAppData {
+        @Test
+        @DisplayName("should delete data.json if it exists")
+        void shouldDeleteDataJsonIfExists() throws IOException {
+            // GIVEN: Manually create the file in our mocked plugin data directory
+            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            if (!bwCliDir.exists()) bwCliDir.mkdirs();
+
+            File dataJson = new File(bwCliDir, "data.json");
+            dataJson.createNewFile();
+            assertTrue(dataJson.exists(), "Setup failed: data.json should exist before test");
+
+            // WHEN
+            BitwardenCLI.clearBitwardenAppData();
+
+            // THEN
+            assertFalse(dataJson.exists(), "data.json should have been deleted by clearBitwardenAppData");
+        }
+
+        @Test
+        @DisplayName("should not throw error if data.json does not exist")
+        void shouldNotThrowIfFileMissing() {
+            // GIVEN: Ensure the file does NOT exist
+            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            File dataJson = new File(bwCliDir, "data.json");
+            if (dataJson.exists()) dataJson.delete();
+
+            // WHEN & THEN
+            assertDoesNotThrow(
+                    BitwardenCLI::clearBitwardenAppData,
+                    "Method should handle missing files gracefully without throwing exceptions");
+        }
+
+        @Test
+        @DisplayName("should log warning and handle IOException gracefully when deletion fails")
+        void shouldHandleIOExceptionGracefully() {
+            // GIVEN: We mock the static Files class to throw an error when deletion is attempted
+            try (MockedStatic<Files> mockedFiles = mockStatic(Files.class)) {
+                mockedFiles
+                        .when(() -> Files.deleteIfExists(any(Path.class)))
+                        .thenThrow(new IOException("Simulated filesystem error (e.g., file locked)"));
+
+                // WHEN & THEN
+                // We verify that the method catches the exception and does not throw it
+                assertDoesNotThrow(
+                        BitwardenCLI::clearBitwardenAppData,
+                        "Method should catch IOException and log a warning instead of crashing");
+
+                // Ensure the code actually attempted the deletion
+                mockedFiles.verify(() -> Files.deleteIfExists(any(Path.class)), times(1));
+            }
         }
     }
 }
