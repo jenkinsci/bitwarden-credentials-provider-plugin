@@ -143,6 +143,7 @@ public class BitwardenSessionManager {
             LOGGER.fine("Server URL not set. Using default.");
             serverUrl = "https://vault.bitwarden.com";
         }
+        BitwardenCLI.clearBitwardenAppData();
         BitwardenCLI.configServer(serverUrl);
         BitwardenCLI.login(apiKey);
         return BitwardenCLI.unlock(masterPassword);

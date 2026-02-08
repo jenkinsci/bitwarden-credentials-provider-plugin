@@ -631,4 +631,40 @@ class BitwardenCLITest {
             verifyExecuteCommandInternals();
         }
     }
+
+    @Nested
+    @DisplayName("clearBitwardenAppData()")
+    class ClearBitwardenAppData {
+        @Test
+        @DisplayName("should delete data.json if it exists")
+        void shouldDeleteDataJsonIfExists() throws IOException {
+            // GIVEN: Manually create the file in our mocked plugin data directory
+            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            if (!bwCliDir.exists()) bwCliDir.mkdirs();
+
+            File dataJson = new File(bwCliDir, "data.json");
+            dataJson.createNewFile();
+            assertTrue(dataJson.exists(), "Setup failed: data.json should exist before test");
+
+            // WHEN
+            BitwardenCLI.clearBitwardenAppData();
+
+            // THEN
+            assertFalse(dataJson.exists(), "data.json should have been deleted by clearBitwardenAppData");
+        }
+
+        @Test
+        @DisplayName("should not throw error if data.json does not exist")
+        void shouldNotThrowIfFileMissing() {
+            // GIVEN: Ensure the file does NOT exist
+            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            File dataJson = new File(bwCliDir, "data.json");
+            if (dataJson.exists()) dataJson.delete();
+
+            // WHEN & THEN
+            assertDoesNotThrow(
+                    BitwardenCLI::clearBitwardenAppData,
+                    "Method should handle missing files gracefully without throwing exceptions");
+        }
+    }
 }
