@@ -50,6 +50,25 @@ public final class BitwardenCLI {
     }
 
     /**
+     * Clears the Bitwarden CLI application data by deleting data.json.
+     * Ensures the CLI always has a clean working state
+     * to mitigate potential corruption caused by updating the CLI and/or using newer CLI versions.
+     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
+     */
+    public static void clearBitwardenAppData() {
+        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
+        try {
+            if (Files.deleteIfExists(dataJsonPath))
+                LOGGER.info(
+                        "Bitwarden CLI application data file (data.json) was deleted successfully to ensure a clean state.");
+            else LOGGER.fine("No existing Bitwarden CLI application data found, skipping deletion.");
+        } catch (IOException e) {
+            LOGGER.warning(
+                    "Failed to delete Bitwarden CLI application data at: " + dataJsonPath + ": " + e.getMessage());
+        }
+    }
+
+    /**
      * Creates a {@link ProcessBuilder} for a Bitwarden CLI command, using the managed executable.
      *
      * @param command The arguments to pass to the {@code bw} command (e.g., "login", "--apikey").
@@ -237,25 +256,6 @@ public final class BitwardenCLI {
         LOGGER.info(() -> "Configuring server URL: " + serverUrl);
         executeCommand(bitwardenCommand("config", "server", serverUrl));
         LOGGER.info("Server URL configured successfully.");
-    }
-
-    /**
-     * Clears the Bitwarden CLI application data by deleting data.json.
-     * Ensures the CLI always has a clean working state
-     * to mitigate potential corruption caused by updating the CLI and/or using newer CLI versions.
-     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
-     */
-    public static void clearBitwardenAppData() {
-        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
-        try {
-            if (Files.deleteIfExists(dataJsonPath))
-                LOGGER.info(
-                        "Bitwarden CLI application data file (data.json) was deleted successfully to ensure a clean state.");
-            else LOGGER.fine("No existing Bitwarden CLI application data found, skipping deletion.");
-        } catch (IOException e) {
-            LOGGER.warning(
-                    "Failed to delete Bitwarden CLI application data at: " + dataJsonPath + ": " + e.getMessage());
-        }
     }
 
     /**
