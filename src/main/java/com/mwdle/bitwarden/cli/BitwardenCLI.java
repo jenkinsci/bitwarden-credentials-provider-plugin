@@ -78,6 +78,8 @@ public final class BitwardenCLI {
         String executablePath = BitwardenCLIManager.getInstance().getExecutablePath();
         List<String> commandParts = new ArrayList<>();
         commandParts.add(executablePath);
+        commandParts.add("--nointeraction");
+        commandParts.add("--raw");
         commandParts.addAll(Arrays.asList(command));
         LOGGER.fine(() -> "Building Bitwarden command: " + String.join(" ", commandParts));
         return new ProcessBuilder(commandParts);
@@ -154,7 +156,7 @@ public final class BitwardenCLI {
      */
     public static Secret unlock(StringCredentials masterPassword) throws IOException, InterruptedException {
         LOGGER.info("Unlocking vault.");
-        ProcessBuilder pb = bitwardenCommand("unlock", "--raw", "--passwordenv", "BITWARDEN_MASTER_PASSWORD");
+        ProcessBuilder pb = bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD");
         Map<String, String> env = pb.environment();
         env.put("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
         try {
