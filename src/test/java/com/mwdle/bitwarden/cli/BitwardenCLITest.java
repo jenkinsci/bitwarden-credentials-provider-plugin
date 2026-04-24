@@ -65,6 +65,7 @@ class BitwardenCLITest {
     // Mocks for Launcher infrastructure
     private MockedConstruction<Launcher.LocalLauncher> launcherMockedConstruction;
     private Launcher.ProcStarter procStarterMock;
+    private Proc procMock;
 
     // Mock instances
     @Mock
@@ -147,7 +148,7 @@ class BitwardenCLITest {
             capturedStderr = invocation.getArgument(0);
             return procStarterMock;
         });
-        Proc procMock = mock(Proc.class);
+        procMock = mock(Proc.class);
         when(procStarterMock.start()).thenReturn(procMock);
         when(procMock.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
                 .thenAnswer(invocation -> {
@@ -268,6 +269,20 @@ class BitwardenCLITest {
             IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
             assertTrue(exception.getMessage().contains("Command failed with exit code 1"));
             assertTrue(exception.getMessage().contains(errorOutput));
+            verifyExecuteCommandInternals();
+        }
+
+        @Test
+        @DisplayName("should kill process and throw IOException on timeout")
+        void shouldKillProcessAndThrowOnTimeout() throws IOException, InterruptedException {
+            // GIVEN: the process is still alive after joinWithTimeout returns
+            setupMockProcess("", 0);
+            when(procMock.isAlive()).thenReturn(true);
+
+            // WHEN & THEN
+            IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
+            assertTrue(exception.getMessage().contains("timed out"));
+            verify(procMock).kill();
             verifyExecuteCommandInternals();
         }
     }
