@@ -285,16 +285,13 @@ public final class BitwardenCLI {
                 .start();
 
         int exitCode = process.joinWithTimeout(5, TimeUnit.MINUTES, TaskListener.NULL);
-
-        if (process.isAlive()) {
-            process.kill();
-            throw new IOException("Bitwarden CLI command timed out after 5 minutes: " + args);
-        }
-
         String output = stdout.toString(StandardCharsets.UTF_8).trim();
         String errors = stderr.toString(StandardCharsets.UTF_8).trim();
 
-        if (exitCode != 0) {
+        if (process.isAlive()) {
+            process.kill();
+            throw new IOException("Bitwarden CLI command timed out after 5 minutes: " + args + ". Stderr: " + errors);
+        } else if (exitCode != 0) {
             throw new IOException("Command failed with exit code " + exitCode + ". Stderr: " + errors);
         } else if (!errors.isEmpty()) {
             LOGGER.fine(() -> "CLI Exit code is 0, but stderr is not empty: " + errors);

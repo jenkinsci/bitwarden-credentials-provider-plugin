@@ -273,15 +273,17 @@ class BitwardenCLITest {
         }
 
         @Test
-        @DisplayName("should kill process and throw IOException on timeout")
+        @DisplayName("should kill process and throw IOException on timeout with stderr visibility")
         void shouldKillProcessAndThrowOnTimeout() throws IOException, InterruptedException {
             // GIVEN: the process is still alive after joinWithTimeout returns
-            setupMockProcess("", 0);
+            String timeoutStderr = "Still waiting for sync...";
+            setupMockProcess("", timeoutStderr, 0);
             when(procMock.isAlive()).thenReturn(true);
 
             // WHEN & THEN
             IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
             assertTrue(exception.getMessage().contains("timed out"));
+            assertTrue(exception.getMessage().contains(timeoutStderr));
             verify(procMock).kill();
             verifyExecuteCommandInternals();
         }
