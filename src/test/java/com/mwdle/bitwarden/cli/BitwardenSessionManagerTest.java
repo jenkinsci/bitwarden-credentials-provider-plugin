@@ -262,6 +262,60 @@ class BitwardenSessionManagerTest {
         when(jenkinsMock.getExtensionList(CredentialsProvider.class)).thenReturn(extensionList);
     }
 
+    @Nested
+    @DisplayName("isSessionValid() method")
+    class IsSessionValid {
+        @Test
+        @DisplayName("should return true if token is present and vault is unlocked")
+        void shouldReturnTrueWhenUnlocked() throws Exception {
+            // GIVEN
+            Secret token = Secret.fromString("some-token");
+            sessionTokenField.set(manager, token);
+
+            BitwardenStatus unlockedStatus = mock(BitwardenStatus.class);
+            when(unlockedStatus.getStatus()).thenReturn("unlocked");
+            mockedCli.when(() -> BitwardenCLI.status(token)).thenReturn(unlockedStatus);
+
+            // WHEN
+            boolean result = manager.isSessionValid();
+
+            // THEN
+            assertTrue(result);
+        }
+
+        @Test
+        @DisplayName("should handle InterruptedException and restore interrupt flag")
+        void shouldHandleInterruptedException() throws Exception {
+            // GIVEN
+            Secret token = Secret.fromString("some-token");
+            sessionTokenField.set(manager, token);
+
+            mockedCli.when(() -> BitwardenCLI.status(token)).thenThrow(new InterruptedException("Interrupted!"));
+
+            // Ensure the thread is NOT interrupted before the test
+            Thread.interrupted();
+
+            // WHEN
+            boolean result = manager.isSessionValid();
+
+            // THEN
+            assertFalse(result, "isSessionValid should return false when interrupted");
+            assertTrue(Thread.interrupted(), "Thread interrupt flag should be set");
+        }
+
+        @Test
+        @DisplayName("should return false if token is null")
+        void shouldReturnFalseWhenTokenIsNull() {
+            // GIVEN: manager starts with null sessionToken
+
+            // WHEN
+            boolean result = manager.isSessionValid();
+
+            // THEN
+            assertFalse(result);
+        }
+    }
+
     private void setupValidCredentials(String serverUrl) {
         StandardUsernamePasswordCredentials apiKey = mock(StandardUsernamePasswordCredentials.class);
         when(apiKey.getId()).thenReturn("api-key-id");
