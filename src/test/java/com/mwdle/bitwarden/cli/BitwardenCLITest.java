@@ -9,11 +9,14 @@ import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenStatus;
+import hudson.Launcher;
+import hudson.Proc;
+import hudson.model.TaskListener;
+import hudson.util.ArgumentListBuilder;
 import hudson.util.Secret;
-import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import jenkins.security.ConfidentialStore;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.junit.jupiter.api.*;
@@ -37,8 +41,9 @@ import org.mockito.MockitoAnnotations;
  * <p>
  * This test suite verifies that the CLI wrapper correctly builds commands,
  * passes environment variables, and parses the output from the {@code bw}
- * executable. It mocks the {@link ProcessBuilder} and {@link Process} classes
- * to simulate various successful and failed CLI interactions.
+ * executable. It mocks the Jenkins {@link Launcher} and {@link Launcher.ProcStarter}
+ * to simulate various successful and failed CLI interactions, ensuring that
+ * stdout and stderr are handled separately.
  */
 @DisplayName("BitwardenCLI")
 class BitwardenCLITest {
@@ -46,6 +51,7 @@ class BitwardenCLITest {
     private static final String FAKE_EXECUTABLE_PATH = "/fake/path/bw";
     private static final String NO_INTERACTION_FLAG = "--nointeraction";
     private static final String RAW_FLAG = "--raw";
+
     // Mocks for static dependencies
     private static MockedStatic<BitwardenCLIManager> mockedCliManager;
     private static MockedStatic<PluginDirectoryProvider> mockedPluginDir;
@@ -55,23 +61,17 @@ class BitwardenCLITest {
 
     @TempDir
     Path tempDir;
-    // Mocks for constructed objects
-    private MockedConstruction<ProcessBuilder> processBuilderMockedConstruction;
+
+    // Mocks for Launcher infrastructure
+    private MockedConstruction<Launcher.LocalLauncher> launcherMockedConstruction;
+    private Launcher.ProcStarter procStarterMock;
+
     // Mock instances
     @Mock
     private BitwardenCLIManager cliManagerMock;
 
     @Mock
-    private ProcessBuilder processBuilderMock;
-
-    @Mock
-    private Process processMock;
-
-    @Mock
     private ConfidentialStore confidentialStoreMock;
-
-    @Mock
-    private Map<String, String> environmentMapMock;
 
     @Mock
     private StandardUsernamePasswordCredentials apiKeyCredentialsMock;
@@ -80,11 +80,21 @@ class BitwardenCLITest {
     private StringCredentials masterPasswordCredentialsMock;
 
     private AutoCloseable closeable;
-    private List<String> capturedCommand; // Field to store the command
+
+    // Captured values from the Launcher fluent chain
+    private ArgumentListBuilder capturedCommand;
+    private Map<String, String> capturedEnvs;
+    private OutputStream capturedStdout;
+    private OutputStream capturedStderr;
+
+    // Mock process behavior — set by setupMockProcess()
+    private String mockStdoutContent = "";
+    private String mockStderrContent = "";
+    private int mockExitCode = 0;
 
     @BeforeEach
     @SuppressWarnings("unchecked")
-    void setUp() throws InterruptedException {
+    void setUp() throws Exception {
         closeable = MockitoAnnotations.openMocks(this);
 
         // Mock static utility classes
@@ -119,25 +129,38 @@ class BitwardenCLITest {
         when(Messages.exception_unlockError()).thenReturn("Unlock error");
         when(Messages.exception_syncError()).thenReturn("Sync error");
 
-        // Mock the construction of ProcessBuilder to intercept all CLI commands
-        // This is the core of the test setup.
-        processBuilderMockedConstruction = mockConstruction(ProcessBuilder.class, (mock, context) -> {
-            // CAPTURE THE COMMAND LIST FROM THE CONSTRUCTOR
-            capturedCommand = (List<String>) context.arguments().get(0);
+        // Create the ProcStarter mock and set up the fluent chain with value capture
+        procStarterMock = mock(Launcher.ProcStarter.class);
 
-            // When a ProcessBuilder is created, stub its methods
-            when(mock.start()).thenReturn(processMock);
-            when(mock.redirectErrorStream(anyBoolean())).thenReturn(mock);
-            // Return a mockable map for the environment
-            when(mock.environment()).thenReturn(environmentMapMock);
-            // Store the mock for later verification
-            processBuilderMock = mock;
+        when(procStarterMock.cmds(any(ArgumentListBuilder.class))).thenAnswer(invocation -> {
+            capturedCommand = invocation.getArgument(0);
+            return procStarterMock;
         });
+        when(procStarterMock.envs(anyMap())).thenAnswer(invocation -> {
+            capturedEnvs = invocation.getArgument(0);
+            return procStarterMock;
+        });
+        when(procStarterMock.stdout(any(OutputStream.class))).thenAnswer(invocation -> {
+            capturedStdout = invocation.getArgument(0);
+            return procStarterMock;
+        });
+        when(procStarterMock.stderr(any(OutputStream.class))).thenAnswer(invocation -> {
+            capturedStderr = invocation.getArgument(0);
+            return procStarterMock;
+        });
+        Proc procMock = mock(Proc.class);
+        when(procStarterMock.start()).thenReturn(procMock);
+        when(procMock.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
+                .thenAnswer(invocation -> {
+                    capturedStdout.write(mockStdoutContent.getBytes(StandardCharsets.UTF_8));
+                    capturedStderr.write(mockStderrContent.getBytes(StandardCharsets.UTF_8));
+                    return mockExitCode;
+                });
 
-        // Configure the default behavior for the mock Process
-        // Tests can override this as needed
-        when(processMock.getInputStream()).thenReturn(new ByteArrayInputStream("".getBytes(StandardCharsets.UTF_8)));
-        when(processMock.waitFor()).thenReturn(0);
+        // Mock the construction of Launcher.LocalLauncher to return our ProcStarter
+        launcherMockedConstruction = mockConstruction(Launcher.LocalLauncher.class, (mock, context) -> {
+            when(mock.launch()).thenReturn(procStarterMock);
+        });
     }
 
     @AfterEach
@@ -147,20 +170,33 @@ class BitwardenCLITest {
         mockedConfidentialStore.close();
         mockedSecret.close();
         mockedMessages.close();
-        processBuilderMockedConstruction.close();
+        launcherMockedConstruction.close();
         closeable.close();
     }
 
     /**
-     * Helper method to configure the mock process for a test.
+     * Helper method to configure the mock process stdout and exit code.
      *
-     * @param output   The string to be returned by the process's stdout.
-     * @param exitCode The integer exit code to be returned by process.waitFor().
+     * @param stdout   The string to be written to the process's stdout stream.
+     * @param exitCode The integer exit code to be returned by the process.
      */
-    void setupMockProcess(String output, int exitCode) throws InterruptedException {
-        InputStream inputStream = new ByteArrayInputStream(output.getBytes(StandardCharsets.UTF_8));
-        when(processMock.getInputStream()).thenReturn(inputStream);
-        when(processMock.waitFor()).thenReturn(exitCode);
+    void setupMockProcess(String stdout, int exitCode) {
+        this.mockStdoutContent = stdout;
+        this.mockStderrContent = "";
+        this.mockExitCode = exitCode;
+    }
+
+    /**
+     * Helper method to configure the mock process with separate stdout and stderr content.
+     *
+     * @param stdout   The string to be written to the process's stdout stream.
+     * @param stderr   The string to be written to the process's stderr stream.
+     * @param exitCode The integer exit code to be returned by the process.
+     */
+    void setupMockProcess(String stdout, String stderr, int exitCode) {
+        this.mockStdoutContent = stdout;
+        this.mockStderrContent = stderr;
+        this.mockExitCode = exitCode;
     }
 
     /**
@@ -174,14 +210,17 @@ class BitwardenCLITest {
     }
 
     /**
-     * Helper method to verify the common side-effects of `executeCommand`.
-     * This ensures our tests are as thorough as the production code.
+     * Helper method to verify the common side-effects of {@code executeCommand}.
+     * Asserts that the isolated data directory environment variable is set for every command.
      */
     void verifyExecuteCommandInternals() {
-        // Verify the dedicated data directory is set for *every* command
-        verify(environmentMapMock).put(eq("BITWARDENCLI_APPDATA_DIR"), endsWith(File.separator + "bwcli"));
-        // Verify error stream is redirected for *every* command
-        verify(processBuilderMock).redirectErrorStream(true);
+        assertNotNull(capturedEnvs, "Environment variables were not captured from the Launcher");
+        assertTrue(
+                capturedEnvs.containsKey("BITWARDENCLI_APPDATA_DIR"),
+                "BITWARDENCLI_APPDATA_DIR should be set for every command");
+        assertTrue(
+                capturedEnvs.get("BITWARDENCLI_APPDATA_DIR").endsWith(File.separator + "bwcli"),
+                "BITWARDENCLI_APPDATA_DIR should point to the bwcli subdirectory");
     }
 
     @Nested
@@ -199,9 +238,8 @@ class BitwardenCLITest {
 
             // THEN
             assertEquals(expectedVersion, actualVersion);
-            assertNotNull(capturedCommand, "Command list was not captured from constructor");
-            assertEquals(expectedCommand("--version"), capturedCommand);
-            verify(processBuilderMock).start();
+            assertNotNull(capturedCommand, "Command was not captured from Launcher");
+            assertEquals(expectedCommand("--version"), capturedCommand.toList());
             verifyExecuteCommandInternals();
         }
 
@@ -222,10 +260,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw IOException on non-zero exit code")
-        void shouldThrowIOExceptionOnFailure() throws InterruptedException {
+        void shouldThrowIOExceptionOnFailure() {
             // GIVEN
             String errorOutput = "Command not found";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
@@ -259,19 +297,18 @@ class BitwardenCLITest {
             BitwardenCLI.login(apiKeyCredentialsMock);
 
             // THEN
-            assertEquals(expectedCommand("login", "--apikey"), capturedCommand);
-            verify(environmentMapMock).put("BW_CLIENTID", "test-client-id");
-            verify(environmentMapMock).put("BW_CLIENTSECRET", "test-client-secret");
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("login", "--apikey"), capturedCommand.toList());
+            assertEquals("test-client-id", capturedEnvs.get("BW_CLIENTID"));
+            assertEquals("test-client-secret", capturedEnvs.get("BW_CLIENTSECRET"));
             verifyExecuteCommandInternals();
         }
 
         @Test
         @DisplayName("should throw BitwardenConnectionException on FetchError")
-        void shouldThrowConnectionException() throws InterruptedException {
+        void shouldThrowConnectionException() {
             // GIVEN
             String errorOutput = "FetchError: request to https://... failed";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
@@ -281,9 +318,9 @@ class BitwardenCLITest {
         @ParameterizedTest
         @ValueSource(strings = {"Invalid API Key", "Username or password is incorrect", "Incorrect client_secret"})
         @DisplayName("should throw BitwardenAuthenticationException for all auth errors")
-        void shouldThrowAuthenticationException(String errorOutput) throws InterruptedException {
+        void shouldThrowAuthenticationException(String errorOutput) {
             // GIVEN
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             assertThrows(BitwardenAuthenticationException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
@@ -292,10 +329,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw generic IOException for other errors")
-        void shouldThrowGenericIOException() throws InterruptedException {
+        void shouldThrowGenericIOException() {
             // GIVEN
             String errorOutput = "An unexpected error occurred.";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
@@ -312,7 +349,7 @@ class BitwardenCLITest {
     class Logout {
         @Test
         @DisplayName("should call the logout command")
-        void shouldCallLogoutCommand() throws IOException, InterruptedException {
+        void shouldCallLogoutCommand() throws InterruptedException {
             // GIVEN
             setupMockProcess("Logout successful.", 0);
 
@@ -320,21 +357,20 @@ class BitwardenCLITest {
             BitwardenCLI.logout();
 
             // THEN
-            assertEquals(expectedCommand("logout"), capturedCommand);
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("logout"), capturedCommand.toList());
             verifyExecuteCommandInternals();
         }
 
         @Test
         @DisplayName("should ignore IOException on failure")
-        void shouldIgnoreIOExceptionOnFailure() throws InterruptedException {
+        void shouldIgnoreIOExceptionOnFailure() {
             // GIVEN
-            setupMockProcess("You are not logged in.", 1);
+            setupMockProcess("", "You are not logged in.", 1);
 
             // WHEN & THEN
             // Verify that no exception is thrown, as the method is designed to ignore errors
             assertDoesNotThrow(BitwardenCLI::logout);
-            assertEquals(expectedCommand("logout"), capturedCommand);
+            assertEquals(expectedCommand("logout"), capturedCommand.toList());
             verifyExecuteCommandInternals();
         }
     }
@@ -361,9 +397,9 @@ class BitwardenCLITest {
             Secret resultToken = BitwardenCLI.unlock(masterPasswordCredentialsMock);
 
             // THEN
-            assertEquals(expectedCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), capturedCommand);
-            verify(environmentMapMock).put("BITWARDEN_MASTER_PASSWORD", "test-master-password");
-            verify(processBuilderMock).start();
+            assertEquals(
+                    expectedCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), capturedCommand.toList());
+            assertEquals("test-master-password", capturedEnvs.get("BITWARDEN_MASTER_PASSWORD"));
             assertNotNull(resultToken);
             assertEquals(sessionToken, resultToken.getPlainText());
             verifyExecuteCommandInternals();
@@ -371,10 +407,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw BitwardenConnectionException on FetchError")
-        void shouldThrowConnectionException() throws InterruptedException {
+        void shouldThrowConnectionException() {
             // GIVEN
             String errorOutput = "FetchError: request to https://... failed";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
@@ -383,10 +419,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw BitwardenAuthenticationException for invalid master password")
-        void shouldThrowAuthenticationException() throws InterruptedException {
+        void shouldThrowAuthenticationException() {
             // GIVEN
             String errorOutput = "Invalid master password";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             assertThrows(
@@ -396,10 +432,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw generic IOException for other errors")
-        void shouldThrowGenericIOException() throws InterruptedException {
+        void shouldThrowGenericIOException() {
             // GIVEN
             String errorOutput = "An unexpected error occurred.";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             IOException exception =
@@ -433,18 +469,17 @@ class BitwardenCLITest {
             BitwardenCLI.sync(mockSessionToken);
 
             // THEN
-            assertEquals(expectedCommand("sync"), capturedCommand);
-            verify(environmentMapMock).put("BW_SESSION", "test-session-token");
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("sync"), capturedCommand.toList());
+            assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
             verifyExecuteCommandInternals();
         }
 
         @Test
         @DisplayName("should throw BitwardenConnectionException on FetchError")
-        void shouldThrowConnectionException() throws InterruptedException {
+        void shouldThrowConnectionException() {
             // GIVEN
             String errorOutput = "FetchError: request to https://... failed";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.sync(mockSessionToken));
@@ -453,10 +488,10 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw generic IOException for other errors")
-        void shouldThrowGenericIOException() throws InterruptedException {
+        void shouldThrowGenericIOException() {
             // GIVEN
             String errorOutput = "An unexpected error occurred.";
-            setupMockProcess(errorOutput, 1);
+            setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
             IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.sync(mockSessionToken));
@@ -490,9 +525,8 @@ class BitwardenCLITest {
             BitwardenStatus status = BitwardenCLI.status(mockSessionToken);
 
             // THEN
-            assertEquals(expectedCommand("status"), capturedCommand);
-            verify(environmentMapMock).put("BW_SESSION", "test-session-token");
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("status"), capturedCommand.toList());
+            assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
             assertNotNull(status);
             assertEquals("unlocked", status.getStatus());
             verifyExecuteCommandInternals();
@@ -500,7 +534,7 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw IOException on bad JSON")
-        void shouldThrowIOExceptionOnBadJson() throws InterruptedException {
+        void shouldThrowIOExceptionOnBadJson() {
             // GIVEN
             String badJsonOutput = "this is not json";
             setupMockProcess(badJsonOutput, 0);
@@ -538,9 +572,38 @@ class BitwardenCLITest {
             List<BitwardenItemMetadata> metadataList = BitwardenCLI.listItemsMetadata(mockSessionToken);
 
             // THEN
-            assertEquals(expectedCommand("list", "items"), capturedCommand);
-            verify(environmentMapMock).put("BW_SESSION", "test-session-token");
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("list", "items"), capturedCommand.toList());
+            assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
+            assertNotNull(metadataList);
+            assertEquals(2, metadataList.size());
+            assertEquals("uuid-1", metadataList.get(0).getId());
+            assertEquals("Item 2", metadataList.get(1).getName());
+            verifyExecuteCommandInternals();
+        }
+
+        @Test
+        @DisplayName("should parse JSON correctly even when stderr has decryption errors")
+        void shouldParseJsonWhenStderrHasDecryptionErrors() throws IOException, InterruptedException {
+            // GIVEN: stderr has decryption errors (real-world scenario from GitHub issue #21)
+            // The bw CLI can emit errors about corrupt attachments on stderr while still
+            // returning valid JSON on stdout with exit code 0.
+            String stderrOutput = """
+                    ERROR bitwarden_crypto::enc_string::symmetric: error=The decryption operation failed
+                    Failed to decrypt property 'fileName' of domain. Context: DomainType: Attachment; Cipher Id: c1345f88-64e0-4f9f-a10b-b1e3004ff4f4.
+                    [Attachment] Error decrypting attachment Error [CryptoError]: The decryption operation failed
+                    Event post failed.""";
+            String jsonOutput = """
+                    [
+                        {"id": "uuid-1", "name": "Item 1", "type": 1},
+                        {"id": "uuid-2", "name": "Item 2", "type": 2}
+                    ]
+                    """;
+            setupMockProcess(jsonOutput, stderrOutput, 0);
+
+            // WHEN
+            List<BitwardenItemMetadata> metadataList = BitwardenCLI.listItemsMetadata(mockSessionToken);
+
+            // THEN — stderr noise must not pollute JSON parsing
             assertNotNull(metadataList);
             assertEquals(2, metadataList.size());
             assertEquals("uuid-1", metadataList.get(0).getId());
@@ -550,7 +613,7 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw IOException on bad JSON")
-        void shouldThrowIOExceptionOnBadJson() throws InterruptedException {
+        void shouldThrowIOExceptionOnBadJson() {
             // GIVEN
             String badJsonOutput = "not a json array";
             setupMockProcess(badJsonOutput, 0);
@@ -590,9 +653,8 @@ class BitwardenCLITest {
             BitwardenItem item = BitwardenCLI.getItem(mockSessionToken, ITEM_ID);
 
             // THEN
-            assertEquals(expectedCommand("get", "item", ITEM_ID), capturedCommand);
-            verify(environmentMapMock).put("BW_SESSION", "test-session-token");
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("get", "item", ITEM_ID), capturedCommand.toList());
+            assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
             assertNotNull(item);
             assertEquals("My Login", item.getName());
             assertNotNull(item.getLogin());
@@ -602,7 +664,7 @@ class BitwardenCLITest {
 
         @Test
         @DisplayName("should throw IOException on bad JSON")
-        void shouldThrowIOExceptionOnBadJson() throws InterruptedException {
+        void shouldThrowIOExceptionOnBadJson() {
             // GIVEN
             String badJsonOutput = "not a json object";
             setupMockProcess(badJsonOutput, 0);
@@ -627,17 +689,16 @@ class BitwardenCLITest {
             BitwardenCLI.configServer(serverUrl);
 
             // THEN
-            assertEquals(expectedCommand("config", "server", serverUrl), capturedCommand);
-            verify(processBuilderMock).start();
+            assertEquals(expectedCommand("config", "server", serverUrl), capturedCommand.toList());
             verifyExecuteCommandInternals();
         }
 
         @Test
         @DisplayName("should throw IOException on failure")
-        void shouldThrowIOExceptionOnFailure() throws InterruptedException {
+        void shouldThrowIOExceptionOnFailure() {
             // GIVEN
             String serverUrl = "https://vault.example.com";
-            setupMockProcess("Invalid URL.", 1);
+            setupMockProcess("", "Invalid URL.", 1);
 
             // WHEN & THEN
             assertThrows(IOException.class, () -> BitwardenCLI.configServer(serverUrl));
