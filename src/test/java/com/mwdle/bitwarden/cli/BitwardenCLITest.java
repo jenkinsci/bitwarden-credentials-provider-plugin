@@ -93,7 +93,6 @@ class BitwardenCLITest {
     private int mockExitCode = 0;
 
     @BeforeEach
-    @SuppressWarnings("unchecked")
     void setUp() throws Exception {
         closeable = MockitoAnnotations.openMocks(this);
 
@@ -158,9 +157,9 @@ class BitwardenCLITest {
                 });
 
         // Mock the construction of Launcher.LocalLauncher to return our ProcStarter
-        launcherMockedConstruction = mockConstruction(Launcher.LocalLauncher.class, (mock, context) -> {
-            when(mock.launch()).thenReturn(procStarterMock);
-        });
+        launcherMockedConstruction =
+                mockConstruction(Launcher.LocalLauncher.class, (mock, context) -> when(mock.launch())
+                        .thenReturn(procStarterMock));
     }
 
     @AfterEach
