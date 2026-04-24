@@ -117,11 +117,14 @@ public class BitwardenSessionManager {
         try {
             BitwardenStatus response = BitwardenCLI.status(this.sessionToken);
             return response.getStatus().equals("unlocked");
+        } catch (InterruptedException e) {
+            LOGGER.warning("Thread was interrupted while checking Bitwarden session status.");
+            Thread.currentThread().interrupt();
         } catch (Exception e) {
             // If the status command fails for any reason, the token is considered invalid.
             LOGGER.warning("Failed to check Bitwarden session token status: " + e.getMessage());
-            return false;
         }
+        return false;
     }
 
     /**
