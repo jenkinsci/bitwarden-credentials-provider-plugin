@@ -7,6 +7,9 @@ import java.io.IOException;
  * network-related issue, such as a DNS failure or an inability to connect to the server.
  */
 public class BitwardenConnectionException extends IOException {
+
+    public static final String IDENTIFIER = "FetchError";
+
     /**
      * Constructs a new BitwardenConnectionException.
      *

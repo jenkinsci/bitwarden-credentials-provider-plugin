@@ -34,6 +34,7 @@ public final class BitwardenCLI {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLI.class.getName());
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String KEY_BW_SESSION = "BW_SESSION";
 
     /**
      * A private constructor to prevent instantiation of this utility class.
@@ -78,6 +79,8 @@ public final class BitwardenCLI {
         String executablePath = BitwardenCLIManager.getInstance().getExecutablePath();
         List<String> commandParts = new ArrayList<>();
         commandParts.add(executablePath);
+        commandParts.add("--nointeraction");
+        commandParts.add("--raw");
         commandParts.addAll(Arrays.asList(command));
         LOGGER.fine(() -> "Building Bitwarden command: " + String.join(" ", commandParts));
         return new ProcessBuilder(commandParts);
@@ -115,7 +118,7 @@ public final class BitwardenCLI {
             executeCommand(pb);
             LOGGER.info("Login successful.");
         } catch (IOException e) {
-            if (e.getMessage().contains("FetchError")) {
+            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
                 throw new BitwardenConnectionException(Messages.exception_connectionError(), e);
             } else if (e.getMessage().contains("Username or password is incorrect")
                     || e.getMessage().contains("Invalid API Key")
@@ -154,13 +157,13 @@ public final class BitwardenCLI {
      */
     public static Secret unlock(StringCredentials masterPassword) throws IOException, InterruptedException {
         LOGGER.info("Unlocking vault.");
-        ProcessBuilder pb = bitwardenCommand("unlock", "--raw", "--passwordenv", "BITWARDEN_MASTER_PASSWORD");
+        ProcessBuilder pb = bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD");
         Map<String, String> env = pb.environment();
         env.put("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
         try {
             return Secret.fromString(executeCommand(pb));
         } catch (IOException e) {
-            if (e.getMessage().contains("FetchError")) {
+            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
                 throw new BitwardenConnectionException(Messages.exception_connectionError(), e);
             } else if (e.getMessage().contains("Invalid master password")) {
                 throw new BitwardenAuthenticationException(Messages.exception_unlockError(), e);
@@ -180,12 +183,12 @@ public final class BitwardenCLI {
     public static void sync(Secret sessionToken) throws IOException, InterruptedException {
         LOGGER.info("Syncing vault.");
         ProcessBuilder pb = bitwardenCommand("sync");
-        pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
+        pb.environment().put(KEY_BW_SESSION, Secret.toString(sessionToken));
         try {
             executeCommand(pb);
             LOGGER.info("Vault sync complete.");
         } catch (IOException e) {
-            if (e.getMessage().contains("FetchError")) {
+            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
                 throw new BitwardenConnectionException(Messages.exception_syncError(), e);
             }
             throw e; // Re-throw the original generic exception if it's not a known type
@@ -203,7 +206,7 @@ public final class BitwardenCLI {
     public static BitwardenStatus status(Secret sessionToken) throws IOException, InterruptedException {
         LOGGER.fine("Fetching CLI status.");
         ProcessBuilder pb = bitwardenCommand("status");
-        pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
+        pb.environment().put(KEY_BW_SESSION, Secret.toString(sessionToken));
         String json = executeCommand(pb);
         LOGGER.fine(() -> "CLI status fetched successfully. JSON: " + json);
         return OBJECT_MAPPER.readValue(json, BitwardenStatus.class);
@@ -220,7 +223,7 @@ public final class BitwardenCLI {
     public static List<BitwardenItemMetadata> listItemsMetadata(Secret sessionToken)
             throws IOException, InterruptedException {
         ProcessBuilder pb = bitwardenCommand("list", "items");
-        pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
+        pb.environment().put(KEY_BW_SESSION, Secret.toString(sessionToken));
         String json = executeCommand(pb);
         List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
         LOGGER.info(() -> "Successfully deserialized metadata for " + metadataList.size() + " items.");
@@ -239,7 +242,7 @@ public final class BitwardenCLI {
     public static BitwardenItem getItem(Secret sessionToken, String itemId) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Fetching single vault item with ID: " + itemId);
         ProcessBuilder pb = bitwardenCommand("get", "item", itemId);
-        pb.environment().put("BW_SESSION", Secret.toString(sessionToken));
+        pb.environment().put(KEY_BW_SESSION, Secret.toString(sessionToken));
         String json = executeCommand(pb);
         LOGGER.fine(() -> "Single vault item " + itemId + " fetched successfully.");
         return OBJECT_MAPPER.readValue(json, BitwardenItem.class);

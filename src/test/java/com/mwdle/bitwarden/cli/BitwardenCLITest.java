@@ -17,6 +17,8 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import jenkins.security.ConfidentialStore;
@@ -42,6 +44,8 @@ import org.mockito.MockitoAnnotations;
 class BitwardenCLITest {
 
     private static final String FAKE_EXECUTABLE_PATH = "/fake/path/bw";
+    private static final String NO_INTERACTION_FLAG = "--nointeraction";
+    private static final String RAW_FLAG = "--raw";
     // Mocks for static dependencies
     private static MockedStatic<BitwardenCLIManager> mockedCliManager;
     private static MockedStatic<PluginDirectoryProvider> mockedPluginDir;
@@ -160,6 +164,16 @@ class BitwardenCLITest {
     }
 
     /**
+     * Helper method to generate the expected command list, automatically prepending
+     * the executable and global flags.
+     */
+    private List<String> expectedCommand(String... commandArgs) {
+        List<String> expectedCommand = new ArrayList<>(List.of(FAKE_EXECUTABLE_PATH, NO_INTERACTION_FLAG, RAW_FLAG));
+        expectedCommand.addAll(Arrays.asList(commandArgs));
+        return expectedCommand;
+    }
+
+    /**
      * Helper method to verify the common side-effects of `executeCommand`.
      * This ensures our tests are as thorough as the production code.
      */
@@ -186,7 +200,7 @@ class BitwardenCLITest {
             // THEN
             assertEquals(expectedVersion, actualVersion);
             assertNotNull(capturedCommand, "Command list was not captured from constructor");
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "--version"), capturedCommand);
+            assertEquals(expectedCommand("--version"), capturedCommand);
             verify(processBuilderMock).start();
             verifyExecuteCommandInternals();
         }
@@ -245,7 +259,7 @@ class BitwardenCLITest {
             BitwardenCLI.login(apiKeyCredentialsMock);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "login", "--apikey"), capturedCommand);
+            assertEquals(expectedCommand("login", "--apikey"), capturedCommand);
             verify(environmentMapMock).put("BW_CLIENTID", "test-client-id");
             verify(environmentMapMock).put("BW_CLIENTSECRET", "test-client-secret");
             verify(processBuilderMock).start();
@@ -306,7 +320,7 @@ class BitwardenCLITest {
             BitwardenCLI.logout();
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "logout"), capturedCommand);
+            assertEquals(expectedCommand("logout"), capturedCommand);
             verify(processBuilderMock).start();
             verifyExecuteCommandInternals();
         }
@@ -320,7 +334,7 @@ class BitwardenCLITest {
             // WHEN & THEN
             // Verify that no exception is thrown, as the method is designed to ignore errors
             assertDoesNotThrow(BitwardenCLI::logout);
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "logout"), capturedCommand);
+            assertEquals(expectedCommand("logout"), capturedCommand);
             verifyExecuteCommandInternals();
         }
     }
@@ -347,9 +361,7 @@ class BitwardenCLITest {
             Secret resultToken = BitwardenCLI.unlock(masterPasswordCredentialsMock);
 
             // THEN
-            assertEquals(
-                    List.of(FAKE_EXECUTABLE_PATH, "unlock", "--raw", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"),
-                    capturedCommand);
+            assertEquals(expectedCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), capturedCommand);
             verify(environmentMapMock).put("BITWARDEN_MASTER_PASSWORD", "test-master-password");
             verify(processBuilderMock).start();
             assertNotNull(resultToken);
@@ -421,7 +433,7 @@ class BitwardenCLITest {
             BitwardenCLI.sync(mockSessionToken);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "sync"), capturedCommand);
+            assertEquals(expectedCommand("sync"), capturedCommand);
             verify(environmentMapMock).put("BW_SESSION", "test-session-token");
             verify(processBuilderMock).start();
             verifyExecuteCommandInternals();
@@ -478,7 +490,7 @@ class BitwardenCLITest {
             BitwardenStatus status = BitwardenCLI.status(mockSessionToken);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "status"), capturedCommand);
+            assertEquals(expectedCommand("status"), capturedCommand);
             verify(environmentMapMock).put("BW_SESSION", "test-session-token");
             verify(processBuilderMock).start();
             assertNotNull(status);
@@ -526,7 +538,7 @@ class BitwardenCLITest {
             List<BitwardenItemMetadata> metadataList = BitwardenCLI.listItemsMetadata(mockSessionToken);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "list", "items"), capturedCommand);
+            assertEquals(expectedCommand("list", "items"), capturedCommand);
             verify(environmentMapMock).put("BW_SESSION", "test-session-token");
             verify(processBuilderMock).start();
             assertNotNull(metadataList);
@@ -578,7 +590,7 @@ class BitwardenCLITest {
             BitwardenItem item = BitwardenCLI.getItem(mockSessionToken, ITEM_ID);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "get", "item", ITEM_ID), capturedCommand);
+            assertEquals(expectedCommand("get", "item", ITEM_ID), capturedCommand);
             verify(environmentMapMock).put("BW_SESSION", "test-session-token");
             verify(processBuilderMock).start();
             assertNotNull(item);
@@ -615,7 +627,7 @@ class BitwardenCLITest {
             BitwardenCLI.configServer(serverUrl);
 
             // THEN
-            assertEquals(List.of(FAKE_EXECUTABLE_PATH, "config", "server", serverUrl), capturedCommand);
+            assertEquals(expectedCommand("config", "server", serverUrl), capturedCommand);
             verify(processBuilderMock).start();
             verifyExecuteCommandInternals();
         }
