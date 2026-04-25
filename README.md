@@ -1,7 +1,7 @@
 # Bitwarden Credentials Provider Plugin
 
 > [!NOTE]
-> This is a third-party plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
+> This is a community-built plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
 
 [![GitHub release](https://img.shields.io/github/release/jenkinsci/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/releases/latest)
 [![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/bitwarden-credentials-provider.svg?color=blue)](https://plugins.jenkins.io/bitwarden-credentials-provider)
