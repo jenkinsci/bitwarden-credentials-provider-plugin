@@ -47,9 +47,6 @@ public class LoginConverter extends CredentialConverter {
         return canConvert;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public StandardUsernamePasswordCredentials createProxy(
             CredentialsScope scope, String id, BitwardenItemMetadata metadata) {

@@ -1,7 +1,7 @@
 # Bitwarden Credentials Provider Plugin
 
 > [!NOTE]
-> This is a third-party plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
+> This is a community-built plugin and is not affiliated with, sponsored, or endorsed by Bitwarden, Inc.
 
 [![GitHub release](https://img.shields.io/github/release/jenkinsci/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/releases/latest)
 [![Jenkins Plugin Installs](https://img.shields.io/jenkins/plugin/i/bitwarden-credentials-provider.svg?color=blue)](https://plugins.jenkins.io/bitwarden-credentials-provider)
@@ -41,17 +41,17 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 
 You must first configure the plugin's global settings under **Manage Jenkins > System > Bitwarden Credentials Provider Configuration**.
 
--   **Bitwarden Server URL:** For self-hosted instances like Vaultwarden. Leave blank for the official Bitwarden cloud.
--   **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden Client ID and Client Secret.
--   **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
--   **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
--   **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
+- **Bitwarden Server URL:** For self-hosted instances like Vaultwarden. Leave blank for the official Bitwarden cloud.
+- **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden Client ID and Client Secret.
+- **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
+- **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
+- **Bitwarden CLI Executable Path: (Optional)** Provide the absolute path to a manually installed bw executable. This is required for Jenkins controllers running on CPU architectures for which there is no direct `bw` CLI download (e.g., `ARM`/`aarch64`).
 
 You can verify that the configuration was applied successfully using the following steps:
 
 1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced**. Click the **Verify Session Status** button.
-    * A **success message** immediately confirms that your configuration is correct and the plugin is working.
-    * If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
+    - A **success message** immediately confirms that your configuration is correct and the plugin is working.
+    - If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
 
 2.  **Check the Credentials Page:** If the session is active, navigate to the main **Credentials** page from the Jenkins dashboard. Your Bitwarden items should be listed there.
 
@@ -80,6 +80,7 @@ The plugin includes several actions under **Manage Jenkins > System > Bitwarden 
 This plugin is fully compatible with the Jenkins Configuration as Code plugin and uses the symbol `bitwarden`.
 
 **Example `jenkins.yaml`:**
+
 ```yaml
 # The credentials section allows you to define your Bitwarden credentials within JCasC, if desired.
 # Please note that defining your credentials within JCasC (even if passing in from environment variable)
@@ -97,10 +98,10 @@ credentials:
           - string:
               scope: GLOBAL
               id: "bitwarden-master-password"
-              secret: '${BITWARDEN_MASTER_PASSWORD}' # Uses value provided by environment variable
+              secret: "${BITWARDEN_MASTER_PASSWORD}" # Uses value provided by environment variable
               description: "Bitwarden CLI Master Password"
-              
-# Configure the plugin within the `unclassified` section:          
+
+# Configure the plugin within the `unclassified` section:
 unclassified:
   bitwarden:
     # The URL of your self-hosted Bitwarden/Vaultwarden server.
@@ -134,8 +135,8 @@ After Jenkins loads your JCasC configuration, the plugin will attempt to log in 
 
 This plugin intelligently exposes every item in your vault as a native Jenkins credential. To handle items that share the same name, it uses the following rule:
 
--   If an item's name is **unique** in your vault, its `credentialsId` in Jenkins is its **Name**.
--   If an item's name is **not unique**, its `credentialsId` in Jenkins is its **UUID**.
+- If an item's name is **unique** in your vault, its `credentialsId` in Jenkins is its **Name**.
+- If an item's name is **not unique**, its `credentialsId` in Jenkins is its **UUID**.
 
 The Jenkins UI makes it easy to find the correct ID. The description for every credential shows both its name and its UUID, and will indicate if the name is non-unique.
 
@@ -154,8 +155,8 @@ withCredentials([string(credentialsId: 'My Production API Key', variable: 'API_K
 
 Imagine you have two items named "Docker Hub". In the Jenkins UI, they would appear like this:
 
-* ID: `a1b2c3d4-...`, Name: `Docker Hub (BW ID: a1b2c3d4-..., non-unique name)`
-* ID: `e5f6a1b2-...`, Name: `Docker Hub (BW ID: e5f6a1b2-..., non-unique name)`
+- ID: `a1b2c3d4-...`, Name: `Docker Hub (BW ID: a1b2c3d4-..., non-unique name)`
+- ID: `e5f6a1b2-...`, Name: `Docker Hub (BW ID: e5f6a1b2-..., non-unique name)`
 
 To access either one, you would copy its UUID from the UI and use that as the `credentialsId`.
 
@@ -166,7 +167,7 @@ withCredentials([usernamePassword(credentialsId: 'e5f6a1b2-c3d4-e5f6-a1b2-c3d4e5
 }
 ```
 
-To avoid having to fetch secrets by their Bitwarden UUID, the solution is simple: *Always set a unique name for each item in your Bitwarden vault*.
+To avoid having to fetch secrets by their Bitwarden UUID, the solution is simple: _Always set a unique name for each item in your Bitwarden vault_.
 
 ### Using with Pipeline Parameters
 
@@ -174,7 +175,7 @@ You can use Bitwarden items to populate a `credentials()` parameter, but you **m
 
 This is because the plugin loads credentials dynamically, and they are not recognized by the `credentialType` filter (which expects a specific credential type).
 
-The trade-off is that the parameter dropdown will list *all* Jenkins credentials of *all types* (e.g., Secret Text, SSH Keys). Use the `description` field to guide users.
+The trade-off is that the parameter dropdown will list _all_ Jenkins credentials of _all types_ (e.g., Secret Text, SSH Keys). Use the `description` field to guide users.
 
 **Example `Jenkinsfile`:**
 
@@ -209,7 +210,7 @@ pipeline {
 The plugin automatically converts Bitwarden items into the following Jenkins credential types.
 
 | Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                                                                    |
-|---------------------|---------------------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.                                                      |
 | Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                                                                 |
 | Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here.                                            |

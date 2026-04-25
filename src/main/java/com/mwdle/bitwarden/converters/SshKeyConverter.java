@@ -68,9 +68,6 @@ public class SshKeyConverter extends CredentialConverter {
         return canConvert;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public SSHUserPrivateKey createProxy(CredentialsScope scope, String id, BitwardenItemMetadata metadata) {
         LOGGER.fine(() -> "Creating PROXY credential for SSH key: " + metadata.getId());

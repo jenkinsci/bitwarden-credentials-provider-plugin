@@ -37,9 +37,6 @@ public class BitwardenCredentialsStore extends CredentialsStore {
         action = new BitwardenCredentialStoreAction(this);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     @Nonnull
     public ItemGroup<?> getContext() {
@@ -56,17 +53,11 @@ public class BitwardenCredentialsStore extends CredentialsStore {
         return Jenkins.get().getACL().hasPermission2(a, permission);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public CredentialsStoreAction getStoreAction() {
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getDisplayName() {
         return Messages.BitwardenCredentialsStore_DisplayName();
