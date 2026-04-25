@@ -14,9 +14,6 @@ import java.io.IOException;
  * handled as a plain string in memory.
  */
 public class SecretDeserializer extends JsonDeserializer<Secret> {
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Secret deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         return p.getValueAsString() != null ? Secret.fromString(p.getValueAsString()) : null;
