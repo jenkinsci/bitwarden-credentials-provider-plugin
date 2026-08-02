@@ -15,7 +15,6 @@
   <packaging>hpi</packaging>
 
   <name>Bitwarden Credentials Provider</name>
-  <description>A Jenkins credentials provider for Bitwarden that exposes vault items as native Jenkins credentials.</description>
   <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
   <licenses>
