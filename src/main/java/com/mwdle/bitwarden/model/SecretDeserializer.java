@@ -13,7 +13,7 @@ import java.io.IOException;
  * Bitwarden CLI's JSON output is immediately wrapped in a {@link Secret} object and not
  * handled as a plain string in memory.
  */
-public class SecretDeserializer extends JsonDeserializer<Secret> {
+public final class SecretDeserializer extends JsonDeserializer<Secret> {
     @Override
     public Secret deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
         return p.getValueAsString() != null ? Secret.fromString(p.getValueAsString()) : null;
