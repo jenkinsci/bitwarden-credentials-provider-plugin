@@ -3,21 +3,17 @@ package com.mwdle.bitwarden;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 
 /**
- * A thread-safe utility class for providing a stable, dedicated data directory for the plugin.
+ * A utility class that provides a stable, dedicated data directory for this plugin.
  * <p>
- * This class ensures that all plugin data (such as the downloaded CLI, cache files, and CLI
- * configuration) is stored in a consistent location within the Jenkins home directory. It uses a
- * double-checked locking pattern to efficiently find and create this directory only once.
+ * This class ensures a consistent location within the Jenkins home directory for all plugin data,
+ * safely lazy-initializing the directory on first use.
  */
 public final class PluginDirectoryProvider {
 
     private static final String PLUGIN_DIR_NAME = "bitwarden-credentials-provider-data";
-    private static final Logger LOGGER = Logger.getLogger(PluginDirectoryProvider.class.getName());
     private static volatile File pluginDirectory;
     private static final Object lock = new Object();
 
@@ -27,37 +23,36 @@ public final class PluginDirectoryProvider {
     private PluginDirectoryProvider() {}
 
     /**
-     * Gets the single, stable data directory for this plugin.
+     * Returns the stable data directory for this plugin.
      * <p>
      * On the first call, this method will find or create the directory
-     * {@code $JENKINS_HOME/bitwarden-credentials-provider-data} and cache the path for all
+     * {@code $JENKINS_HOME/bitwarden-credentials-provider-data} and cache the {@link File} handle for all
      * subsequent calls. The lookup and creation are performed in a thread-safe manner.
      *
-     * @return The {@link File} object representing the plugin's data directory.
-     * @throws RuntimeException if the directory cannot be created, which may indicate a file permissions issue.
+     * @return the {@link File} object representing this plugin's data directory
+     * @throws IllegalStateException if the directory cannot be created, which may indicate a file permissions issue
      */
     public static File getPluginDataDirectory() {
-        File result = pluginDirectory;
-        if (result != null) {
-            return result;
+        if (pluginDirectory != null) {
+            return pluginDirectory;
         }
         synchronized (lock) {
-            // This prevents a second thread from re-doing the work if it was waiting for the lock.
+            // Double-checked locking pattern ensures the directory creation step only occurs once
             if (pluginDirectory != null) {
                 return pluginDirectory;
             }
             File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
             try {
                 Files.createDirectories(dir.toPath());
-                LOGGER.fine("Plugin data directory is ready: " + dir.getAbsolutePath());
             } catch (IOException e) {
-                String errorMessage = "Could not create plugin directory: " + dir.getAbsolutePath()
-                        + "\nDoes Jenkins have proper file permissions?";
-                LOGGER.log(Level.SEVERE, errorMessage, e);
-                throw new RuntimeException(errorMessage, e);
+                throw new IllegalStateException(
+                        String.format(
+                                "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
+                                dir.getAbsolutePath()),
+                        e);
             }
             pluginDirectory = dir;
-            return dir;
+            return pluginDirectory;
         }
     }
 }
