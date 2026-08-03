@@ -40,7 +40,7 @@ import org.kohsuke.stapler.verb.POST;
  */
 @Extension
 @Symbol("bitwarden")
-public class BitwardenConfig extends GlobalConfiguration {
+public final class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
 
@@ -49,6 +49,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      * This is used to determine if critical settings have changed,
      * preventing unnecessary re-authentication and cache refreshes on every save.
      */
+    @SuppressWarnings("squid:S2065")
     private transient BitwardenConfig loadedConfig;
 
     /** The URL of the self-hosted Bitwarden/Vaultwarden server. */
@@ -63,7 +64,7 @@ public class BitwardenConfig extends GlobalConfiguration {
     private int cacheDuration = 5; // Default to 5 minutes
     /** A comma-separated list of suffixes to identify FileCredentials. */
     // This field stores non-secret configuration strings, not secrets.
-    // lgtm[jenkins/plaintext-storage]
+    @SuppressWarnings("lgtm[jenkins/plaintext-storage]")
     private String fileCredentialSuffixes;
 
     /**
@@ -172,9 +173,9 @@ public class BitwardenConfig extends GlobalConfiguration {
      */
     public boolean isConfigured() {
         return apiCredentialId != null
-                && !apiCredentialId.isEmpty()
+                && !apiCredentialId.isBlank()
                 && masterPasswordCredentialId != null
-                && !masterPasswordCredentialId.isEmpty();
+                && !masterPasswordCredentialId.isBlank();
     }
 
     /**
@@ -203,7 +204,7 @@ public class BitwardenConfig extends GlobalConfiguration {
      * If they have, it triggers a background task to re-authenticate and refresh the credential cache.
      */
     @Override
-    public void save() {
+    public synchronized void save() {
         super.save();
         boolean configChanged = loadedConfig == null
                 || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
@@ -327,6 +328,9 @@ public class BitwardenConfig extends GlobalConfiguration {
         try {
             String currentVersion = BitwardenCLI.version();
             return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return FormValidation.error(Messages.validation_cliError(e.getMessage()));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
             return FormValidation.error(Messages.validation_cliError(e.getMessage()));
@@ -352,6 +356,9 @@ public class BitwardenConfig extends GlobalConfiguration {
             BitwardenCLIManager.getInstance().downloadLatestExecutable();
             String newVersion = BitwardenCLI.version();
             return FormValidation.ok(Messages.validation_cliUpdateOk(newVersion));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
             return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
