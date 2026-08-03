@@ -2,72 +2,53 @@ package com.mwdle.bitwarden;
 
 import com.cloudbees.plugins.credentials.Credentials;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
-import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.CredentialsStore;
+import com.cloudbees.plugins.credentials.CredentialsStoreAction;
+import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.domains.DomainRequirement;
 import com.mwdle.bitwarden.converters.CredentialConverter;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
 import hudson.model.ItemGroup;
 import hudson.model.ModelObject;
-import jakarta.annotation.Nonnull;
-import jakarta.annotation.Nullable;
+import hudson.security.ACL;
+import hudson.security.Permission;
 import java.util.*;
-import java.util.function.Function;
-import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import jenkins.model.Jenkins;
 import org.springframework.security.core.Authentication;
 
 /**
- * The main entry point for the plugin, responsible for providing Bitwarden-backed credentials to Jenkins.
- * <p>
- * This class is a singleton managed by Jenkins. Its primary role is to respond to requests for credentials
- * (from pipelines or the UI) by fetching metadata from the {@link BitwardenCacheManager} and converting
- * it into a list of lazy-loading {@link com.mwdle.bitwarden.converters.CredentialProxy} objects.
+ * A Jenkins-managed singleton responsible for providing Bitwarden-backed credentials to Jenkins and consumers.
  */
 @Extension
-public class BitwardenCredentialsProvider extends CredentialsProvider {
+public final class BitwardenCredentialsProvider extends CredentialsProvider {
 
-    private static final Logger LOGGER = Logger.getLogger(BitwardenCredentialsProvider.class.getName());
-    private final transient BitwardenCredentialsStore store = new BitwardenCredentialsStore(this);
+    private final BitwardenCredentialsStore store = new BitwardenCredentialsStore();
 
-    /**
-     * Provides global access to the single instance of this provider.
-     *
-     * @return The singleton instance of this provider.
-     */
-    public static BitwardenCredentialsProvider getInstance() {
-        return CredentialsProvider.all().get(BitwardenCredentialsProvider.class);
-    }
-
-    /**
-     * Provides the {@link BitwardenCredentialsStore} to the Jenkins UI for the global credentials context.
-     *
-     * @param object The context for which the store is being requested.
-     * @return The singleton {@link BitwardenCredentialsStore} if the context is the Jenkins root, otherwise {@code null}.
-     */
     @Override
-    public CredentialsStore getStore(ModelObject object) {
-        if (object instanceof Jenkins) {
+    @CheckForNull
+    public CredentialsStore getStore(@CheckForNull ModelObject object) {
+        if (object == Jenkins.get()) {
             return store;
         }
         return null;
     }
 
     /**
-     * The primary method for generating the list of all available Bitwarden credentials.
+     * Returns a list of all available Bitwarden credentials.
      * <p>
-     * This method is safe for all consumers (UI and pipelines). It fetches the latest metadata from the
-     * cache, intelligently assigns a Jenkins ID (using the name for unique items and the UUID for
-     * items with duplicate names), and returns a list of credential proxies.
+     * Fetches the latest metadata from the cache, intelligently assigns a Jenkins ID (using the BW name for unique
+     * items and the BW UUID for items with duplicate names), and returns a list of credential proxies.
      * <p>
-     * It will not block or throw exceptions if the cache is being refreshed or has failed to load,
-     * and will instead return an empty list.
+     * This method will not block or throw exceptions if the cache is being refreshed or has failed to load and will instead return an empty list.
      *
-     * @return A list of all available {@link Credentials} proxies from Bitwarden.
+     * @return a list of all available {@link Credentials} from Bitwarden
      */
-    public List<Credentials> listCredentials() {
+    @NonNull
+    private List<Credentials> getCredentials() {
         if (!BitwardenConfig.getInstance().isConfigured()) {
             return Collections.emptyList();
         }
@@ -75,79 +56,150 @@ public class BitwardenCredentialsProvider extends CredentialsProvider {
         List<BitwardenItemMetadata> bitwardenItemMetadata =
                 BitwardenCacheManager.getInstance().getMetadata();
 
-        Set<String> duplicateNames = bitwardenItemMetadata.stream()
-                .map(BitwardenItemMetadata::getName)
-                .collect(Collectors.groupingBy(Function.identity(), Collectors.counting()))
-                .entrySet()
-                .stream()
-                .filter(entry -> entry.getValue() > 1)
-                .map(Map.Entry::getKey)
-                .collect(Collectors.toSet());
-
-        final List<Credentials> result = new ArrayList<>();
-        bitwardenItemMetadata.forEach(metadata -> {
-            CredentialConverter converter = CredentialConverter.findConverter(metadata);
-            if (converter != null) {
-                String jenkinsId;
-                // If the name of this item is in our set of duplicates, use the UUID as the ID.
-                if (duplicateNames.contains(metadata.getName())) {
-                    jenkinsId = metadata.getId();
-                } else {
-                    // Otherwise, the name is unique, so use it as the ID.
-                    jenkinsId = metadata.getName();
-                }
-                result.add(converter.createProxy(CredentialsScope.GLOBAL, jenkinsId, metadata));
+        final Set<String> seenNames = new HashSet<>(bitwardenItemMetadata.size());
+        final Set<String> duplicateNames = new HashSet<>();
+        for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
+            if (!seenNames.add(metadata.name())) {
+                duplicateNames.add(metadata.name());
             }
-        });
-        return result;
+        }
+
+        final List<Credentials> credentials = new ArrayList<>(bitwardenItemMetadata.size());
+        for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
+            CredentialConverter converter = CredentialConverter.getConverter(metadata);
+            if (converter != null) {
+                String jenkinsId = duplicateNames.contains(metadata.name()) ? metadata.id() : metadata.name();
+                credentials.add(converter.createProxy(jenkinsId, metadata));
+            }
+        }
+        return credentials;
     }
 
-    /**
-     * Called by Jenkins to get a list of credentials that are available in a given context.
-     * <p>
-     * This implementation delegates to {@link #listCredentials()} to get all available proxies
-     * and then filters that list to return only the credentials of the requested type.
-     *
-     * @param type               The class of credentials being requested.
-     * @param itemGroup          The context in which the credentials are being requested.
-     * @param authentication     The authentication context of the user or process.
-     * @param domainRequirements Any domain requirements for the credentials.
-     * @return A list of dynamically-generated credentials matching the request.
-     */
     @Override
-    @Nonnull
+    @NonNull
     public <C extends Credentials> List<C> getCredentialsInItemGroup(
-            @Nonnull Class<C> type,
+            @NonNull Class<C> type,
             @Nullable ItemGroup itemGroup,
             @Nullable Authentication authentication,
-            @Nonnull List<DomainRequirement> domainRequirements) {
+            @NonNull List<DomainRequirement> domainRequirements) {
 
-        LOGGER.fine(() -> "getCredentialsInItemGroup: type=" + type.getSimpleName()
-                + " itemGroup=" + (itemGroup != null ? itemGroup.getFullName() : "null")
-                + " authentication=" + (authentication != null ? authentication.getName() : "null"));
-        if (itemGroup == null || authentication == null) {
-            LOGGER.fine("getCredentialsInItemGroup: itemGroup or authentication is null — returning empty list");
+        if (!ACL.SYSTEM2.equals(authentication)) {
             return Collections.emptyList();
         }
 
-        List<Credentials> allCredentials = listCredentials();
-        List<C> result = new ArrayList<>();
-        for (Credentials c : allCredentials) {
+        List<Credentials> credentials = getCredentials();
+        List<C> matching = new ArrayList<>();
+        for (Credentials c : credentials) {
             if (type.isInstance(c)) {
-                result.add(type.cast(c));
+                matching.add(type.cast(c));
             }
         }
-        return result;
+        return matching;
+    }
+
+    @Override
+    @NonNull
+    public String getIconClassName() {
+        return "symbol-icon plugin-bitwarden-credentials-provider";
     }
 
     /**
-     * Provides the CSS class name for the SVG symbol used as this provider's icon.
-     * The corresponding SVG file is located in {@code src/main/resources/images/symbols/}.
-     *
-     * @return The CSS class name for the icon.
+     * A simple, stateless view of the {@link BitwardenCredentialsProvider} for the Jenkins UI.
+     * <p>
+     * This class's only responsibility is to provide a list of Bitwarden credentials to be displayed
+     * in the Jenkins "Credentials" page. It acts as a read-only view and delegates all
+     * credential-listing logic to the provider.
      */
-    @Override
-    public String getIconClassName() {
-        return "symbol-icon plugin-bitwarden-credentials-provider";
+    public final class BitwardenCredentialsStore extends CredentialsStore {
+
+        private final BitwardenCredentialStoreAction storeAction;
+
+        /**
+         * Constructs the store. Marked private so only the enclosing class ({@link BitwardenCredentialsProvider}) can construct it.
+         */
+        private BitwardenCredentialsStore() {
+            super(BitwardenCredentialsProvider.class);
+            storeAction = new BitwardenCredentialStoreAction();
+        }
+
+        @Override
+        @NonNull
+        public ModelObject getContext() {
+            return Jenkins.get();
+        }
+
+        @Override
+        public boolean hasPermission2(@NonNull Authentication a, @NonNull Permission permission) {
+            return Jenkins.get().hasPermission2(a, permission);
+        }
+
+        @Override
+        @NonNull
+        public List<Credentials> getCredentials(@NonNull Domain domain) {
+            if (hasPermission2(Jenkins.getAuthentication2(), CredentialsProvider.VIEW)
+                    && getDomains().contains(domain)) {
+                return Collections.unmodifiableList(BitwardenCredentialsProvider.this.getCredentials());
+            }
+            return Collections.emptyList();
+        }
+
+        /**
+         * Unsupported operation. Credentials must be managed in Bitwarden.
+         *
+         * @return always {@code false}
+         */
+        @Override
+        public boolean addCredentials(@NonNull Domain domain, @NonNull Credentials credentials) {
+            return false;
+        }
+
+        /**
+         * Unsupported operation. Credentials must be managed in Bitwarden.
+         *
+         * @return always {@code false}
+         */
+        @Override
+        public boolean removeCredentials(@NonNull Domain domain, @NonNull Credentials credentials) {
+            return false;
+        }
+
+        /**
+         * Unsupported operation. Credentials must be managed in Bitwarden.
+         *
+         * @return always {@code false}
+         */
+        @Override
+        public boolean updateCredentials(
+                @NonNull Domain domain, @NonNull Credentials current, @NonNull Credentials replacement) {
+            return false;
+        }
+
+        @Override
+        public String getDisplayName() {
+            return Messages.BitwardenCredentialsStore_DisplayName();
+        }
+
+        @Override
+        @NonNull
+        public CredentialsStoreAction getStoreAction() {
+            return storeAction;
+        }
+
+        /**
+         * Exposes this store within Jenkins.
+         */
+        public final class BitwardenCredentialStoreAction extends CredentialsStoreAction {
+
+            /**
+             * Constructs the store. Marked private so only the enclosing class ({@link BitwardenCredentialsStore}) can construct it.
+             */
+            private BitwardenCredentialStoreAction() {}
+
+            @Override
+            @NonNull
+            public CredentialsStore getStore() {
+                return BitwardenCredentialsStore.this;
+            }
+        }
     }
 }
