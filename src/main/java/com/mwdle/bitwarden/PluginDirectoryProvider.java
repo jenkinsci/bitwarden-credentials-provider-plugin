@@ -33,26 +33,24 @@ public final class PluginDirectoryProvider {
      * @throws IllegalStateException if the directory cannot be created, which may indicate a file permissions issue
      */
     public static File getPluginDataDirectory() {
-        if (pluginDirectory != null) {
-            return pluginDirectory;
-        }
-        synchronized (lock) {
-            // Double-checked locking pattern ensures the directory creation step only occurs once
-            if (pluginDirectory != null) {
-                return pluginDirectory;
+        if (pluginDirectory == null) {
+            synchronized (lock) {
+                // Double-checked locking pattern ensures the directory creation step only occurs once
+                if (pluginDirectory == null) {
+                    File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
+                    try {
+                        Files.createDirectories(dir.toPath());
+                    } catch (IOException e) {
+                        throw new IllegalStateException(
+                                String.format(
+                                        "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
+                                        dir.getAbsolutePath()),
+                                e);
+                    }
+                    pluginDirectory = dir;
+                }
             }
-            File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
-            try {
-                Files.createDirectories(dir.toPath());
-            } catch (IOException e) {
-                throw new IllegalStateException(
-                        String.format(
-                                "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
-                                dir.getAbsolutePath()),
-                        e);
-            }
-            pluginDirectory = dir;
-            return pluginDirectory;
         }
+        return pluginDirectory;
     }
 }
