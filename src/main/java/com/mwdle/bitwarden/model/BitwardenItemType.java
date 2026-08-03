@@ -1,11 +1,11 @@
 package com.mwdle.bitwarden.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-import com.fasterxml.jackson.annotation.JsonValue;
+
 import java.util.stream.Stream;
 
 /**
- * Represents the type of Bitwarden item, mapped from the integer code provided by the CLI.
+ * Represents the type of Bitwarden item, mapped from the integer code provided by the Bitwarden CLI.
  * This enum is designed to be directly used in Jackson deserialization.
  */
 public enum BitwardenItemType {
@@ -25,7 +25,7 @@ public enum BitwardenItemType {
     /**
      * Constructs an enum constant with its corresponding integer code from the Bitwarden CLI.
      *
-     * @param typeCode The integer code representing the item type.
+     * @param typeCode the integer code representing the item type
      */
     BitwardenItemType(int typeCode) {
         this.typeCode = typeCode;
@@ -35,8 +35,8 @@ public enum BitwardenItemType {
      * Deserializes an integer from JSON into the corresponding {@link BitwardenItemType}.
      * This method is used by the Jackson library.
      *
-     * @param typeCode The integer value from the "type" field in the JSON.
-     * @return The corresponding {@link BitwardenItemType}, or {@link #UNKNOWN} if not found.
+     * @param typeCode the integer value from the "type" field in the JSON
+     * @return the corresponding {@link BitwardenItemType}, or {@link #UNKNOWN} if not found
      */
     @JsonCreator
     public static BitwardenItemType fromInteger(int typeCode) {
@@ -46,13 +46,4 @@ public enum BitwardenItemType {
                 .orElse(UNKNOWN);
     }
 
-    /**
-     * Serializes this enum constant into its corresponding integer code for JSON.
-     *
-     * @return The integer code for the enum constant.
-     */
-    @JsonValue
-    public int getTypeCode() {
-        return typeCode;
-    }
 }
