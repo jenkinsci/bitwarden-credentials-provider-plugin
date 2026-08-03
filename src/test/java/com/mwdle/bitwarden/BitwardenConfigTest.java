@@ -321,7 +321,7 @@ class BitwardenConfigTest {
             verify(sessionManagerMock).invalidateSessionToken();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
-            verify(cacheManagerMock).updateCache();
+            verify(cacheManagerMock).refreshCache();
         }
 
         @Test
@@ -345,7 +345,7 @@ class BitwardenConfigTest {
             verify(sessionManagerMock).invalidateSessionToken();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
-            verify(cacheManagerMock, never()).updateCache();
+            verify(cacheManagerMock, never()).refreshCache();
         }
     }
 
@@ -364,7 +364,7 @@ class BitwardenConfigTest {
 
             // THEN
             verify(sessionManagerMock, times(1)).invalidateSessionToken();
-            verify(cacheManagerMock, times(1)).updateCache();
+            verify(cacheManagerMock, times(1)).refreshCache();
             assertEquals(FormValidation.Kind.OK, result.kind);
             assertEquals("Refresh started.", result.getMessage());
         }
