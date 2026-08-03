@@ -32,11 +32,7 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
 
 /**
- * Manages the system-wide configuration for the Bitwarden Credentials Provider plugin.
- * <p>
- * This class is a singleton managed by Jenkins, responsible for storing the plugin's global
- * settings, presenting them in the "Configure System" UI, and handling the logic when the
- * configuration is saved by a user or by JCasC.
+ * A Jenkins-managed singleton responsible for managing this plugin.
  */
 @Extension
 @Symbol("bitwarden")
