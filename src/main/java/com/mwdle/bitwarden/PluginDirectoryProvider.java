@@ -14,8 +14,8 @@ import jenkins.model.Jenkins;
 public final class PluginDirectoryProvider {
 
     private static final String PLUGIN_DIR_NAME = "bitwarden-credentials-provider-data";
+    private static final Object LOCK = new Object();
     private static volatile File pluginDirectory;
-    private static final Object lock = new Object();
 
     /**
      * A private constructor to prevent instantiation of this utility class.
@@ -34,7 +34,7 @@ public final class PluginDirectoryProvider {
      */
     public static File getPluginDataDirectory() {
         if (pluginDirectory == null) {
-            synchronized (lock) {
+            synchronized (LOCK) {
                 // Double-checked locking pattern ensures the directory creation step only occurs once
                 if (pluginDirectory == null) {
                     File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
