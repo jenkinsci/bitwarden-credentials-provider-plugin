@@ -167,7 +167,7 @@ class BitwardenCacheManagerTest {
         @DisplayName("should submit an update task when configured")
         void shouldSubmitUpdateTaskWhenConfigured() {
             when(configMock.isConfigured()).thenReturn(true);
-            cacheManager.triggerStartupCacheUpdate();
+            cacheManager.refreshCacheOnStartup();
             verify(executorMock, times(1)).submit(any(Runnable.class));
         }
 
@@ -175,7 +175,7 @@ class BitwardenCacheManagerTest {
         @DisplayName("should not submit an update task when not configured")
         void shouldNotSubmitUpdateTaskWhenConfigured() {
             when(configMock.isConfigured()).thenReturn(false);
-            cacheManager.triggerStartupCacheUpdate();
+            cacheManager.refreshCacheOnStartup();
             verify(executorMock, never()).submit(any(Runnable.class));
         }
     }
@@ -246,7 +246,7 @@ class BitwardenCacheManagerTest {
         @DisplayName("updateCache() should call refresh on the underlying cache")
         void updateCacheShouldCallRefresh() {
             // WHEN
-            cacheManager.updateCache();
+            cacheManager.refreshCache();
 
             // THEN
             verify(cacheMock, times(1)).refresh(anyString());
@@ -407,7 +407,7 @@ class BitwardenCacheManagerTest {
             mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(freshMetadata);
 
             // WHEN
-            cacheManager.updateCache(); // This calls cache.refresh(), which submits fetchData to the executor
+            cacheManager.refreshCache(); // This calls cache.refresh(), which submits fetchData to the executor
 
             // THEN
             ArgumentCaptor<Runnable> reloadTaskCaptor = ArgumentCaptor.forClass(Runnable.class);

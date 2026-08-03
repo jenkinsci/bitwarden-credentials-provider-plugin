@@ -214,7 +214,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
                 BitwardenSessionManager.getInstance().invalidateSessionToken();
                 BitwardenCacheManager.getInstance().invalidateCache();
                 if (BitwardenCLIManager.getInstance().provisionExecutable()) {
-                    BitwardenCacheManager.getInstance().updateCache();
+                    BitwardenCacheManager.getInstance().refreshCache();
                 }
             });
         }
@@ -303,7 +303,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         try {
             LOGGER.info("Manual cache refresh triggered by administrator.");
             BitwardenSessionManager.getInstance().invalidateSessionToken();
-            BitwardenCacheManager.getInstance().updateCache();
+            BitwardenCacheManager.getInstance().refreshCache();
             return FormValidation.ok(Messages.validation_refreshStarted());
         } catch (Exception e) {
             LOGGER.log(Level.WARNING, "Failed to start manual cache refresh", e);
