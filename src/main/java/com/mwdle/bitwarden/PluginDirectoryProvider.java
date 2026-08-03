@@ -6,7 +6,7 @@ import java.nio.file.Files;
 import jenkins.model.Jenkins;
 
 /**
- * A utility class that provides a stable, dedicated data directory for this plugin.
+ * A singleton utility class that provides a stable, dedicated data directory for this plugin.
  * <p>
  * This class ensures a consistent location within the Jenkins home directory for all plugin data,
  * safely lazy-initializing the directory on first use.
