@@ -1,12 +1,10 @@
 package com.mwdle.bitwarden.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
-
 import java.util.stream.Stream;
 
 /**
- * Represents the type of Bitwarden item, mapped from the integer code provided by the Bitwarden CLI.
- * This enum is designed to be directly used in Jackson deserialization.
+ * Represents the type of Bitwarden item.
  */
 public enum BitwardenItemType {
     LOGIN(1),
@@ -15,9 +13,7 @@ public enum BitwardenItemType {
     IDENTITY(4),
     SSH_KEY(5),
 
-    /**
-     * A fallback for any unknown or unsupported item types.
-     */
+    /** A fallback for any unknown or unsupported item types. */
     UNKNOWN(0);
 
     private final int typeCode;
@@ -32,11 +28,10 @@ public enum BitwardenItemType {
     }
 
     /**
-     * Deserializes an integer from JSON into the corresponding {@link BitwardenItemType}.
-     * This method is used by the Jackson library.
+     * Deserializes an integer into the corresponding {@link BitwardenItemType}.
      *
-     * @param typeCode the integer value from the "type" field in the JSON
-     * @return the corresponding {@link BitwardenItemType}, or {@link #UNKNOWN} if not found
+     * @param typeCode the integer value from JSON
+     * @return the corresponding type, or {@link #UNKNOWN} if not found
      */
     @JsonCreator
     public static BitwardenItemType fromInteger(int typeCode) {
@@ -45,5 +40,4 @@ public enum BitwardenItemType {
                 .findFirst()
                 .orElse(UNKNOWN);
     }
-
 }
