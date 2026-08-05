@@ -7,11 +7,7 @@ import hudson.util.Secret;
 import java.io.IOException;
 
 /**
- * A custom Jackson deserializer that converts a JSON string directly into a Jenkins {@link Secret}.
- * <p>
- * This is used on fields in the model classes to ensure that any sensitive data read from the
- * Bitwarden CLI's JSON output is immediately wrapped in a {@link Secret} object and not
- * handled as a plain string in memory.
+ * Deserializes JSON string values directly into Jenkins {@link Secret} instances.
  */
 public final class SecretDeserializer extends JsonDeserializer<Secret> {
     @Override
