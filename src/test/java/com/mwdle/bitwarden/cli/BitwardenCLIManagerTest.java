@@ -231,6 +231,30 @@ class BitwardenCLIManagerTest {
             assertFalse(manager.downloadLatestExecutable());
         }
 
+        @Test
+        @DisplayName("should handle InterruptedException and restore interrupt flag")
+        @SuppressWarnings("unchecked")
+        void shouldHandleInterruptedException() throws Exception {
+            System.setProperty("os.name", "Linux");
+            System.setProperty("os.arch", "amd64");
+
+            // Mock the HTTP client to simulate an interrupted download
+            HttpClient mockClient = mock(HttpClient.class);
+            mockedProxy.when(ProxyConfiguration::newHttpClient).thenReturn(mockClient);
+            when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                    .thenThrow(new InterruptedException("Interrupted!"));
+
+            // Ensure the thread is NOT interrupted before the test
+            Thread.interrupted();
+
+            // WHEN
+            boolean result = manager.downloadLatestExecutable();
+
+            // THEN
+            assertFalse(result, "downloadLatestExecutable should return false when interrupted");
+            assertTrue(Thread.interrupted(), "Thread interrupt flag should be set");
+        }
+
         private byte[] createTestZipWithContent(ZipContent... contents) throws IOException {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             try (ZipOutputStream zos = new ZipOutputStream(baos)) {
