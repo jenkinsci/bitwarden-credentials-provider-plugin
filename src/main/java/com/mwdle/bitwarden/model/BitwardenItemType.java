@@ -1,6 +1,7 @@
 package com.mwdle.bitwarden.model;
 
 import com.fasterxml.jackson.annotation.JsonCreator;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
  * Represents the type of Bitwarden item.
@@ -20,6 +21,7 @@ public enum BitwardenItemType {
      * @return the corresponding {@link BitwardenItemType}, or {@link #UNKNOWN} if the code is unrecognized
      */
     @JsonCreator
+    @NonNull
     public static BitwardenItemType fromInteger(int typeCode) {
         return switch (typeCode) {
             case 1 -> LOGIN;
