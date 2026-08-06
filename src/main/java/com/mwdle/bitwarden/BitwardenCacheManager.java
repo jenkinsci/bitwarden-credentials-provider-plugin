@@ -16,6 +16,7 @@ import hudson.init.Initializer;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -89,7 +90,7 @@ public final class BitwardenCacheManager {
                 LOGGER.log(Level.WARNING, "Background cache refresh failed.", e);
             }
         });
-        return metadata != null ? metadata : Collections.emptyList();
+        return Optional.ofNullable(metadata).orElse(Collections.emptyList());
     }
 
     /**
