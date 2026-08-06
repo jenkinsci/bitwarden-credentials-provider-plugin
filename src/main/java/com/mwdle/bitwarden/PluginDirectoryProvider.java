@@ -25,9 +25,8 @@ public final class PluginDirectoryProvider {
     /**
      * Returns the stable data directory for this plugin.
      * <p>
-     * On the first call, this method will find or create the directory
-     * {@code $JENKINS_HOME/bitwarden-credentials-provider-data} and cache the {@link File} handle for all
-     * subsequent calls. The lookup and creation are performed in a thread-safe manner.
+     * On the first call, this method will find or create the directory {@code $JENKINS_HOME/bitwarden-credentials-provider-data}
+     * and cache the {@link File} handle for all subsequent calls.
      *
      * @return the {@link File} object representing this plugin's data directory
      * @throws IllegalStateException if the directory cannot be created, which may indicate a file permissions issue
