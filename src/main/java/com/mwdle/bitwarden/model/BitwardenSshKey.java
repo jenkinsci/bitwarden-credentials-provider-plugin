@@ -2,43 +2,17 @@ package com.mwdle.bitwarden.model;
 
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.util.Secret;
 
 /**
- * Represents the nested {@code sshKey} object within a Bitwarden item JSON,
- * containing the private and public key fields.
+ * The SSH key data (private and public keys) of a Bitwarden item.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-@SuppressFBWarnings("UWF_UNWRITTEN_FIELD")
-public class BitwardenSshKey {
-    /**
-     * The private key text.
-     */
-    @JsonDeserialize(using = SecretDeserializer.class)
-    private Secret privateKey;
-    /**
-     * The public key text, which may include a comment.
-     */
-    // An SSH public key is public information by definition, not a secret.
-    // lgtm[jenkins/plaintext-storage]
-    private String publicKey;
+public record BitwardenSshKey(
+        @NonNull @JsonDeserialize(using = SecretDeserializer.class)
+        Secret privateKey,
 
-    /**
-     * Gets the private key text.
-     *
-     * @return The private key as a {@link Secret}.
-     */
-    public Secret getPrivateKey() {
-        return privateKey;
-    }
-
-    /**
-     * Gets the public key text.
-     *
-     * @return The public key text.
-     */
-    public String getPublicKey() {
-        return publicKey;
-    }
-}
+        @CheckForNull @SuppressWarnings("lgtm[jenkins/plaintext-storage]")
+        String publicKey) {}

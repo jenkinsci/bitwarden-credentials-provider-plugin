@@ -1,101 +1,61 @@
 package com.mwdle.bitwarden.converters;
 
-import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import com.mwdle.bitwarden.model.BitwardenItemType;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.ExtensionList;
 import hudson.ExtensionPoint;
-import jenkins.model.Jenkins;
 
 /**
- * Defines the contract for converting Bitwarden items into lazy-loading Jenkins credentials.
- * <p>
- * This abstract class is a Jenkins {@link ExtensionPoint}, allowing different implementations
- * to be discovered at runtime. Each implementation is responsible for a specific
- * Bitwarden item type (e.g., Login, Secure Note) and provides the logic for creating both
- * a lightweight proxy and a fully resolved credential object.
+ * Converts Bitwarden items into Jenkins {@link StandardCredentials}.
  */
-public abstract class CredentialConverter implements ExtensionPoint {
+public interface CredentialConverter extends ExtensionPoint {
 
     /**
-     * Finds the first available and registered converter that can handle the given item metadata.
-     * <p>
-     * This static factory method iterates through all registered {@link CredentialConverter}
-     * implementations and returns the first one that reports it can handle the item's type.
+     * Finds the first registered converter that supports the given item type.
      *
-     * @param metadata The lightweight, non-secret metadata of the Bitwarden item.
-     * @return A suitable {@link CredentialConverter} instance, or {@code null} if none are found.
+     * @param type the Bitwarden item type
+     * @return a suitable converter instance, or {@code null} if none is found
      */
-    public static CredentialConverter findConverter(BitwardenItemMetadata metadata) {
-        return Jenkins.get().getExtensionList(CredentialConverter.class).stream()
-                .filter(converter -> converter.canConvert(metadata))
-                .findFirst()
-                .orElse(null);
+    @CheckForNull
+    static CredentialConverter getConverter(@NonNull BitwardenItemType type) {
+        for (CredentialConverter converter : ExtensionList.lookup(CredentialConverter.class)) {
+            if (converter.supportedType() == type) {
+                return converter;
+            }
+        }
+        return null;
     }
 
     /**
-     * Finds the first available and registered converter that can handle the given item.
-     * <p>
-     * This static factory method is used during the lazy-loading process to ensure the correct
-     * converter is used to create the final, concrete credential object.
-     *
-     * @param item The fully resolved Bitwarden item with all metadata and secret fields.
-     * @return A suitable {@link CredentialConverter} instance, or {@code null} if none are found.
+     * @return the {@link BitwardenItemType} this converter handles
      */
-    public static CredentialConverter findConverter(BitwardenItem item) {
-        return Jenkins.get().getExtensionList(CredentialConverter.class).stream()
-                .filter(converter -> converter.canConvert(item))
-                .findFirst()
-                .orElse(null);
-    }
+    @NonNull
+    BitwardenItemType supportedType();
 
     /**
-     * Checks if this converter can handle the item type specified in the metadata.
-     * <p>
-     * This is a fast check based only on the item's type, without accessing any secret data.
+     * Creates a lightweight, lazy-loading {@link CredentialProxy}.
      *
-     * @param metadata The lightweight, non-secret metadata of the Bitwarden item.
-     * @return {@code true} if this converter is designed for the item's type.
+     * @param id the Jenkins credential ID
+     * @param metadata the item metadata
+     * @return a standard credentials proxy
      */
-    public abstract boolean canConvert(BitwardenItemMetadata metadata);
+    @NonNull
+    StandardCredentials createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata);
 
     /**
-     * Checks if this converter can handle the fully resolved item.
+     * Creates a concrete Jenkins {@link StandardCredentials}.
      * <p>
-     * This check is performed after the secret has been fetched and can be used to verify
-     * that the necessary fields (e.g., {@code login}, {@code notes}) are present.
+     * Called by the {@link CredentialProxy} after the full item is fetched from the Bitwarden CLI.
      *
-     * @param item The fully resolved Bitwarden item with all metadata and secret fields.
-     * @return {@code true} if this converter can handle the item's data.
+     * @param id the Jenkins credential ID
+     * @param description the user-facing description
+     * @param item the Bitwarden item
+     * @return the concrete Jenkins credential instance
      */
-    public abstract boolean canConvert(BitwardenItem item);
-
-    /**
-     * Creates a lightweight, lazy-loading proxy for a Jenkins credential.
-     * <p>
-     * This method should not perform any expensive operations. It creates a dynamic proxy
-     * that will defer the actual fetching of the secret until a method like {@code getPassword()}
-     * or {@code getContent()} is called.
-     *
-     * @param scope    The scope for the new credential (always GLOBAL for this provider).
-     * @param id       The ID the credential will be known by in Jenkins (either the name or UUID).
-     * @param metadata The lightweight metadata of the Bitwarden item.
-     * @return A {@link StandardCredentials} proxy object.
-     */
-    public abstract StandardCredentials createProxy(CredentialsScope scope, String id, BitwardenItemMetadata metadata);
-
-    /**
-     * Creates a real, fully-formed Jenkins credential from a complete Bitwarden item.
-     * <p>
-     * This method is called by the {@link CredentialProxy} during the lazy-loading process
-     * after the full item has been fetched from the Bitwarden CLI.
-     *
-     * @param scope       The scope for the new credential.
-     * @param id          The ID for the new credential.
-     * @param description The user-facing description for the new credential.
-     * @param item        The fully resolved Bitwarden item.
-     * @return The final, concrete Jenkins credential object.
-     */
-    public abstract StandardCredentials convert(
-            CredentialsScope scope, String id, String description, BitwardenItem item);
+    @NonNull
+    StandardCredentials convert(@NonNull String id, @NonNull String description, @NonNull BitwardenItem item);
 }

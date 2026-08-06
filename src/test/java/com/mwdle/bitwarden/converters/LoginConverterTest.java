@@ -3,7 +3,6 @@ package com.mwdle.bitwarden.converters;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.mwdle.bitwarden.model.BitwardenItem;
@@ -84,7 +83,7 @@ class LoginConverterTest {
         @DisplayName("should return true for LOGIN type")
         void shouldReturnTrueForLoginType() {
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getItemType()).thenReturn(BitwardenItemType.LOGIN);
+            when(metadata.type).thenReturn(BitwardenItemType.LOGIN);
             assertTrue(converter.canConvert(metadata));
         }
 
@@ -92,7 +91,7 @@ class LoginConverterTest {
         @DisplayName("should return false for non-LOGIN type")
         void shouldReturnFalseForOtherTypes() {
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getItemType()).thenReturn(BitwardenItemType.SECURE_NOTE);
+            when(metadata.type).thenReturn(BitwardenItemType.SECURE_NOTE);
             assertFalse(converter.canConvert(metadata));
         }
     }
@@ -106,9 +105,9 @@ class LoginConverterTest {
         void shouldReturnTrueForValidLoginItem() {
             BitwardenLogin login = mock(BitwardenLogin.class);
             Secret userSecret = Secret.fromString("user");
-            when(login.getUsername()).thenReturn(userSecret);
+            when(login.username()).thenReturn(userSecret);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
             assertTrue(converter.canConvert(item));
         }
 
@@ -117,9 +116,9 @@ class LoginConverterTest {
         void shouldReturnTrueForLoginItemWithOnlyPassword() {
             BitwardenLogin login = mock(BitwardenLogin.class);
             Secret passSecret = Secret.fromString("pass");
-            when(login.getPassword()).thenReturn(passSecret);
+            when(login.password()).thenReturn(passSecret);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
             assertTrue(converter.canConvert(item));
         }
 
@@ -127,7 +126,7 @@ class LoginConverterTest {
         @DisplayName("should return false for a non-login item")
         void shouldReturnFalseForNonLoginItem() {
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(null);
+            when(item.login).thenReturn(null);
             assertFalse(converter.canConvert(item));
         }
 
@@ -136,7 +135,7 @@ class LoginConverterTest {
         void shouldReturnFalseForEmptyLoginItem() {
             BitwardenLogin login = mock(BitwardenLogin.class);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
             assertFalse(converter.canConvert(item));
         }
     }
@@ -152,12 +151,11 @@ class LoginConverterTest {
             when(jenkinsMock.getDescriptor(UsernamePasswordCredentialsImpl.class))
                     .thenReturn(testDescriptor);
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getId()).thenReturn("item-id");
-            when(metadata.getName()).thenReturn("Item Name");
+            when(metadata.id).thenReturn("item-id");
+            when(metadata.name).thenReturn("Item Name");
 
             // WHEN
-            StandardUsernamePasswordCredentials proxy =
-                    converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardUsernamePasswordCredentials proxy = converter.createProxy("cred-id", metadata);
 
             // THEN
             assertNotNull(proxy);
@@ -173,8 +171,7 @@ class LoginConverterTest {
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
 
             // WHEN
-            StandardUsernamePasswordCredentials proxy =
-                    converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardUsernamePasswordCredentials proxy = converter.createProxy("cred-id", metadata);
 
             // THEN
             assertNull(proxy);
@@ -192,14 +189,13 @@ class LoginConverterTest {
             BitwardenLogin login = mock(BitwardenLogin.class);
             Secret userSecret = Secret.fromString("test-user");
             Secret passSecret = Secret.fromString("test-pass");
-            when(login.getUsername()).thenReturn(userSecret);
-            when(login.getPassword()).thenReturn(passSecret);
+            when(login.username()).thenReturn(userSecret);
+            when(login.password()).thenReturn(passSecret);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
 
             // WHEN
-            StandardUsernamePasswordCredentials credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
+            StandardUsernamePasswordCredentials credential = converter.convert("cred-id", "A test credential", item);
 
             // THEN
             assertNotNull(credential);
@@ -215,13 +211,12 @@ class LoginConverterTest {
             // GIVEN
             BitwardenLogin login = mock(BitwardenLogin.class);
             Secret passSecret = Secret.fromString("test-pass");
-            when(login.getPassword()).thenReturn(passSecret);
+            when(login.password()).thenReturn(passSecret);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
 
             // WHEN
-            StandardUsernamePasswordCredentials credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
+            StandardUsernamePasswordCredentials credential = converter.convert("cred-id", "A test credential", item);
 
             // THEN
             assertNotNull(credential);
@@ -235,13 +230,12 @@ class LoginConverterTest {
             // GIVEN
             BitwardenLogin login = mock(BitwardenLogin.class);
             Secret userSecret = Secret.fromString("test-user");
-            when(login.getUsername()).thenReturn(userSecret);
+            when(login.username()).thenReturn(userSecret);
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getLogin()).thenReturn(login);
+            when(item.login).thenReturn(login);
 
             // WHEN
-            StandardUsernamePasswordCredentials credential =
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
+            StandardUsernamePasswordCredentials credential = converter.convert("cred-id", "A test credential", item);
 
             // THEN
             assertNotNull(credential);

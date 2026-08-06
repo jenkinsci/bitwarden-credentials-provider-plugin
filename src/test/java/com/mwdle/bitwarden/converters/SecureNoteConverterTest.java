@@ -3,7 +3,6 @@ package com.mwdle.bitwarden.converters;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SecretBytes;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.mwdle.bitwarden.BitwardenConfig;
@@ -111,7 +110,7 @@ class SecureNoteConverterTest {
         @DisplayName("should return true for SECURE_NOTE metadata type")
         void shouldReturnTrueForSecureNoteMetadata() {
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getItemType()).thenReturn(BitwardenItemType.SECURE_NOTE);
+            when(metadata.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
             assertTrue(converter.canConvert(metadata));
         }
 
@@ -119,24 +118,34 @@ class SecureNoteConverterTest {
         @DisplayName("should return false for other metadata types")
         void shouldReturnFalseForOtherMetadataTypes() {
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getItemType()).thenReturn(BitwardenItemType.LOGIN);
+            when(metadata.type()).thenReturn(BitwardenItemType.LOGIN);
             assertFalse(converter.canConvert(metadata));
         }
 
         @Test
-        @DisplayName("should return true for an item with notes")
-        void shouldReturnTrueForItemWithNotes() {
+        @DisplayName("should return true for a SECURE_NOTE item with notes")
+        void shouldReturnTrueForSecureNoteItemWithNotes() {
             BitwardenItem item = mock(BitwardenItem.class);
+            when(item.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
             Secret notesSecret = Secret.fromString("some content");
-            when(item.getNotes()).thenReturn(notesSecret);
+            when(item.notes()).thenReturn(notesSecret);
             assertTrue(converter.canConvert(item));
         }
 
         @Test
-        @DisplayName("should return false for an item without notes")
-        void shouldReturnFalseForItemWithoutNotes() {
+        @DisplayName("should return true for a SECURE_NOTE item with null notes")
+        void shouldReturnTrueForSecureNoteItemWithNullNotes() {
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getNotes()).thenReturn(null);
+            when(item.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
+            when(item.notes()).thenReturn(null);
+            assertTrue(converter.canConvert(item));
+        }
+
+        @Test
+        @DisplayName("should return false for a non-SECURE_NOTE item")
+        void shouldReturnFalseForNonSecureNoteItem() {
+            BitwardenItem item = mock(BitwardenItem.class);
+            when(item.type()).thenReturn(BitwardenItemType.LOGIN);
             assertFalse(converter.canConvert(item));
         }
     }
@@ -152,10 +161,10 @@ class SecureNoteConverterTest {
             when(jenkinsMock.getDescriptor(StringCredentialsImpl.class))
                     .thenReturn(new StringCredentialsImpl.DescriptorImpl());
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getName()).thenReturn("my-api-key");
+            when(metadata.name()).thenReturn("my-api-key");
 
             // WHEN
-            StandardCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardCredentials proxy = converter.convert("cred-id", metadata);
 
             // THEN
             assertNotNull(proxy);
@@ -171,10 +180,10 @@ class SecureNoteConverterTest {
             when(jenkinsMock.getDescriptor(FileCredentialsImpl.class))
                     .thenReturn(new FileCredentialsImpl.DescriptorImpl());
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getName()).thenReturn("config.properties");
+            when(metadata.name()).thenReturn("config.properties");
 
             // WHEN
-            StandardCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardCredentials proxy = converter.convert("cred-id", metadata);
 
             // THEN
             assertNotNull(proxy);
@@ -188,9 +197,9 @@ class SecureNoteConverterTest {
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
             when(jenkinsMock.getDescriptor(StringCredentialsImpl.class)).thenReturn(null);
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getName()).thenReturn("my-api-key");
+            when(metadata.name()).thenReturn("my-api-key");
 
-            assertNull(converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata));
+            assertNull(converter.convert("cred-id", metadata));
         }
 
         @Test
@@ -199,9 +208,9 @@ class SecureNoteConverterTest {
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
             when(jenkinsMock.getDescriptor(FileCredentialsImpl.class)).thenReturn(null);
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getName()).thenReturn("my-file.env");
+            when(metadata.name()).thenReturn("my-file.env");
 
-            assertNull(converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata));
+            assertNull(converter.convert("cred-id", metadata));
         }
 
         @ParameterizedTest
@@ -217,10 +226,10 @@ class SecureNoteConverterTest {
 
             // An item that might otherwise be treated as a file
             BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.getName()).thenReturn("production.env");
+            when(metadata.name()).thenReturn("production.env");
 
             // WHEN
-            StandardCredentials proxy = converter.createProxy(CredentialsScope.GLOBAL, "cred-id", metadata);
+            StandardCredentials proxy = converter.convert("cred-id", metadata);
 
             // THEN: It should be treated as a StringCredentials, not a FileCredentials
             assertNotNull(proxy);
@@ -239,13 +248,12 @@ class SecureNoteConverterTest {
             // GIVEN
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getName()).thenReturn("My API Key");
+            when(item.name()).thenReturn("My API Key");
             Secret notesSecret = Secret.fromString("my-super-secret-value");
-            when(item.getNotes()).thenReturn(notesSecret);
+            when(item.notes()).thenReturn(notesSecret);
 
             // WHEN
-            StringCredentials credential = (StringCredentials)
-                    converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test credential", item);
+            StringCredentials credential = (StringCredentials) converter.convert("cred-id", "A test credential", item);
 
             // THEN
             assertNotNull(credential);
@@ -261,13 +269,12 @@ class SecureNoteConverterTest {
             // GIVEN
             when(configMock.getFileCredentialSuffixes()).thenReturn(".env, .properties");
             BitwardenItem item = mock(BitwardenItem.class);
-            when(item.getName()).thenReturn(envFileName);
+            when(item.name()).thenReturn(envFileName);
             Secret notesSecret = Secret.fromString("API_KEY=12345");
-            when(item.getNotes()).thenReturn(notesSecret);
+            when(item.notes()).thenReturn(notesSecret);
 
             // WHEN
-            FileCredentials credential =
-                    (FileCredentials) converter.convert(CredentialsScope.GLOBAL, "cred-id", "A test .env file", item);
+            FileCredentials credential = (FileCredentials) converter.convert("cred-id", "A test .env file", item);
 
             // THEN
             assertNotNull(credential);
@@ -280,6 +287,45 @@ class SecureNoteConverterTest {
             ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
             mockedSecretBytes.verify(() -> SecretBytes.fromRawBytes(captor.capture()));
             assertEquals("API_KEY=12345", new String(captor.getValue(), StandardCharsets.UTF_8));
+        }
+
+        @Test
+        @DisplayName("should convert null notes to empty StringCredentials")
+        void shouldConvertNullNotesToEmptyStringCredential() {
+            // GIVEN: notes field is null (empty secure note)
+            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
+            BitwardenItem item = mock(BitwardenItem.class);
+            when(item.name()).thenReturn("My Empty Note");
+            when(item.notes()).thenReturn(null);
+
+            // WHEN
+            StringCredentials credential = (StringCredentials) converter.convert("cred-id", "Empty note", item);
+
+            // THEN
+            assertNotNull(credential);
+            assertInstanceOf(StringCredentialsImpl.class, credential);
+            assertEquals("", credential.getSecret().getPlainText());
+        }
+
+        @Test
+        @DisplayName("should convert null notes to empty FileCredentials")
+        void shouldConvertNullNotesToEmptyFileCredential() {
+            // GIVEN: notes field is null but item name matches a file suffix
+            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
+            BitwardenItem item = mock(BitwardenItem.class);
+            when(item.name()).thenReturn("config.env");
+            when(item.notes()).thenReturn(null);
+
+            // WHEN
+            FileCredentials credential = (FileCredentials) converter.convert("cred-id", "Empty env file", item);
+
+            // THEN
+            assertNotNull(credential);
+            assertInstanceOf(FileCredentialsImpl.class, credential);
+
+            ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
+            mockedSecretBytes.verify(() -> SecretBytes.fromRawBytes(captor.capture()));
+            assertEquals("", new String(captor.getValue(), StandardCharsets.UTF_8));
         }
     }
 }

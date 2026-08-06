@@ -1,55 +1,32 @@
 package com.mwdle.bitwarden.model;
 
+import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import java.io.Serial;
-import java.io.Serializable;
+import edu.umd.cs.findbugs.annotations.NonNull;
 
 /**
- * Represents a lightweight, non-secret metadata object for a Bitwarden item.
- * <p>
- * This class is used for caching the list of all items from the vault without storing
- * any sensitive information in memory or on disk. It is deserialized from the JSON
- * output of {@code bw list items}.
+ * The lightweight, non-secret metadata of a Bitwarden item, deserialized from {@code bw list items}.
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
-public class BitwardenItemMetadata implements Serializable {
-    @Serial
-    private static final long serialVersionUID = 1L;
+public class BitwardenItemMetadata {
 
-    @JsonProperty("id")
-    private String id;
+    @NonNull
+    public final String id;
 
-    @JsonProperty("name")
-    private String name;
+    @NonNull
+    public final String name;
 
-    @JsonProperty("type")
-    private BitwardenItemType itemType;
+    @NonNull
+    public final BitwardenItemType type;
 
-    /**
-     * Gets the unique UUID of the item.
-     *
-     * @return The unique UUID of the item.
-     */
-    public String getId() {
-        return id;
-    }
-
-    /**
-     * Gets the user-provided name of the item.
-     *
-     * @return The user-provided name of the item.
-     */
-    public String getName() {
-        return name;
-    }
-
-    /**
-     * Gets the enumerated type of the Bitwarden item.
-     *
-     * @return The {@link BitwardenItemType} of the item.
-     */
-    public BitwardenItemType getItemType() {
-        return itemType;
+    @JsonCreator
+    public BitwardenItemMetadata(
+            @NonNull @JsonProperty("id") String id,
+            @NonNull @JsonProperty("name") String name,
+            @NonNull @JsonProperty("type") BitwardenItemType type) {
+        this.id = id;
+        this.name = name;
+        this.type = type;
     }
 }

@@ -8,122 +8,85 @@ import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.model.Descriptor;
-import java.lang.reflect.Proxy;
+import hudson.util.Secret;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.List;
-import java.util.logging.Logger;
-import jenkins.model.Jenkins;
+import java.util.Optional;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 
 /**
- * Converts Bitwarden Secure Note items into a Jenkins {@link StringCredentials}
- * or {@link FileCredentials} proxy. The specific type is determined by the item's name.
+ * Converts {@link BitwardenItemType#SECURE_NOTE} items into Jenkins {@link StringCredentialsImpl}
+ * or {@link FileCredentialsImpl}.
  */
 @Extension
-public class SecureNoteConverter extends CredentialConverter {
-
-    private static final Logger LOGGER = Logger.getLogger(SecureNoteConverter.class.getName());
+public final class SecureNoteConverter implements CredentialConverter {
 
     /**
      * Checks if a given item name ends with one of the user-configured suffixes for file credentials.
      *
-     * @param name The name of the Bitwarden item.
-     * @return {@code true} if the name matches a configured suffix.
+     * @param name the name of the Bitwarden item
+     * @return {@code true} if the name matches a configured suffix
      */
-    private boolean isFileCredential(String name) {
+    private static boolean hasFileCredentialSuffix(@NonNull String name) {
         String suffixes = BitwardenConfig.getInstance().getFileCredentialSuffixes();
-        if (suffixes == null || suffixes.trim().isEmpty()) {
+        if (suffixes == null || suffixes.isBlank()) {
             return false;
         }
-        // Split by comma and trim whitespace from each entry
-        List<String> suffixList = Arrays.asList(suffixes.split("\\s*,\\s*"));
-        String lowerCaseName = name.trim().toLowerCase();
-        return suffixList.stream().anyMatch(lowerCaseName::endsWith);
+        // Split by comma and strip whitespace from each entry
+        String strippedName = name.strip();
+        return Arrays.stream(suffixes.split(","))
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(strippedName::endsWith);
+    }
+
+    @Override
+    @NonNull
+    public BitwardenItemType supportedType() {
+        return BitwardenItemType.SECURE_NOTE;
     }
 
     /**
      * {@inheritDoc}
-     * <p>
-     * This implementation returns {@code true} if the item's type is {@link BitwardenItemType#SECURE_NOTE}.
+     *
+     * @return a proxy object that implements {@link StringCredentials} or {@link FileCredentials}, depending on the result of {@link SecureNoteConverter#hasFileCredentialSuffix}
      */
     @Override
-    public boolean canConvert(BitwardenItemMetadata metadata) {
-        return metadata.getItemType() == BitwardenItemType.SECURE_NOTE;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation returns {@code true} if the Bitwarden item contains a non-null {@code notes} field.
-     */
-    @Override
-    public boolean canConvert(BitwardenItem item) {
-        boolean canConvert = item.getNotes() != null;
-        LOGGER.fine(() ->
-                "canConvert: item id=" + item.getId() + " name='" + item.getName() + "' canConvert=" + canConvert);
-        return canConvert;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation creates a proxy for either {@link StringCredentials} or
-     * {@link FileCredentials}, based on whether the item name ends with {@code .env}.
-     */
-    @Override
-    public StandardCredentials createProxy(CredentialsScope scope, String id, BitwardenItemMetadata metadata) {
-        LOGGER.fine(() -> "Creating PROXY credential for secure note: " + metadata.getId());
-        if (isFileCredential(metadata.getName())) {
-            LOGGER.fine(() -> "Proxying as FileCredentials due to configured suffix");
-            Descriptor<?> descriptor = Jenkins.get().getDescriptor(FileCredentialsImpl.class);
-            if (descriptor == null) {
-                LOGGER.warning(
-                        "Descriptor for FileCredentialsImpl not found. Is the Plain Credentials plugin installed and enabled?");
-                return null;
-            }
-            CredentialProxy handler = new CredentialProxy(id, metadata.getId(), metadata.getName(), descriptor);
-            return (FileCredentials) Proxy.newProxyInstance(
-                    FileCredentials.class.getClassLoader(), new Class<?>[] {FileCredentials.class}, handler);
+    @NonNull
+    public StandardCredentials createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
+        if (hasFileCredentialSuffix(metadata.name)) {
+            return CredentialProxy.create(getClass(), id, metadata, FileCredentials.class, FileCredentialsImpl.class);
         } else {
-            LOGGER.fine(() -> "Proxying as StringCredentials");
-            Descriptor<?> descriptor = Jenkins.get().getDescriptor(StringCredentialsImpl.class);
-            if (descriptor == null) {
-                LOGGER.warning(
-                        "Descriptor for StringCredentialsImpl not found. Is the Plain Credentials plugin installed and enabled?");
-                return null;
-            }
-            CredentialProxy handler = new CredentialProxy(id, metadata.getId(), metadata.getName(), descriptor);
-            return (StringCredentials) Proxy.newProxyInstance(
-                    StringCredentials.class.getClassLoader(), new Class<?>[] {StringCredentials.class}, handler);
+            return CredentialProxy.create(
+                    getClass(), id, metadata, StringCredentials.class, StringCredentialsImpl.class);
         }
     }
 
     /**
      * {@inheritDoc}
-     * <p>
-     * This implementation returns a {@link StringCredentialsImpl} using the content of the
-     * {@code notes} field, or a {@link FileCredentialsImpl} depending on the result of {@link SecureNoteConverter#isFileCredential}.
+     *
+     * @return a concrete {@link StringCredentialsImpl} or {@link FileCredentialsImpl} using the content
+     * of the {@code notes} field, depending on the result of {@link SecureNoteConverter#hasFileCredentialSuffix}
      */
     @Override
-    public BaseStandardCredentials convert(CredentialsScope scope, String id, String description, BitwardenItem item) {
-        LOGGER.fine(() -> "convert: id=" + id + " item id=" + item.getId() + " name='" + item.getName() + "'");
-        if (isFileCredential(item.getName())) {
-            LOGGER.fine(() -> "convert: treating as FileCredentialsImpl due to configured suffix");
+    @NonNull
+    public BaseStandardCredentials convert(
+            @NonNull String id, @NonNull String description, @NonNull BitwardenItem item) {
+        Secret notes = Optional.ofNullable(item.notes).orElseGet(() -> Secret.fromString(""));
+        if (hasFileCredentialSuffix(item.name)) {
             return new FileCredentialsImpl(
-                    scope,
+                    CredentialsScope.GLOBAL,
                     id,
                     description,
-                    item.getName(),
-                    SecretBytes.fromRawBytes(item.getNotes().getPlainText().getBytes(StandardCharsets.UTF_8)));
+                    item.name,
+                    SecretBytes.fromRawBytes(notes.getPlainText().getBytes(StandardCharsets.UTF_8)));
         } else {
-            LOGGER.fine(() -> "convert: treating as StringCredentialsImpl");
-            return new StringCredentialsImpl(scope, id, description, item.getNotes());
+            return new StringCredentialsImpl(CredentialsScope.GLOBAL, id, description, notes);
         }
     }
 }

@@ -66,7 +66,7 @@ class CredentialConverterTest {
                     .thenReturn(Stream.of(nonMatchingConverter, matchingConverter, anotherConverter));
 
             // WHEN
-            CredentialConverter result = CredentialConverter.findConverter(metadata);
+            CredentialConverter result = CredentialConverter.getConverter(metadata);
 
             // THEN
             assertSame(matchingConverter, result);
@@ -86,7 +86,7 @@ class CredentialConverterTest {
             when(extensionListMock.stream()).thenReturn(Stream.of(converter1, converter2));
 
             // WHEN
-            CredentialConverter result = CredentialConverter.findConverter(metadata);
+            CredentialConverter result = CredentialConverter.getConverter(metadata);
 
             // THEN
             assertNull(result);
@@ -99,7 +99,7 @@ class CredentialConverterTest {
             when(extensionListMock.stream()).thenReturn(Stream.empty());
 
             // WHEN
-            CredentialConverter result = CredentialConverter.findConverter(mock(BitwardenItemMetadata.class));
+            CredentialConverter result = CredentialConverter.getConverter(mock(BitwardenItemMetadata.class));
 
             // THEN
             assertNull(result);
@@ -124,7 +124,7 @@ class CredentialConverterTest {
                     .thenReturn(Stream.of(nonMatchingConverter, matchingConverter, anotherConverter));
 
             // WHEN
-            CredentialConverter result = CredentialConverter.findConverter(item);
+            CredentialConverter result = CredentialConverter.getConverter(item);
 
             // THEN
             assertSame(matchingConverter, result);
@@ -144,7 +144,7 @@ class CredentialConverterTest {
             when(extensionListMock.stream()).thenReturn(Stream.of(converter1, converter2));
 
             // WHEN
-            CredentialConverter result = CredentialConverter.findConverter(item);
+            CredentialConverter result = CredentialConverter.getConverter(item);
 
             // THEN
             assertNull(result);

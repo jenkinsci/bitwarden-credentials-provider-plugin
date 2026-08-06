@@ -17,7 +17,6 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.lang.reflect.UndeclaredThrowableException;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.junit.jupiter.api.*;
 import org.mockito.Mock;
@@ -65,11 +64,8 @@ class CredentialProxyTest {
         when(Messages.description_idLabel()).thenReturn("BW ID:");
         when(Messages.description_nonUniqueLabel()).thenReturn("non-unique name");
 
-        stringDescriptor = new StringCredentialsImpl.DescriptorImpl();
-        fileDescriptor = new FileCredentialsImpl.DescriptorImpl();
-
         // Create a default proxy for general use in tests
-        CredentialProxy handler = new CredentialProxy("cred-id", "item-id", "Item Name", stringDescriptor);
+        CredentialProxy handler = new CredentialProxy("cred-id", "item-id", "Item Name", StringCredentialsImpl.class);
         testProxy = (StringCredentials) Proxy.newProxyInstance(
                 StringCredentials.class.getClassLoader(), new Class<?>[] {StringCredentials.class}, handler);
     }
@@ -103,7 +99,8 @@ class CredentialProxyTest {
         @DisplayName("should handle security metadata methods")
         void shouldHandleSecurityMetadata() throws Throwable {
             // GIVEN
-            CredentialProxy handler = new CredentialProxy("cred-id", "item-id", "Item Name", stringDescriptor);
+            CredentialProxy handler =
+                    new CredentialProxy("cred-id", "item-id", "Item Name", StringCredentialsImpl.class);
             Method isUsernameSecret = StandardUsernameCredentials.class.getMethod("isUsernameSecret");
             Method getPassphrase = SSHUserPrivateKey.class.getMethod("getPassphrase");
 
@@ -130,7 +127,7 @@ class CredentialProxyTest {
 
             CredentialConverter converter = mock(CredentialConverter.class);
             mockedConverter
-                    .when(() -> CredentialConverter.findConverter(fullItem))
+                    .when(() -> CredentialConverter.getConverter(fullItem))
                     .thenReturn(converter);
 
             StringCredentialsImpl resolvedCredential = mock(StringCredentialsImpl.class);
@@ -143,7 +140,7 @@ class CredentialProxyTest {
             // THEN: Verify the full resolution path was followed
             assertEquals("my-secret-value", firstResult.getPlainText());
             mockedCli.verify(() -> BitwardenCLI.getItem(any(), eq("item-id")), times(1));
-            mockedConverter.verify(() -> CredentialConverter.findConverter(fullItem), times(1));
+            mockedConverter.verify(() -> CredentialConverter.getConverter(fullItem), times(1));
             verify(converter, times(1)).convert(any(), any(), any(), eq(fullItem));
 
             // WHEN: Second call to a secret method
@@ -178,7 +175,7 @@ class CredentialProxyTest {
             BitwardenItem fullItem = mock(BitwardenItem.class);
             mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenReturn(fullItem);
             mockedConverter
-                    .when(() -> CredentialConverter.findConverter(fullItem))
+                    .when(() -> CredentialConverter.getConverter(fullItem))
                     .thenReturn(null); // No converter
 
             // WHEN & THEN
@@ -197,7 +194,8 @@ class CredentialProxyTest {
         @DisplayName("should format description for unique-named item")
         void shouldFormatDescriptionForUniqueItem() throws Throwable {
             // GIVEN
-            CredentialProxy handler = new CredentialProxy("UniqueName", "uuid-1", "UniqueName", stringDescriptor);
+            CredentialProxy handler =
+                    new CredentialProxy("UniqueName", "uuid-1", "UniqueName", StringCredentialsImpl.class);
             Method getDescription = StandardCredentials.class.getMethod("getDescription");
 
             // WHEN
@@ -211,7 +209,8 @@ class CredentialProxyTest {
         @DisplayName("should format description for duplicate-named item")
         void shouldFormatDescriptionForDuplicateItem() throws Throwable {
             // GIVEN
-            CredentialProxy handler = new CredentialProxy("uuid-1", "uuid-1", "DuplicateName", stringDescriptor);
+            CredentialProxy handler =
+                    new CredentialProxy("uuid-1", "uuid-1", "DuplicateName", StringCredentialsImpl.class);
             Method getDescription = StandardCredentials.class.getMethod("getDescription");
 
             // WHEN
@@ -225,7 +224,8 @@ class CredentialProxyTest {
         @DisplayName("should format description for file-type credential")
         void shouldFormatDescriptionForFileCredential() throws Throwable {
             // GIVEN
-            CredentialProxy handler = new CredentialProxy("my-file.env", "uuid-1", "my-file.env", fileDescriptor);
+            CredentialProxy handler =
+                    new CredentialProxy("my-file.env", "uuid-1", "my-file.env", StringCredentialsImpl.class);
             Method getDescription = StandardCredentials.class.getMethod("getDescription");
 
             // WHEN

@@ -59,16 +59,16 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         final Set<String> seenNames = new HashSet<>(bitwardenItemMetadata.size());
         final Set<String> duplicateNames = new HashSet<>();
         for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
-            if (!seenNames.add(metadata.name())) {
-                duplicateNames.add(metadata.name());
+            if (!seenNames.add(metadata.name)) {
+                duplicateNames.add(metadata.name);
             }
         }
 
         final List<Credentials> credentials = new ArrayList<>(bitwardenItemMetadata.size());
         for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
-            CredentialConverter converter = CredentialConverter.getConverter(metadata);
+            CredentialConverter converter = CredentialConverter.getConverter(metadata.type);
             if (converter != null) {
-                String jenkinsId = duplicateNames.contains(metadata.name()) ? metadata.id() : metadata.name();
+                String jenkinsId = duplicateNames.contains(metadata.name) ? metadata.id : metadata.name;
                 credentials.add(converter.createProxy(jenkinsId, metadata));
             }
         }
