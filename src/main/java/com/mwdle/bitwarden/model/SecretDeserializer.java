@@ -2,16 +2,23 @@ package com.mwdle.bitwarden.model;
 
 import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
+import com.fasterxml.jackson.databind.deser.std.StdDeserializer;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.util.Secret;
 import java.io.IOException;
 
 /**
  * Deserializes JSON string values directly into Jenkins {@link Secret} instances.
  */
-public final class SecretDeserializer extends JsonDeserializer<Secret> {
+public final class SecretDeserializer extends StdDeserializer<Secret> {
+
+    public SecretDeserializer() {
+        super(Secret.class);
+    }
+
     @Override
-    public Secret deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
-        return p.getValueAsString() != null ? Secret.fromString(p.getValueAsString()) : null;
+    @NonNull
+    public Secret deserialize(@NonNull JsonParser p, @NonNull DeserializationContext ctxt) throws IOException {
+        return Secret.fromString(_parseString(p, ctxt, this));
     }
 }

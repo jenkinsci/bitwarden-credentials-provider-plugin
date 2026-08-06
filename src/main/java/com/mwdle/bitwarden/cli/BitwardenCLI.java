@@ -1,8 +1,10 @@
 package com.mwdle.bitwarden.cli;
 
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
+import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.json.JsonMapper;
 import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
@@ -35,7 +37,10 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 public final class BitwardenCLI {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLI.class.getName());
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    // Disable source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
+    private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
+            .disable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
+            .build();
     private static final String KEY_BW_SESSION = "BW_SESSION";
 
     /**
