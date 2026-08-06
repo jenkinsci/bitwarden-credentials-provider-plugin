@@ -3,6 +3,8 @@ package com.mwdle.bitwarden;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
+
+import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 
 /**
@@ -14,8 +16,7 @@ import jenkins.model.Jenkins;
 public final class PluginDirectoryProvider {
 
     private static final String PLUGIN_DIR_NAME = "bitwarden-credentials-provider-data";
-    private static final Object LOCK = new Object();
-    private static volatile File pluginDirectory;
+    private static File pluginDirectory;
 
     /**
      * A private constructor to prevent instantiation of this utility class.
@@ -32,24 +33,20 @@ public final class PluginDirectoryProvider {
      * @return the {@link File} object representing this plugin's data directory
      * @throws IllegalStateException if the directory cannot be created, which may indicate a file permissions issue
      */
-    public static File getPluginDataDirectory() {
+    @NonNull
+    public static synchronized File getPluginDataDirectory() {
         if (pluginDirectory == null) {
-            synchronized (LOCK) {
-                // Double-checked locking pattern ensures the directory creation step only occurs once
-                if (pluginDirectory == null) {
-                    File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
-                    try {
-                        Files.createDirectories(dir.toPath());
-                    } catch (IOException e) {
-                        throw new IllegalStateException(
-                                String.format(
-                                        "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
-                                        dir.getAbsolutePath()),
-                                e);
-                    }
-                    pluginDirectory = dir;
-                }
+            File dir = new File(Jenkins.get().getRootDir(), PLUGIN_DIR_NAME);
+            try {
+                Files.createDirectories(dir.toPath());
+            } catch (IOException e) {
+                throw new IllegalStateException(
+                        String.format(
+                                "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
+                                dir.getAbsolutePath()),
+                        e);
             }
+            pluginDirectory = dir;
         }
         return pluginDirectory;
     }
