@@ -1,10 +1,9 @@
 package com.mwdle.bitwarden;
 
+import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
-
-import edu.umd.cs.findbugs.annotations.NonNull;
 import jenkins.model.Jenkins;
 
 /**
@@ -41,9 +40,8 @@ public final class PluginDirectoryProvider {
                 Files.createDirectories(dir.toPath());
             } catch (IOException e) {
                 throw new IllegalStateException(
-                        String.format(
-                                "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?",
-                                dir.getAbsolutePath()),
+                        "Failed to create plugin directory: '%s'! Does Jenkins have proper file permissions?"
+                                .formatted(dir.getAbsolutePath()),
                         e);
             }
             pluginDirectory = dir;
