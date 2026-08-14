@@ -96,7 +96,7 @@ class BitwardenSessionManagerTest {
             mockedCli.when(() -> BitwardenCLI.status(token)).thenReturn(unlockedStatus);
 
             // WHEN
-            Secret resultToken = manager.getSessionToken();
+            Secret resultToken = manager.getSessionKey();
 
             // THEN
             assertEquals(token, resultToken);
@@ -121,7 +121,7 @@ class BitwardenSessionManagerTest {
                     .thenReturn(refreshedToken);
 
             // WHEN
-            Secret resultToken = manager.getSessionToken();
+            Secret resultToken = manager.getSessionKey();
 
             // THEN
             assertEquals(refreshedToken, resultToken);
@@ -144,7 +144,7 @@ class BitwardenSessionManagerTest {
                     .thenReturn(refreshedToken);
 
             // WHEN
-            Secret resultToken = manager.getSessionToken();
+            Secret resultToken = manager.getSessionKey();
 
             // THEN
             assertEquals(refreshedToken, resultToken);
@@ -162,7 +162,7 @@ class BitwardenSessionManagerTest {
                     .thenReturn(newToken);
 
             // WHEN
-            Secret resultToken = manager.getSessionToken();
+            Secret resultToken = manager.getSessionKey();
 
             // THEN
             assertEquals(newToken, resultToken);
@@ -184,7 +184,7 @@ class BitwardenSessionManagerTest {
                     .thenReturn(newToken);
 
             // WHEN
-            manager.getSessionToken();
+            manager.getSessionKey();
 
             // THEN
             mockedCli.verify(() -> BitwardenCLI.configServer(customUrl), times(1));
@@ -201,7 +201,7 @@ class BitwardenSessionManagerTest {
                     .thenThrow(new BitwardenAuthenticationException("Invalid API Key", null));
 
             // WHEN & THEN
-            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionToken());
+            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionKey());
         }
 
         @Test
@@ -214,7 +214,7 @@ class BitwardenSessionManagerTest {
                     .thenThrow(new BitwardenAuthenticationException("Invalid Master Password", null));
 
             // WHEN & THEN
-            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionToken());
+            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionKey());
         }
 
         @Test
@@ -224,7 +224,7 @@ class BitwardenSessionManagerTest {
             setupCredentialProvider(Collections.emptyList(), Collections.emptyList());
 
             // WHEN & THEN
-            IOException exception = assertThrows(IOException.class, () -> manager.getSessionToken());
+            IOException exception = assertThrows(IOException.class, () -> manager.getSessionKey());
             assertTrue(exception.getMessage().contains("Could not find API Key or Master Password credentials"));
         }
     }
@@ -240,7 +240,7 @@ class BitwardenSessionManagerTest {
             assertNotNull(sessionTokenField.get(manager));
 
             // WHEN
-            manager.invalidateSessionToken();
+            manager.invalidateSession();
 
             // THEN
             assertNull(sessionTokenField.get(manager));

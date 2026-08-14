@@ -1,5 +1,7 @@
 package com.mwdle.bitwarden.converters;
 
+import static com.mwdle.bitwarden.util.StringUtils.stripToNull;
+
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey.DirectEntryPrivateKeySource;
@@ -30,9 +32,10 @@ public final class SshKeyConverter implements CredentialConverter {
      */
     @NonNull
     private static String getUsername(@CheckForNull String publicKey) {
+        String strippedPublicKey = stripToNull(publicKey);
         String username = "";
-        if (publicKey != null && !publicKey.isBlank()) {
-            String[] parts = publicKey.strip().split("\\s+");
+        if (strippedPublicKey != null) {
+            String[] parts = strippedPublicKey.split("\\s+");
             if (parts.length > 2) {
                 String comment = parts[2];
                 if (comment.contains("@")) {

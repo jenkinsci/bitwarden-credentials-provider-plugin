@@ -11,7 +11,7 @@
             <c:select />
         </f:entry>
         <f:entry title="${%field.cacheDuration}" field="cacheDuration">
-            <f:number default="5" min="1" />
+            <f:number min="1" />
         </f:entry>
         <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
             <f:textbox />

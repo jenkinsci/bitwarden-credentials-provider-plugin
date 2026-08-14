@@ -8,7 +8,6 @@ import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
-import com.mwdle.bitwarden.model.BitwardenStatus;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
@@ -520,48 +519,6 @@ class BitwardenCLITest {
     }
 
     @Nested
-    @DisplayName("status()")
-    class Status {
-        private Secret mockSessionToken;
-
-        @BeforeEach
-        void setUpStatus() {
-            mockSessionToken = mock(Secret.class);
-            when(mockSessionToken.getPlainText()).thenReturn("test-session-token");
-        }
-
-        @Test
-        @DisplayName("should return BitwardenStatus on success")
-        void shouldReturnStatus() throws IOException, InterruptedException {
-            // GIVEN
-            String jsonOutput = "{\"serverUrl\": \"https://...\", \"status\": \"unlocked\"}";
-            setupMockProcess(jsonOutput, 0);
-
-            // WHEN
-            BitwardenStatus status = BitwardenCLI.status(mockSessionToken);
-
-            // THEN
-            assertEquals(expectedCommand("status"), capturedCommand.toList());
-            assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
-            assertNotNull(status);
-            assertEquals("unlocked", status.getStatus());
-            verifyExecuteCommandInternals();
-        }
-
-        @Test
-        @DisplayName("should throw IOException on bad JSON")
-        void shouldThrowIOExceptionOnBadJson() {
-            // GIVEN
-            String badJsonOutput = "this is not json";
-            setupMockProcess(badJsonOutput, 0);
-
-            // WHEN & THEN
-            assertThrows(IOException.class, () -> BitwardenCLI.status(mockSessionToken));
-            verifyExecuteCommandInternals();
-        }
-    }
-
-    @Nested
     @DisplayName("listItemsMetadata()")
     class ListItemsMetadata {
         private Secret mockSessionToken;
@@ -592,8 +549,8 @@ class BitwardenCLITest {
             assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
             assertNotNull(metadataList);
             assertEquals(2, metadataList.size());
-            assertEquals("uuid-1", metadataList.get(0).getId());
-            assertEquals("Item 2", metadataList.get(1).getName());
+            assertEquals("uuid-1", metadataList.get(0).id);
+            assertEquals("Item 2", metadataList.get(1).name);
             verifyExecuteCommandInternals();
         }
 
@@ -622,8 +579,8 @@ class BitwardenCLITest {
             // THEN — stderr noise must not pollute JSON parsing
             assertNotNull(metadataList);
             assertEquals(2, metadataList.size());
-            assertEquals("uuid-1", metadataList.get(0).getId());
-            assertEquals("Item 2", metadataList.get(1).getName());
+            assertEquals("uuid-1", metadataList.get(0).id);
+            assertEquals("Item 2", metadataList.get(1).name);
             verifyExecuteCommandInternals();
         }
 
@@ -672,9 +629,9 @@ class BitwardenCLITest {
             assertEquals(expectedCommand("get", "item", ITEM_ID), capturedCommand.toList());
             assertEquals("test-session-token", capturedEnvs.get("BW_SESSION"));
             assertNotNull(item);
-            assertEquals("My Login", item.getName());
-            assertNotNull(item.getLogin());
-            assertEquals("user", item.getLogin().getUsername().getPlainText());
+            assertEquals("My Login", item.name);
+            assertNotNull(item.login);
+            assertEquals("user", item.login.username().getPlainText());
             verifyExecuteCommandInternals();
         }
 

@@ -16,7 +16,7 @@ import hudson.init.Initializer;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -36,9 +36,7 @@ public final class BitwardenCacheManager {
     private volatile LoadingCache<String, List<BitwardenItemMetadata>> metadataCache;
 
     /**
-     * Provides global access to the single instance of this manager.
-     *
-     * @return the singleton instance of {@link BitwardenCacheManager}
+     * @return the singleton instance of this manager
      */
     @NonNull
     public static BitwardenCacheManager getInstance() {
@@ -48,11 +46,12 @@ public final class BitwardenCacheManager {
     /**
      * Schedules a background task to populate the cache after Jenkins starts.
      */
+    // TODO: code smell to make this class an extension just for the sake of adding an initializer? consider moving this to an existing extension class.
     @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED)
     public void refreshCacheOnStartup() {
         BitwardenConfig config = BitwardenConfig.getInstance();
         if (!config.isConfigured()) {
-            LOGGER.info(() -> "Plugin is not configured. Skipping initial cache update.");
+            LOGGER.info("Plugin is not configured. Skipping initial cache update.");
             return;
         }
         Timer.get().submit(this::refreshCache); // Update the cache in a separate thread to not delay Jenkins startup.
@@ -66,31 +65,25 @@ public final class BitwardenCacheManager {
     }
 
     /**
-     * Purges the metadata list from the in-memory cache.
+     * Invalidates the cache.
      */
     public void invalidateCache() {
-        getCache().invalidate(CACHE_KEY);
+        synchronized (lock) {
+            metadataCache = null;
+        }
     }
 
     /**
-     * Returns the cached credential metadata immediately (or an empty list if not yet populated)
-     * and triggers a background refresh if the data is stale or missing.
-     *
-     * @return the possibly empty list of {@link BitwardenItemMetadata}
+     * @return the list of metadata, or an empty list if retrieval fails
      */
     @NonNull
     public List<BitwardenItemMetadata> getMetadata() {
-        LoadingCache<String, List<BitwardenItemMetadata>> cache = getCache();
-        List<BitwardenItemMetadata> metadata = cache.getIfPresent(CACHE_KEY);
-        // Trigger a background refresh if stale
-        Timer.get().submit(() -> {
-            try {
-                cache.get(CACHE_KEY);
-            } catch (Exception e) {
-                LOGGER.log(Level.WARNING, "Background cache refresh failed.", e);
-            }
-        });
-        return Optional.ofNullable(metadata).orElse(Collections.emptyList());
+        try {
+            return getCache().get(CACHE_KEY);
+        } catch (ExecutionException e) {
+            LOGGER.log(Level.WARNING, "Failed to fetch Bitwarden metadata from cache.", e);
+            return Collections.emptyList();
+        }
     }
 
     /**
@@ -103,9 +96,9 @@ public final class BitwardenCacheManager {
      */
     @NonNull
     private List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
-        BitwardenCLI.sync(BitwardenSessionManager.getInstance().getSessionToken());
+        BitwardenCLI.sync(BitwardenSessionManager.getInstance().getSessionKey());
         return BitwardenCLI.listItemsMetadata(
-                BitwardenSessionManager.getInstance().getSessionToken());
+                BitwardenSessionManager.getInstance().getSessionKey());
     }
 
     /**

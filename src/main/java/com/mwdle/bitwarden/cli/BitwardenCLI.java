@@ -9,7 +9,6 @@ import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
-import com.mwdle.bitwarden.model.BitwardenStatus;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
@@ -25,6 +24,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
@@ -37,16 +37,15 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 public final class BitwardenCLI {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenCLI.class.getName());
-    // Disable source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
+    // Disable JSON source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
     private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
             .disable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
             .build();
     private static final String KEY_BW_SESSION = "BW_SESSION";
 
-    /**
-     * A private constructor to prevent instantiation of this utility class.
-     */
-    private BitwardenCLI() {}
+    private BitwardenCLI() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Gets the isolated Jenkins data directory for the Bitwarden CLI.
@@ -71,8 +70,7 @@ public final class BitwardenCLI {
                         "Bitwarden CLI application data file (data.json) was deleted successfully to ensure a clean state.");
             else LOGGER.fine("No existing Bitwarden CLI application data found, skipping deletion.");
         } catch (IOException e) {
-            LOGGER.warning(
-                    "Failed to delete Bitwarden CLI application data at: " + dataJsonPath + ": " + e.getMessage());
+            LOGGER.log(Level.WARNING, "Failed to delete Bitwarden CLI application data", e);
         }
     }
 
@@ -150,10 +148,10 @@ public final class BitwardenCLI {
     }
 
     /**
-     * Unlocks the vault using the Master Password and returns the session token.
+     * Unlocks the vault using the Master Password and returns the session key.
      *
      * @param masterPassword The Jenkins credential containing the Bitwarden Master Password.
-     * @return The session token for subsequent commands.
+     * @return The session key for subsequent commands.
      * @throws IOException                      if the CLI command fails.
      * @throws BitwardenConnectionException     if a network error occurs.
      * @throws BitwardenAuthenticationException if the provided Master Password is incorrect.
@@ -179,14 +177,14 @@ public final class BitwardenCLI {
     /**
      * Syncs the local CLI database with the remote Bitwarden vault.
      *
-     * @param sessionToken The active session token to use for authentication.
+     * @param sessionKey The active session key to use for authentication.
      * @throws IOException                  if the CLI command fails.
      * @throws BitwardenConnectionException if a network error occurs.
      * @throws InterruptedException         if the thread is interrupted.
      */
-    public static void sync(Secret sessionToken) throws IOException, InterruptedException {
+    public static void sync(Secret sessionKey) throws IOException, InterruptedException {
         LOGGER.info("Syncing vault.");
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionToken));
+        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
         try {
             executeCommand(bitwardenCommand("sync"), env);
             LOGGER.info("Vault sync complete.");
@@ -199,32 +197,16 @@ public final class BitwardenCLI {
     }
 
     /**
-     * Checks the status of the Bitwarden CLI session.
-     *
-     * @param sessionToken The session token to validate.
-     * @return A {@link BitwardenStatus} object representing the current state.
-     * @throws IOException          if the CLI command fails or JSON parsing fails.
-     * @throws InterruptedException if the thread is interrupted.
-     */
-    public static BitwardenStatus status(Secret sessionToken) throws IOException, InterruptedException {
-        LOGGER.fine("Fetching CLI status.");
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionToken));
-        String json = executeCommand(bitwardenCommand("status"), env);
-        LOGGER.fine(() -> "CLI status fetched successfully. JSON: " + json);
-        return OBJECT_MAPPER.readValue(json, BitwardenStatus.class);
-    }
-
-    /**
      * Fetches a list of all item metadata from the vault.
      *
-     * @param sessionToken The active session token to use for authentication.
+     * @param sessionKey The active session key to use for authentication.
      * @return A List of {@link BitwardenItemMetadata} objects.
      * @throws IOException          if the CLI command fails or JSON parsing fails.
      * @throws InterruptedException if the command is interrupted.
      */
-    public static List<BitwardenItemMetadata> listItemsMetadata(Secret sessionToken)
+    public static List<BitwardenItemMetadata> listItemsMetadata(Secret sessionKey)
             throws IOException, InterruptedException {
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionToken));
+        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("list", "items"), env);
         List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
         LOGGER.info(() -> "Successfully deserialized metadata for " + metadataList.size() + " items.");
@@ -234,15 +216,15 @@ public final class BitwardenCLI {
     /**
      * Fetches a single, complete item from the vault by its ID.
      *
-     * @param sessionToken The active session token.
+     * @param sessionKey The active session key.
      * @param itemId       The UUID of the item to fetch.
      * @return A complete {@link BitwardenItem} object.
      * @throws IOException          if the CLI command fails or JSON parsing fails.
      * @throws InterruptedException if the command is interrupted.
      */
-    public static BitwardenItem getItem(Secret sessionToken, String itemId) throws IOException, InterruptedException {
+    public static BitwardenItem getItem(Secret sessionKey, String itemId) throws IOException, InterruptedException {
         LOGGER.fine(() -> "Fetching single vault item with ID: " + itemId);
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionToken));
+        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("get", "item", itemId), env);
         LOGGER.fine(() -> "Single vault item " + itemId + " fetched successfully.");
         return OBJECT_MAPPER.readValue(json, BitwardenItem.class);

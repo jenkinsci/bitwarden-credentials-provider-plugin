@@ -55,7 +55,7 @@ class CredentialProxyTest {
         when(BitwardenSessionManager.getInstance()).thenReturn(sessionManagerMock);
         doReturn(Secret.fromString("test-session-token"))
                 .when(sessionManagerMock)
-                .getSessionToken();
+                .getSessionKey();
 
         mockedCli = mockStatic(BitwardenCLI.class);
         mockedConverter = mockStatic(CredentialConverter.class);

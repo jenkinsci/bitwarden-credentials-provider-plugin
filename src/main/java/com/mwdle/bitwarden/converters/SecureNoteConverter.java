@@ -34,7 +34,7 @@ public final class SecureNoteConverter implements CredentialConverter {
      */
     private static boolean hasFileCredentialSuffix(@NonNull String name) {
         String suffixes = BitwardenConfig.getInstance().getFileCredentialSuffixes();
-        if (suffixes == null || suffixes.isBlank()) {
+        if (suffixes == null) {
             return false;
         }
         // Split by comma and strip whitespace from each entry

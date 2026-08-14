@@ -194,7 +194,7 @@ class BitwardenConfigTest {
 
             // THEN: No refresh logic should be triggered
             verify(executorMock, never()).submit(any(Runnable.class));
-            verify(sessionManagerMock, never()).invalidateSessionToken();
+            verify(sessionManagerMock, never()).invalidateSession();
             verify(cacheManagerMock, never()).invalidateCache();
         }
 
@@ -318,7 +318,7 @@ class BitwardenConfigTest {
             Runnable backgroundTask = taskCaptor.getValue();
             backgroundTask.run();
 
-            verify(sessionManagerMock).invalidateSessionToken();
+            verify(sessionManagerMock).invalidateSession();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
             verify(cacheManagerMock).refreshCache();
@@ -342,7 +342,7 @@ class BitwardenConfigTest {
             Runnable backgroundTask = taskCaptor.getValue();
             backgroundTask.run();
 
-            verify(sessionManagerMock).invalidateSessionToken();
+            verify(sessionManagerMock).invalidateSession();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
             verify(cacheManagerMock, never()).refreshCache();
@@ -363,7 +363,7 @@ class BitwardenConfigTest {
             FormValidation result = config.doRefreshCache();
 
             // THEN
-            verify(sessionManagerMock, times(1)).invalidateSessionToken();
+            verify(sessionManagerMock, times(1)).invalidateSession();
             verify(cacheManagerMock, times(1)).refreshCache();
             assertEquals(FormValidation.Kind.OK, result.kind);
             assertEquals("Refresh started.", result.getMessage());
@@ -375,7 +375,7 @@ class BitwardenConfigTest {
             // GIVEN: The session manager will throw an exception
             doThrow(new RuntimeException("Test Exception"))
                     .when(sessionManagerMock)
-                    .invalidateSessionToken();
+                    .invalidateSession();
             when(Messages.validation_refreshError(anyString())).thenReturn("Error: Test Exception");
 
             // WHEN

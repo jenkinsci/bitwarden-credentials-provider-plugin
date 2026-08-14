@@ -75,6 +75,7 @@ class ModelDeserializationTest {
             String loginJson = """
                     {
                         "id": "a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d",
+                        "type": 1,
                         "name": "My Jenkins API Key",
                         "notes": "This is a secret note.",
                         "login": {
@@ -88,16 +89,17 @@ class ModelDeserializationTest {
             BitwardenItem item = objectMapper.readValue(loginJson, BitwardenItem.class);
 
             assertNotNull(item);
-            assertEquals("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", item.getId());
-            assertEquals("My Jenkins API Key", item.getName());
-            assertNotNull(item.getNotes());
-            assertEquals("This is a secret note.", item.getNotes().getPlainText());
-            assertNotNull(item.getLogin());
-            assertNotNull(item.getLogin().getUsername());
-            assertEquals("admin-user", item.getLogin().getUsername().getPlainText());
-            assertNotNull(item.getLogin().getPassword());
-            assertEquals("super-secret-password", item.getLogin().getPassword().getPlainText());
-            assertNull(item.getSshKey());
+            assertEquals("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", item.id);
+            assertEquals(BitwardenItemType.LOGIN, item.type);
+            assertEquals("My Jenkins API Key", item.name);
+            assertNotNull(item.notes);
+            assertEquals("This is a secret note.", item.notes.getPlainText());
+            assertNotNull(item.login);
+            assertNotNull(item.login.username());
+            assertEquals("admin-user", item.login.username().getPlainText());
+            assertNotNull(item.login.password());
+            assertEquals("super-secret-password", item.login.password().getPlainText());
+            assertNull(item.sshKey);
         }
 
         @Test
@@ -106,6 +108,7 @@ class ModelDeserializationTest {
             String sshKeyJson = """
                     {
                         "id": "f0e9d8c7-b6a5-4f3e-2d1c-0b9a8f7e6d5c",
+                        "type": 5,
                         "name": "GitHub Deploy Key",
                         "notes": null,
                         "login": null,
@@ -119,16 +122,17 @@ class ModelDeserializationTest {
             BitwardenItem item = objectMapper.readValue(sshKeyJson, BitwardenItem.class);
 
             assertNotNull(item);
-            assertEquals("f0e9d8c7-b6a5-4f3e-2d1c-0b9a8f7e6d5c", item.getId());
-            assertEquals("GitHub Deploy Key", item.getName());
-            assertNotNull(item.getSshKey());
-            assertNotNull(item.getSshKey().getPrivateKey());
+            assertEquals("f0e9d8c7-b6a5-4f3e-2d1c-0b9a8f7e6d5c", item.id);
+            assertEquals(BitwardenItemType.SSH_KEY, item.type);
+            assertEquals("GitHub Deploy Key", item.name);
+            assertNotNull(item.sshKey);
+            assertNotNull(item.sshKey.privateKey());
             assertEquals(
                     "-----BEGIN RSA PRIVATE KEY-----\nSUPER_DUPER_SECRET_PRIVATE_KEY\n-----END RSA PRIVATE KEY-----",
-                    item.getSshKey().getPrivateKey().getPlainText());
-            assertEquals("ssh-rsa AAAAB3NzaC1yc2EAAA...", item.getSshKey().getPublicKey());
-            assertNull(item.getNotes());
-            assertNull(item.getLogin());
+                    item.sshKey.privateKey().getPlainText());
+            assertEquals("ssh-rsa AAAAB3NzaC1yc2EAAA...", item.sshKey.publicKey());
+            assertNull(item.notes);
+            assertNull(item.login);
         }
 
         @Test
@@ -137,6 +141,7 @@ class ModelDeserializationTest {
             String secureNoteJson = """
                     {
                         "id": "11223344-5566-7788-9900-aabbccddeeff",
+                        "type": 2,
                         "name": "My Secure Note",
                         "notes": "Content of the secure note.",
                         "login": null,
@@ -147,12 +152,13 @@ class ModelDeserializationTest {
             BitwardenItem item = objectMapper.readValue(secureNoteJson, BitwardenItem.class);
 
             assertNotNull(item);
-            assertEquals("11223344-5566-7788-9900-aabbccddeeff", item.getId());
-            assertEquals("My Secure Note", item.getName());
-            assertNotNull(item.getNotes());
-            assertEquals("Content of the secure note.", item.getNotes().getPlainText());
-            assertNull(item.getLogin());
-            assertNull(item.getSshKey());
+            assertEquals("11223344-5566-7788-9900-aabbccddeeff", item.id);
+            assertEquals(BitwardenItemType.SECURE_NOTE, item.type);
+            assertEquals("My Secure Note", item.name);
+            assertNotNull(item.notes);
+            assertEquals("Content of the secure note.", item.notes.getPlainText());
+            assertNull(item.login);
+            assertNull(item.sshKey);
         }
 
         @Test
@@ -169,8 +175,8 @@ class ModelDeserializationTest {
 
             assertDoesNotThrow(() -> {
                 BitwardenItem item = objectMapper.readValue(futureJson, BitwardenItem.class);
-                assertEquals("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", item.getId());
-                assertEquals("My Jenkins API Key", item.getName());
+                assertEquals("a1b2c3d4-e5f6-4a5b-8c9d-0e1f2a3b4c5d", item.id);
+                assertEquals("My Jenkins API Key", item.name);
             });
         }
     }
@@ -189,9 +195,9 @@ class ModelDeserializationTest {
                     }
                     """;
             BitwardenItemMetadata metadata = objectMapper.readValue(metadataJson, BitwardenItemMetadata.class);
-            assertEquals("uuid-123", metadata.getId());
-            assertEquals("My Item", metadata.getName());
-            assertEquals(BitwardenItemType.LOGIN, metadata.getItemType());
+            assertEquals("uuid-123", metadata.id);
+            assertEquals("My Item", metadata.name);
+            assertEquals(BitwardenItemType.LOGIN, metadata.type);
         }
     }
 
@@ -209,29 +215,6 @@ class ModelDeserializationTest {
         @DisplayName("should map unknown type code to UNKNOWN")
         void shouldMapUnknownCodeToUnknown() {
             assertEquals(BitwardenItemType.UNKNOWN, BitwardenItemType.fromInteger(99));
-        }
-    }
-
-    @Nested
-    @DisplayName("BitwardenStatus Deserialization")
-    class BitwardenStatusTests {
-        @Test
-        @DisplayName("should correctly deserialize a status response")
-        void shouldDeserializeStatus() throws Exception {
-            String statusJson = """
-                    {
-                        "serverUrl": "https://vault.bitwarden.com",
-                        "lastSync": "2025-09-25T23:05:00.000Z",
-                        "userEmail": "user@example.com",
-                        "userId": "uuid-goes-here",
-                        "status": "unlocked"
-                    }
-                    """;
-
-            BitwardenStatus status = objectMapper.readValue(statusJson, BitwardenStatus.class);
-
-            assertNotNull(status);
-            assertEquals("unlocked", status.getStatus());
         }
     }
 
