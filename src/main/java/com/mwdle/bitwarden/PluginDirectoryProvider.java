@@ -7,7 +7,7 @@ import java.nio.file.Files;
 import jenkins.model.Jenkins;
 
 /**
- * A singleton utility class that provides a stable, dedicated data directory for this plugin.
+ * A utility that provides a stable, dedicated data directory for this plugin.
  * <p>
  * This class ensures a consistent location within the Jenkins home directory for all plugin data,
  * safely lazy-initializing the directory on first use.
@@ -17,10 +17,9 @@ public final class PluginDirectoryProvider {
     private static final String PLUGIN_DIR_NAME = "bitwarden-credentials-provider-data";
     private static File pluginDirectory;
 
-    /**
-     * A private constructor to prevent instantiation of this utility class.
-     */
-    private PluginDirectoryProvider() {}
+    private PluginDirectoryProvider() {
+        throw new UnsupportedOperationException();
+    }
 
     /**
      * Returns the stable data directory for this plugin.

@@ -1,8 +1,9 @@
-package com.mwdle.bitwarden;
+package com.mwdle.bitwarden.util;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
+import com.mwdle.bitwarden.PluginDirectoryProvider;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
