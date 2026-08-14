@@ -440,8 +440,7 @@ class BitwardenCliTest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(
-                    AuthenticationException.class, () -> BitwardenCli.unlock(masterPasswordCredentialsMock));
+            assertThrows(AuthenticationException.class, () -> BitwardenCli.unlock(masterPasswordCredentialsMock));
             verifyExecuteCommandInternals();
         }
 

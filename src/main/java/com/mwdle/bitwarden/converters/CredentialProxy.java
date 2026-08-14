@@ -69,8 +69,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         if (resolvedCredential == null) {
             BitwardenItem item;
             try {
-                item = BitwardenCli.getItem(
-                        SessionManager.getInstance().getSessionKey(), this.itemId);
+                item = BitwardenCli.getItem(SessionManager.getInstance().getSessionKey(), this.itemId);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
