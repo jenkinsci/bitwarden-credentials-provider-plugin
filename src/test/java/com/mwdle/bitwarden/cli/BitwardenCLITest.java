@@ -326,7 +326,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
+            assertThrows(ConnectionException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -338,7 +338,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(BitwardenAuthenticationException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
+            assertThrows(AuthenticationException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -353,7 +353,7 @@ class BitwardenCLITest {
             IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
 
             // Verify it's not one of the specific subtypes
-            assertFalse(exception instanceof BitwardenConnectionException);
+            assertFalse(exception instanceof ConnectionException);
             assertTrue(exception.getMessage().contains(errorOutput));
             verifyExecuteCommandInternals();
         }
@@ -428,7 +428,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
+            assertThrows(ConnectionException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -441,7 +441,7 @@ class BitwardenCLITest {
 
             // WHEN & THEN
             assertThrows(
-                    BitwardenAuthenticationException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
+                    AuthenticationException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -457,7 +457,7 @@ class BitwardenCLITest {
                     assertThrows(IOException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
 
             // Verify it's not one of the specific subtypes
-            assertFalse(exception instanceof BitwardenConnectionException);
+            assertFalse(exception instanceof ConnectionException);
             assertTrue(exception.getMessage().contains(errorOutput));
             verifyExecuteCommandInternals();
         }
@@ -497,7 +497,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(BitwardenConnectionException.class, () -> BitwardenCLI.sync(mockSessionToken));
+            assertThrows(ConnectionException.class, () -> BitwardenCLI.sync(mockSessionToken));
             verifyExecuteCommandInternals();
         }
 
@@ -512,7 +512,7 @@ class BitwardenCLITest {
             IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.sync(mockSessionToken));
 
             // Verify it's not one of the specific subtypes
-            assertFalse(exception instanceof BitwardenConnectionException);
+            assertFalse(exception instanceof ConnectionException);
             assertTrue(exception.getMessage().contains(errorOutput));
             verifyExecuteCommandInternals();
         }

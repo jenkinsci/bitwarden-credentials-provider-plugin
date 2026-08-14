@@ -107,8 +107,8 @@ public final class BitwardenCLI {
      *
      * @param apiKey The Jenkins credential containing the Bitwarden Client ID and Client Secret.
      * @throws IOException                      if the CLI command fails.
-     * @throws BitwardenConnectionException     if a network error occurs.
-     * @throws BitwardenAuthenticationException if the provided API key is incorrect.
+     * @throws ConnectionException     if a network error occurs.
+     * @throws AuthenticationException if the provided API key is incorrect.
      * @throws InterruptedException             if the thread is interrupted.
      */
     public static void login(StandardUsernamePasswordCredentials apiKey) throws IOException, InterruptedException {
@@ -120,12 +120,12 @@ public final class BitwardenCLI {
             executeCommand(bitwardenCommand("login", "--apikey"), env);
             LOGGER.info("Login successful.");
         } catch (IOException e) {
-            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
-                throw new BitwardenConnectionException(Messages.exception_connectionError(), e);
+            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
+                throw new ConnectionException(Messages.exception_connectionError(), e);
             } else if (e.getMessage().contains("Username or password is incorrect")
                     || e.getMessage().contains("Invalid API Key")
                     || e.getMessage().contains("Incorrect client_secret")) {
-                throw new BitwardenAuthenticationException(Messages.exception_loginError(), e);
+                throw new AuthenticationException(Messages.exception_loginError(), e);
             }
             throw e; // Re-throw the original generic exception if it's not a known type
         }
@@ -153,8 +153,8 @@ public final class BitwardenCLI {
      * @param masterPassword The Jenkins credential containing the Bitwarden Master Password.
      * @return The session key for subsequent commands.
      * @throws IOException                      if the CLI command fails.
-     * @throws BitwardenConnectionException     if a network error occurs.
-     * @throws BitwardenAuthenticationException if the provided Master Password is incorrect.
+     * @throws ConnectionException     if a network error occurs.
+     * @throws AuthenticationException if the provided Master Password is incorrect.
      * @throws InterruptedException             if the thread is interrupted.
      */
     public static Secret unlock(StringCredentials masterPassword) throws IOException, InterruptedException {
@@ -165,10 +165,10 @@ public final class BitwardenCLI {
             return Secret.fromString(
                     executeCommand(bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), env));
         } catch (IOException e) {
-            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
-                throw new BitwardenConnectionException(Messages.exception_connectionError(), e);
+            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
+                throw new ConnectionException(Messages.exception_connectionError(), e);
             } else if (e.getMessage().contains("Invalid master password")) {
-                throw new BitwardenAuthenticationException(Messages.exception_unlockError(), e);
+                throw new AuthenticationException(Messages.exception_unlockError(), e);
             }
             throw e; // Re-throw the original generic exception if it's not a known type
         }
@@ -179,7 +179,7 @@ public final class BitwardenCLI {
      *
      * @param sessionKey The active session key to use for authentication.
      * @throws IOException                  if the CLI command fails.
-     * @throws BitwardenConnectionException if a network error occurs.
+     * @throws ConnectionException if a network error occurs.
      * @throws InterruptedException         if the thread is interrupted.
      */
     public static void sync(Secret sessionKey) throws IOException, InterruptedException {
@@ -189,8 +189,8 @@ public final class BitwardenCLI {
             executeCommand(bitwardenCommand("sync"), env);
             LOGGER.info("Vault sync complete.");
         } catch (IOException e) {
-            if (e.getMessage().contains(BitwardenConnectionException.IDENTIFIER)) {
-                throw new BitwardenConnectionException(Messages.exception_syncError(), e);
+            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
+                throw new ConnectionException(Messages.exception_syncError(), e);
             }
             throw e; // Re-throw the original generic exception if it's not a known type
         }

@@ -198,10 +198,10 @@ class BitwardenSessionManagerTest {
             setupValidCredentials(null);
             mockedCli
                     .when(() -> BitwardenCLI.login(any(StandardUsernamePasswordCredentials.class)))
-                    .thenThrow(new BitwardenAuthenticationException("Invalid API Key", null));
+                    .thenThrow(new AuthenticationException("Invalid API Key", null));
 
             // WHEN & THEN
-            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionKey());
+            assertThrows(AuthenticationException.class, () -> manager.getSessionKey());
         }
 
         @Test
@@ -211,10 +211,10 @@ class BitwardenSessionManagerTest {
             setupValidCredentials(null);
             mockedCli
                     .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
-                    .thenThrow(new BitwardenAuthenticationException("Invalid Master Password", null));
+                    .thenThrow(new AuthenticationException("Invalid Master Password", null));
 
             // WHEN & THEN
-            assertThrows(BitwardenAuthenticationException.class, () -> manager.getSessionKey());
+            assertThrows(AuthenticationException.class, () -> manager.getSessionKey());
         }
 
         @Test
