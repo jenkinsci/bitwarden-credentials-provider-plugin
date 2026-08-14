@@ -7,7 +7,7 @@ import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.mwdle.bitwarden.Messages;
-import com.mwdle.bitwarden.cli.BitwardenCLI;
+import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import hudson.model.Descriptor;
@@ -40,7 +40,7 @@ class CredentialProxyTest {
     private Descriptor<?> fileDescriptor;
 
     private MockedStatic<SessionManager> mockedSessionManager;
-    private MockedStatic<BitwardenCLI> mockedCli;
+    private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<CredentialConverter> mockedConverter;
     private MockedStatic<Messages> mockedMessages;
 
@@ -57,7 +57,7 @@ class CredentialProxyTest {
                 .when(sessionManagerMock)
                 .getSessionKey();
 
-        mockedCli = mockStatic(BitwardenCLI.class);
+        mockedCli = mockStatic(BitwardenCli.class);
         mockedConverter = mockStatic(CredentialConverter.class);
         mockedMessages = mockStatic(Messages.class);
 
@@ -92,7 +92,7 @@ class CredentialProxyTest {
             assertEquals("item-id".hashCode(), testProxy.hashCode());
 
             // THEN: Verify that no expensive operations were performed
-            mockedCli.verify(() -> BitwardenCLI.getItem(any(), any()), never());
+            mockedCli.verify(() -> BitwardenCli.getItem(any(), any()), never());
         }
 
         @Test
@@ -111,7 +111,7 @@ class CredentialProxyTest {
             // THEN
             assertTrue(isSecret);
             assertEquals("", passphrase.getPlainText());
-            mockedCli.verify(() -> BitwardenCLI.getItem(any(), any()), never());
+            mockedCli.verify(() -> BitwardenCli.getItem(any(), any()), never());
         }
     }
 
@@ -123,7 +123,7 @@ class CredentialProxyTest {
         void shouldCallCliOnceAndCacheResult() {
             // GIVEN
             BitwardenItem fullItem = mock(BitwardenItem.class);
-            mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenReturn(fullItem);
+            mockedCli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenReturn(fullItem);
 
             CredentialConverter converter = mock(CredentialConverter.class);
             mockedConverter
@@ -139,7 +139,7 @@ class CredentialProxyTest {
 
             // THEN: Verify the full resolution path was followed
             assertEquals("my-secret-value", firstResult.getPlainText());
-            mockedCli.verify(() -> BitwardenCLI.getItem(any(), eq("item-id")), times(1));
+            mockedCli.verify(() -> BitwardenCli.getItem(any(), eq("item-id")), times(1));
             mockedConverter.verify(() -> CredentialConverter.getConverter(fullItem), times(1));
             verify(converter, times(1)).convert(any(), any(), any(), eq(fullItem));
 
@@ -148,7 +148,7 @@ class CredentialProxyTest {
 
             // THEN: The result should be the same, and no further CLI calls should be made
             assertEquals("my-secret-value", secondResult.getPlainText());
-            mockedCli.verify(() -> BitwardenCLI.getItem(any(), eq("item-id")), times(1)); // Still 1
+            mockedCli.verify(() -> BitwardenCli.getItem(any(), eq("item-id")), times(1)); // Still 1
         }
     }
 
@@ -159,7 +159,7 @@ class CredentialProxyTest {
         @DisplayName("should re-throw IOException if CLI fails")
         void shouldThrowIOExceptionOnCliFailure() {
             // GIVEN
-            mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenThrow(new IOException("CLI error"));
+            mockedCli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenThrow(new IOException("CLI error"));
 
             // WHEN & THEN
             UndeclaredThrowableException exception =
@@ -173,7 +173,7 @@ class CredentialProxyTest {
         void shouldThrowIOExceptionWhenNoConverterFound() {
             // GIVEN
             BitwardenItem fullItem = mock(BitwardenItem.class);
-            mockedCli.when(() -> BitwardenCLI.getItem(any(), eq("item-id"))).thenReturn(fullItem);
+            mockedCli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenReturn(fullItem);
             mockedConverter
                     .when(() -> CredentialConverter.getConverter(fullItem))
                     .thenReturn(null); // No converter

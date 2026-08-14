@@ -4,7 +4,7 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.google.common.cache.LoadingCache;
-import com.mwdle.bitwarden.cli.BitwardenCLI;
+import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import hudson.ExtensionList;
@@ -45,7 +45,7 @@ class CacheManagerTest {
     private MockedStatic<BitwardenConfig> mockedConfig;
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
     private MockedStatic<SessionManager> mockedSessionManager;
-    private MockedStatic<BitwardenCLI> mockedCli;
+    private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<Secret> mockedStaticSecret;
 
     // Mock instances of dependencies
@@ -86,7 +86,7 @@ class CacheManagerTest {
         mockedConfig = mockStatic(BitwardenConfig.class);
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
         mockedSessionManager = mockStatic(SessionManager.class);
-        mockedCli = mockStatic(BitwardenCLI.class);
+        mockedCli = mockStatic(BitwardenCli.class);
 
         // Mock static Secret.toString for BitwardenCLI.sync
         mockedStaticSecret = mockStatic(Secret.class);
@@ -287,7 +287,7 @@ class CacheManagerTest {
                 verify(xmlFileMock.constructed().get(0)).exists();
                 verify(xmlFileMock.constructed().get(0)).read();
                 // Verify CLI was *not* called for the initial load
-                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(any()), never());
+                mockedCli.verify(() -> BitwardenCli.listItemsMetadata(any()), never());
             }
         }
 
@@ -334,7 +334,7 @@ class CacheManagerTest {
             List<BitwardenItemMetadata> mockCliMetadata =
                     List.of(mock(BitwardenItemMetadata.class), mock(BitwardenItemMetadata.class));
             when(sessionManagerMock.getSessionKey()).thenReturn(mockSecret);
-            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
+            mockedCli.when(() -> BitwardenCli.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
 
             try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(
                     XmlFile.class, (mock, context) -> when(mock.exists()).thenReturn(false))) {
@@ -351,8 +351,8 @@ class CacheManagerTest {
                 InOrder inOrder = inOrder(sessionManagerMock);
                 inOrder.verify(sessionManagerMock, times(2)).getSessionKey(); // One for sync, one for list
 
-                mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
-                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
+                mockedCli.verify(() -> BitwardenCli.sync(mockSecret));
+                mockedCli.verify(() -> BitwardenCli.listItemsMetadata(mockSecret));
                 verify(xmlFileMock.constructed().get(1)).write(mockCliMetadata);
 
                 List<BitwardenItemMetadata> secondCallMetadata = cacheManager.getMetadata();
@@ -366,7 +366,7 @@ class CacheManagerTest {
             // GIVEN: No cache file exists, CLI calls succeed
             List<BitwardenItemMetadata> mockCliMetadata = List.of(mock(BitwardenItemMetadata.class));
             when(sessionManagerMock.getSessionKey()).thenReturn(mockSecret);
-            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
+            mockedCli.when(() -> BitwardenCli.listItemsMetadata(mockSecret)).thenReturn(mockCliMetadata);
 
             try (MockedConstruction<XmlFile> xmlFileMock = mockConstruction(XmlFile.class, (mock, context) -> {
                 when(mock.exists()).thenReturn(false);
@@ -383,8 +383,8 @@ class CacheManagerTest {
                 assertDoesNotThrow(() -> taskCaptor.getValue().run());
 
                 // THEN
-                mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
-                mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
+                mockedCli.verify(() -> BitwardenCli.sync(mockSecret));
+                mockedCli.verify(() -> BitwardenCli.listItemsMetadata(mockSecret));
                 verify(xmlFileMock.constructed().get(1)).write(mockCliMetadata);
             }
         }
@@ -404,7 +404,7 @@ class CacheManagerTest {
 
             List<BitwardenItemMetadata> freshMetadata = List.of(mock(BitwardenItemMetadata.class));
             when(sessionManagerMock.getSessionKey()).thenReturn(mockSecret);
-            mockedCli.when(() -> BitwardenCLI.listItemsMetadata(mockSecret)).thenReturn(freshMetadata);
+            mockedCli.when(() -> BitwardenCli.listItemsMetadata(mockSecret)).thenReturn(freshMetadata);
 
             // WHEN
             cacheManager.refreshCache(); // This calls cache.refresh(), which submits fetchData to the executor
@@ -418,8 +418,8 @@ class CacheManagerTest {
             reloadTaskCaptor.getValue().run();
 
             verify(sessionManagerMock, times(2)).getSessionKey(); // one for sync, one for list
-            mockedCli.verify(() -> BitwardenCLI.sync(mockSecret));
-            mockedCli.verify(() -> BitwardenCLI.listItemsMetadata(mockSecret));
+            mockedCli.verify(() -> BitwardenCli.sync(mockSecret));
+            mockedCli.verify(() -> BitwardenCli.listItemsMetadata(mockSecret));
         }
     }
 }

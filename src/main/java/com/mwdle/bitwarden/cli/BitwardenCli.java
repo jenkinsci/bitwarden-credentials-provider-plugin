@@ -34,16 +34,16 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
  * This class contains only static methods and holds no state. It is a thin wrapper around the {@code bw} executable,
  * responsible for the low-level logic of constructing and running commands and interpreting their results.
  */
-public final class BitwardenCLI {
+public final class BitwardenCli {
 
-    private static final Logger LOGGER = Logger.getLogger(BitwardenCLI.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(BitwardenCli.class.getName());
     // Disable JSON source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
     private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
             .disable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
             .build();
     private static final String KEY_BW_SESSION = "BW_SESSION";
 
-    private BitwardenCLI() {
+    private BitwardenCli() {
         throw new UnsupportedOperationException();
     }
 
@@ -81,7 +81,7 @@ public final class BitwardenCLI {
      * @return A configured ArgumentListBuilder instance.
      */
     private static ArgumentListBuilder bitwardenCommand(String... args) {
-        String executablePath = BitwardenCLIManager.getInstance().getExecutablePath();
+        String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
         ArgumentListBuilder command = new ArgumentListBuilder();
         command.add(executablePath);
         command.add("--nointeraction");

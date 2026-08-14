@@ -8,8 +8,8 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.mwdle.bitwarden.cli.BitwardenCLI;
-import com.mwdle.bitwarden.cli.BitwardenCLIManager;
+import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.BitwardenCliManager;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.converters.CredentialProxy;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
@@ -211,7 +211,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
             Timer.get().submit(() -> {
                 SessionManager.getInstance().invalidateSession();
                 CacheManager.getInstance().invalidateCache();
-                if (isConfigured() && BitwardenCLIManager.getInstance().provisionExecutable()) {
+                if (isConfigured() && BitwardenCliManager.getInstance().provisionExecutable()) {
                     CacheManager.getInstance().refreshCache();
                 }
             });
@@ -309,7 +309,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     public FormValidation doCheckCliVersion() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         try {
-            return FormValidation.ok(Messages.validation_cliVersion(BitwardenCLI.version()));
+            return FormValidation.ok(Messages.validation_cliVersion(BitwardenCli.version()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
@@ -333,9 +333,9 @@ public final class BitwardenConfig extends GlobalConfiguration {
             return FormValidation.warning(Messages.validation_cliUpdateManual());
         }
         LOGGER.info("Bitwarden CLI update triggered by administrator");
-        BitwardenCLIManager.getInstance().downloadLatestExecutable();
+        BitwardenCliManager.getInstance().downloadLatestExecutable();
         try {
-            return FormValidation.ok(Messages.validation_cliUpdateOk(BitwardenCLI.version()));
+            return FormValidation.ok(Messages.validation_cliUpdateOk(BitwardenCli.version()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);

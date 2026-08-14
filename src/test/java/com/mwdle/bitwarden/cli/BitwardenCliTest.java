@@ -45,14 +45,14 @@ import org.mockito.MockitoAnnotations;
  * stdout and stderr are handled separately.
  */
 @DisplayName("BitwardenCLI")
-class BitwardenCLITest {
+class BitwardenCliTest {
 
     private static final String FAKE_EXECUTABLE_PATH = "/fake/path/bw";
     private static final String NO_INTERACTION_FLAG = "--nointeraction";
     private static final String RAW_FLAG = "--raw";
 
     // Mocks for static dependencies
-    private static MockedStatic<BitwardenCLIManager> mockedCliManager;
+    private static MockedStatic<BitwardenCliManager> mockedCliManager;
     private static MockedStatic<PluginDirectoryProvider> mockedPluginDir;
     private static MockedStatic<ConfidentialStore> mockedConfidentialStore;
     private static MockedStatic<Secret> mockedSecret;
@@ -68,7 +68,7 @@ class BitwardenCLITest {
 
     // Mock instances
     @Mock
-    private BitwardenCLIManager cliManagerMock;
+    private BitwardenCliManager cliManagerMock;
 
     @Mock
     private ConfidentialStore confidentialStoreMock;
@@ -97,8 +97,8 @@ class BitwardenCLITest {
         closeable = MockitoAnnotations.openMocks(this);
 
         // Mock static utility classes
-        mockedCliManager = mockStatic(BitwardenCLIManager.class);
-        when(BitwardenCLIManager.getInstance()).thenReturn(cliManagerMock);
+        mockedCliManager = mockStatic(BitwardenCliManager.class);
+        when(BitwardenCliManager.getInstance()).thenReturn(cliManagerMock);
         when(cliManagerMock.getExecutablePath()).thenReturn(FAKE_EXECUTABLE_PATH);
 
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
@@ -233,7 +233,7 @@ class BitwardenCLITest {
             setupMockProcess(expectedVersion, 0);
 
             // WHEN
-            String actualVersion = BitwardenCLI.version();
+            String actualVersion = BitwardenCli.version();
 
             // THEN
             assertEquals(expectedVersion, actualVersion);
@@ -250,7 +250,7 @@ class BitwardenCLITest {
             setupMockProcess(" \n" + expectedVersion + " \t \n", 0); // With whitespace
 
             // WHEN
-            String actualVersion = BitwardenCLI.version();
+            String actualVersion = BitwardenCli.version();
 
             // THEN
             assertEquals(expectedVersion, actualVersion);
@@ -265,7 +265,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
+            IOException exception = assertThrows(IOException.class, BitwardenCli::version);
             assertTrue(exception.getMessage().contains("Command failed with exit code 1"));
             assertTrue(exception.getMessage().contains(errorOutput));
             verifyExecuteCommandInternals();
@@ -280,7 +280,7 @@ class BitwardenCLITest {
             when(procMock.isAlive()).thenReturn(true);
 
             // WHEN & THEN
-            IOException exception = assertThrows(IOException.class, BitwardenCLI::version);
+            IOException exception = assertThrows(IOException.class, BitwardenCli::version);
             assertTrue(exception.getMessage().contains("timed out"));
             assertTrue(exception.getMessage().contains(timeoutStderr));
             verify(procMock).kill();
@@ -309,7 +309,7 @@ class BitwardenCLITest {
             setupMockProcess("Login successful.", 0);
 
             // WHEN
-            BitwardenCLI.login(apiKeyCredentialsMock);
+            BitwardenCli.login(apiKeyCredentialsMock);
 
             // THEN
             assertEquals(expectedCommand("login", "--apikey"), capturedCommand.toList());
@@ -326,7 +326,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(ConnectionException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
+            assertThrows(ConnectionException.class, () -> BitwardenCli.login(apiKeyCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -338,7 +338,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(AuthenticationException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
+            assertThrows(AuthenticationException.class, () -> BitwardenCli.login(apiKeyCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -350,7 +350,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.login(apiKeyCredentialsMock));
+            IOException exception = assertThrows(IOException.class, () -> BitwardenCli.login(apiKeyCredentialsMock));
 
             // Verify it's not one of the specific subtypes
             assertFalse(exception instanceof ConnectionException);
@@ -369,7 +369,7 @@ class BitwardenCLITest {
             setupMockProcess("Logout successful.", 0);
 
             // WHEN
-            BitwardenCLI.logout();
+            BitwardenCli.logout();
 
             // THEN
             assertEquals(expectedCommand("logout"), capturedCommand.toList());
@@ -384,7 +384,7 @@ class BitwardenCLITest {
 
             // WHEN & THEN
             // Verify that no exception is thrown, as the method is designed to ignore errors
-            assertDoesNotThrow(BitwardenCLI::logout);
+            assertDoesNotThrow(BitwardenCli::logout);
             assertEquals(expectedCommand("logout"), capturedCommand.toList());
             verifyExecuteCommandInternals();
         }
@@ -409,7 +409,7 @@ class BitwardenCLITest {
             setupMockProcess(sessionToken, 0);
 
             // WHEN
-            Secret resultToken = BitwardenCLI.unlock(masterPasswordCredentialsMock);
+            Secret resultToken = BitwardenCli.unlock(masterPasswordCredentialsMock);
 
             // THEN
             assertEquals(
@@ -428,7 +428,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(ConnectionException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
+            assertThrows(ConnectionException.class, () -> BitwardenCli.unlock(masterPasswordCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -441,7 +441,7 @@ class BitwardenCLITest {
 
             // WHEN & THEN
             assertThrows(
-                    AuthenticationException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
+                    AuthenticationException.class, () -> BitwardenCli.unlock(masterPasswordCredentialsMock));
             verifyExecuteCommandInternals();
         }
 
@@ -454,7 +454,7 @@ class BitwardenCLITest {
 
             // WHEN & THEN
             IOException exception =
-                    assertThrows(IOException.class, () -> BitwardenCLI.unlock(masterPasswordCredentialsMock));
+                    assertThrows(IOException.class, () -> BitwardenCli.unlock(masterPasswordCredentialsMock));
 
             // Verify it's not one of the specific subtypes
             assertFalse(exception instanceof ConnectionException);
@@ -481,7 +481,7 @@ class BitwardenCLITest {
             setupMockProcess("Sync complete.", 0);
 
             // WHEN
-            BitwardenCLI.sync(mockSessionToken);
+            BitwardenCli.sync(mockSessionToken);
 
             // THEN
             assertEquals(expectedCommand("sync"), capturedCommand.toList());
@@ -497,7 +497,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            assertThrows(ConnectionException.class, () -> BitwardenCLI.sync(mockSessionToken));
+            assertThrows(ConnectionException.class, () -> BitwardenCli.sync(mockSessionToken));
             verifyExecuteCommandInternals();
         }
 
@@ -509,7 +509,7 @@ class BitwardenCLITest {
             setupMockProcess("", errorOutput, 1);
 
             // WHEN & THEN
-            IOException exception = assertThrows(IOException.class, () -> BitwardenCLI.sync(mockSessionToken));
+            IOException exception = assertThrows(IOException.class, () -> BitwardenCli.sync(mockSessionToken));
 
             // Verify it's not one of the specific subtypes
             assertFalse(exception instanceof ConnectionException);
@@ -542,7 +542,7 @@ class BitwardenCLITest {
             setupMockProcess(jsonOutput, 0);
 
             // WHEN
-            List<BitwardenItemMetadata> metadataList = BitwardenCLI.listItemsMetadata(mockSessionToken);
+            List<BitwardenItemMetadata> metadataList = BitwardenCli.listItemsMetadata(mockSessionToken);
 
             // THEN
             assertEquals(expectedCommand("list", "items"), capturedCommand.toList());
@@ -574,7 +574,7 @@ class BitwardenCLITest {
             setupMockProcess(jsonOutput, stderrOutput, 0);
 
             // WHEN
-            List<BitwardenItemMetadata> metadataList = BitwardenCLI.listItemsMetadata(mockSessionToken);
+            List<BitwardenItemMetadata> metadataList = BitwardenCli.listItemsMetadata(mockSessionToken);
 
             // THEN — stderr noise must not pollute JSON parsing
             assertNotNull(metadataList);
@@ -592,7 +592,7 @@ class BitwardenCLITest {
             setupMockProcess(badJsonOutput, 0);
 
             // WHEN & THEN
-            assertThrows(IOException.class, () -> BitwardenCLI.listItemsMetadata(mockSessionToken));
+            assertThrows(IOException.class, () -> BitwardenCli.listItemsMetadata(mockSessionToken));
             verifyExecuteCommandInternals();
         }
     }
@@ -623,7 +623,7 @@ class BitwardenCLITest {
             setupMockProcess(jsonOutput, 0);
 
             // WHEN
-            BitwardenItem item = BitwardenCLI.getItem(mockSessionToken, ITEM_ID);
+            BitwardenItem item = BitwardenCli.getItem(mockSessionToken, ITEM_ID);
 
             // THEN
             assertEquals(expectedCommand("get", "item", ITEM_ID), capturedCommand.toList());
@@ -643,7 +643,7 @@ class BitwardenCLITest {
             setupMockProcess(badJsonOutput, 0);
 
             // WHEN & THEN
-            assertThrows(IOException.class, () -> BitwardenCLI.getItem(mockSessionToken, ITEM_ID));
+            assertThrows(IOException.class, () -> BitwardenCli.getItem(mockSessionToken, ITEM_ID));
             verifyExecuteCommandInternals();
         }
     }
@@ -659,7 +659,7 @@ class BitwardenCLITest {
             setupMockProcess("Server configured.", 0);
 
             // WHEN
-            BitwardenCLI.configServer(serverUrl);
+            BitwardenCli.configServer(serverUrl);
 
             // THEN
             assertEquals(expectedCommand("config", "server", serverUrl), capturedCommand.toList());
@@ -674,7 +674,7 @@ class BitwardenCLITest {
             setupMockProcess("", "Invalid URL.", 1);
 
             // WHEN & THEN
-            assertThrows(IOException.class, () -> BitwardenCLI.configServer(serverUrl));
+            assertThrows(IOException.class, () -> BitwardenCli.configServer(serverUrl));
             verifyExecuteCommandInternals();
         }
     }
@@ -694,7 +694,7 @@ class BitwardenCLITest {
             assertTrue(dataJson.exists(), "Setup failed: data.json should exist before test");
 
             // WHEN
-            BitwardenCLI.clearBitwardenAppData();
+            BitwardenCli.clearBitwardenAppData();
 
             // THEN
             assertFalse(dataJson.exists(), "data.json should have been deleted by clearBitwardenAppData");
@@ -710,7 +710,7 @@ class BitwardenCLITest {
 
             // WHEN & THEN
             assertDoesNotThrow(
-                    BitwardenCLI::clearBitwardenAppData,
+                    BitwardenCli::clearBitwardenAppData,
                     "Method should handle missing files gracefully without throwing exceptions");
         }
 
@@ -726,7 +726,7 @@ class BitwardenCLITest {
                 // WHEN & THEN
                 // We verify that the method catches the exception and does not throw it
                 assertDoesNotThrow(
-                        BitwardenCLI::clearBitwardenAppData,
+                        BitwardenCli::clearBitwardenAppData,
                         "Method should catch IOException and log a warning instead of crashing");
 
                 // Ensure the code actually attempted the deletion

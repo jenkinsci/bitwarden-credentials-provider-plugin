@@ -8,8 +8,8 @@ import com.cloudbees.plugins.credentials.CredentialsMatcher;
 import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.mwdle.bitwarden.cli.BitwardenCLI;
-import com.mwdle.bitwarden.cli.BitwardenCLIManager;
+import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.BitwardenCliManager;
 import com.mwdle.bitwarden.cli.SessionManager;
 import hudson.ExtensionList;
 import hudson.model.ItemGroup;
@@ -55,8 +55,8 @@ class BitwardenConfigTest {
     private MockedStatic<Timer> mockedTimer;
     private MockedStatic<SessionManager> mockedSessionManager;
     private MockedStatic<CacheManager> mockedCacheManager;
-    private MockedStatic<BitwardenCLIManager> mockedCliManager;
-    private MockedStatic<BitwardenCLI> mockedCli;
+    private MockedStatic<BitwardenCliManager> mockedCliManager;
+    private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<GlobalConfiguration> mockedGlobalConfig;
     private MockedStatic<Messages> mockedMessages;
     private MockedStatic<ACL> mockedAcl;
@@ -75,7 +75,7 @@ class BitwardenConfigTest {
     private CacheManager cacheManagerMock;
 
     @Mock
-    private BitwardenCLIManager cliManagerMock;
+    private BitwardenCliManager cliManagerMock;
 
     @Mock
     private ExtensionList<CredentialsProvider> extensionListMock;
@@ -107,8 +107,8 @@ class BitwardenConfigTest {
         mockedTimer = mockStatic(Timer.class);
         mockedSessionManager = mockStatic(SessionManager.class);
         mockedCacheManager = mockStatic(CacheManager.class);
-        mockedCliManager = mockStatic(BitwardenCLIManager.class);
-        mockedCli = mockStatic(BitwardenCLI.class);
+        mockedCliManager = mockStatic(BitwardenCliManager.class);
+        mockedCli = mockStatic(BitwardenCli.class);
         mockedGlobalConfig = mockStatic(GlobalConfiguration.class);
         mockedMessages = mockStatic(Messages.class);
         mockedAcl = mockStatic(ACL.class);
@@ -121,7 +121,7 @@ class BitwardenConfigTest {
         when(Timer.get()).thenReturn(executorMock);
         when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
         when(CacheManager.getInstance()).thenReturn(cacheManagerMock);
-        when(BitwardenCLIManager.getInstance()).thenReturn(cliManagerMock);
+        when(BitwardenCliManager.getInstance()).thenReturn(cliManagerMock);
 
         // Mocks for getInstance()
         when(GlobalConfiguration.all()).thenReturn(globalConfigListMock);
@@ -390,7 +390,7 @@ class BitwardenConfigTest {
         @DisplayName("doCheckCliVersion should return OK with version")
         void doCheckCliVersionSuccess() throws Exception {
             // GIVEN
-            when(BitwardenCLI.version()).thenReturn("2023.10.0");
+            when(BitwardenCli.version()).thenReturn("2023.10.0");
             when(Messages.validation_cliVersion(anyString())).thenReturn("Version: 2023.10.0");
 
             // WHEN
@@ -405,7 +405,7 @@ class BitwardenConfigTest {
         @DisplayName("doCheckCliVersion should return ERROR on exception")
         void doCheckCliVersionError() throws Exception {
             // GIVEN
-            when(BitwardenCLI.version()).thenThrow(new IOException("CLI not found"));
+            when(BitwardenCli.version()).thenThrow(new IOException("CLI not found"));
             when(Messages.validation_cliError(anyString())).thenReturn("Error: CLI not found");
 
             // WHEN
@@ -421,7 +421,7 @@ class BitwardenConfigTest {
         void doForceUpdateCliSuccess() throws Exception {
             // GIVEN
             when(cliManagerMock.downloadLatestExecutable()).thenReturn(true);
-            when(BitwardenCLI.version()).thenReturn("2023.10.1");
+            when(BitwardenCli.version()).thenReturn("2023.10.1");
             when(Messages.validation_cliUpdateOk(anyString())).thenReturn("Updated to 2023.10.1");
 
             // WHEN

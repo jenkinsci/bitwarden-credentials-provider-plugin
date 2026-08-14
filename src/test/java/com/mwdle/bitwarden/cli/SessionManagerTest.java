@@ -38,7 +38,7 @@ import org.springframework.security.core.Authentication;
 class SessionManagerTest {
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<BitwardenConfig> mockedConfig;
-    private MockedStatic<BitwardenCLI> mockedCli;
+    private MockedStatic<BitwardenCli> mockedCli;
 
     @Mock
     private Jenkins jenkinsMock;
@@ -59,7 +59,7 @@ class SessionManagerTest {
 
         mockedJenkins = mockStatic(Jenkins.class);
         mockedConfig = mockStatic(BitwardenConfig.class);
-        mockedCli = mockStatic(BitwardenCLI.class);
+        mockedCli = mockStatic(BitwardenCli.class);
 
         when(Jenkins.get()).thenReturn(jenkinsMock);
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
@@ -93,14 +93,14 @@ class SessionManagerTest {
 
             BitwardenStatus unlockedStatus = mock(BitwardenStatus.class);
             when(unlockedStatus.getStatus()).thenReturn("unlocked");
-            mockedCli.when(() -> BitwardenCLI.status(token)).thenReturn(unlockedStatus);
+            mockedCli.when(() -> BitwardenCli.status(token)).thenReturn(unlockedStatus);
 
             // WHEN
             Secret resultToken = manager.getSessionKey();
 
             // THEN
             assertEquals(token, resultToken);
-            mockedCli.verify(() -> BitwardenCLI.login(any()), never());
+            mockedCli.verify(() -> BitwardenCli.login(any()), never());
         }
 
         @Test
@@ -113,11 +113,11 @@ class SessionManagerTest {
 
             BitwardenStatus lockedStatus = mock(BitwardenStatus.class);
             when(lockedStatus.getStatus()).thenReturn("locked");
-            mockedCli.when(() -> BitwardenCLI.status(initialToken)).thenReturn(lockedStatus);
+            mockedCli.when(() -> BitwardenCli.status(initialToken)).thenReturn(lockedStatus);
 
             Secret refreshedToken = Secret.fromString("refreshed-token");
             mockedCli
-                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .when(() -> BitwardenCli.unlock(any(StringCredentials.class)))
                     .thenReturn(refreshedToken);
 
             // WHEN
@@ -125,7 +125,7 @@ class SessionManagerTest {
 
             // THEN
             assertEquals(refreshedToken, resultToken);
-            mockedCli.verify(() -> BitwardenCLI.login(any()), times(1));
+            mockedCli.verify(() -> BitwardenCli.login(any()), times(1));
         }
 
         @Test
@@ -136,11 +136,11 @@ class SessionManagerTest {
             Secret initialToken = Secret.fromString("initial-token");
             sessionTokenField.set(manager, initialToken);
 
-            mockedCli.when(() -> BitwardenCLI.status(initialToken)).thenThrow(new IOException("Network error"));
+            mockedCli.when(() -> BitwardenCli.status(initialToken)).thenThrow(new IOException("Network error"));
 
             Secret refreshedToken = Secret.fromString("refreshed-token");
             mockedCli
-                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .when(() -> BitwardenCli.unlock(any(StringCredentials.class)))
                     .thenReturn(refreshedToken);
 
             // WHEN
@@ -148,7 +148,7 @@ class SessionManagerTest {
 
             // THEN
             assertEquals(refreshedToken, resultToken);
-            mockedCli.verify(() -> BitwardenCLI.login(any()), times(1));
+            mockedCli.verify(() -> BitwardenCli.login(any()), times(1));
         }
 
         @Test
@@ -158,7 +158,7 @@ class SessionManagerTest {
             setupValidCredentials(null);
             Secret newToken = Secret.fromString("new-session-token");
             mockedCli
-                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .when(() -> BitwardenCli.unlock(any(StringCredentials.class)))
                     .thenReturn(newToken);
 
             // WHEN
@@ -166,10 +166,10 @@ class SessionManagerTest {
 
             // THEN
             assertEquals(newToken, resultToken);
-            mockedCli.verify(BitwardenCLI::logout, times(1));
-            mockedCli.verify(BitwardenCLI::clearBitwardenAppData, times(1));
-            mockedCli.verify(() -> BitwardenCLI.configServer("https://vault.bitwarden.com"), times(1));
-            mockedCli.verify(() -> BitwardenCLI.login(any(StandardUsernamePasswordCredentials.class)), times(1));
+            mockedCli.verify(BitwardenCli::logout, times(1));
+            mockedCli.verify(BitwardenCli::clearBitwardenAppData, times(1));
+            mockedCli.verify(() -> BitwardenCli.configServer("https://vault.bitwarden.com"), times(1));
+            mockedCli.verify(() -> BitwardenCli.login(any(StandardUsernamePasswordCredentials.class)), times(1));
         }
 
         @Test
@@ -180,15 +180,15 @@ class SessionManagerTest {
             setupValidCredentials(customUrl);
             Secret newToken = Secret.fromString("custom-url-token");
             mockedCli
-                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .when(() -> BitwardenCli.unlock(any(StringCredentials.class)))
                     .thenReturn(newToken);
 
             // WHEN
             manager.getSessionKey();
 
             // THEN
-            mockedCli.verify(() -> BitwardenCLI.configServer(customUrl), times(1));
-            mockedCli.verify(() -> BitwardenCLI.login(any(StandardUsernamePasswordCredentials.class)), times(1));
+            mockedCli.verify(() -> BitwardenCli.configServer(customUrl), times(1));
+            mockedCli.verify(() -> BitwardenCli.login(any(StandardUsernamePasswordCredentials.class)), times(1));
         }
 
         @Test
@@ -197,7 +197,7 @@ class SessionManagerTest {
             // GIVEN
             setupValidCredentials(null);
             mockedCli
-                    .when(() -> BitwardenCLI.login(any(StandardUsernamePasswordCredentials.class)))
+                    .when(() -> BitwardenCli.login(any(StandardUsernamePasswordCredentials.class)))
                     .thenThrow(new AuthenticationException("Invalid API Key", null));
 
             // WHEN & THEN
@@ -210,7 +210,7 @@ class SessionManagerTest {
             // GIVEN
             setupValidCredentials(null);
             mockedCli
-                    .when(() -> BitwardenCLI.unlock(any(StringCredentials.class)))
+                    .when(() -> BitwardenCli.unlock(any(StringCredentials.class)))
                     .thenThrow(new AuthenticationException("Invalid Master Password", null));
 
             // WHEN & THEN
@@ -274,7 +274,7 @@ class SessionManagerTest {
 
             BitwardenStatus unlockedStatus = mock(BitwardenStatus.class);
             when(unlockedStatus.getStatus()).thenReturn("unlocked");
-            mockedCli.when(() -> BitwardenCLI.status(token)).thenReturn(unlockedStatus);
+            mockedCli.when(() -> BitwardenCli.status(token)).thenReturn(unlockedStatus);
 
             // WHEN
             boolean result = manager.isSessionValid();
@@ -290,7 +290,7 @@ class SessionManagerTest {
             Secret token = Secret.fromString("some-token");
             sessionTokenField.set(manager, token);
 
-            mockedCli.when(() -> BitwardenCLI.status(token)).thenThrow(new InterruptedException("Interrupted!"));
+            mockedCli.when(() -> BitwardenCli.status(token)).thenThrow(new InterruptedException("Interrupted!"));
 
             // Ensure the thread is NOT interrupted before the test
             Thread.interrupted();

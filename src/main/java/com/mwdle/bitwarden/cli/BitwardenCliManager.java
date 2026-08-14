@@ -26,24 +26,24 @@ import java.util.zip.ZipFile;
  * extraction of the executable, and provides a reliable, cached path for other components to use.
  * It ensures the CLI is always available when needed, attempting to download it if it's missing.
  */
-public final class BitwardenCLIManager {
+public final class BitwardenCliManager {
 
-    private static final BitwardenCLIManager INSTANCE = new BitwardenCLIManager();
-    private static final Logger LOGGER = Logger.getLogger(BitwardenCLIManager.class.getName());
+    private static final BitwardenCliManager INSTANCE = new BitwardenCliManager();
+    private static final Logger LOGGER = Logger.getLogger(BitwardenCliManager.class.getName());
     private volatile String executablePath;
     private final transient Object provisionLock = new Object();
 
     /**
      * A private constructor to prevent instantiation of this utility class.
      */
-    private BitwardenCLIManager() {}
+    private BitwardenCliManager() {}
 
     /**
      * Provides global access to the single instance of this manager.
      *
-     * @return The singleton instance of {@link BitwardenCLIManager}.
+     * @return The singleton instance of {@link BitwardenCliManager}.
      */
-    public static BitwardenCLIManager getInstance() {
+    public static BitwardenCliManager getInstance() {
         return INSTANCE;
     }
 
