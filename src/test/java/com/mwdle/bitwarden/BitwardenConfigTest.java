@@ -54,7 +54,7 @@ class BitwardenConfigTest {
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<Timer> mockedTimer;
     private MockedStatic<SessionManager> mockedSessionManager;
-    private MockedStatic<BitwardenCacheManager> mockedCacheManager;
+    private MockedStatic<CacheManager> mockedCacheManager;
     private MockedStatic<BitwardenCLIManager> mockedCliManager;
     private MockedStatic<BitwardenCLI> mockedCli;
     private MockedStatic<GlobalConfiguration> mockedGlobalConfig;
@@ -72,7 +72,7 @@ class BitwardenConfigTest {
     private SessionManager sessionManagerMock;
 
     @Mock
-    private BitwardenCacheManager cacheManagerMock;
+    private CacheManager cacheManagerMock;
 
     @Mock
     private BitwardenCLIManager cliManagerMock;
@@ -106,7 +106,7 @@ class BitwardenConfigTest {
         mockedJenkins = mockStatic(Jenkins.class);
         mockedTimer = mockStatic(Timer.class);
         mockedSessionManager = mockStatic(SessionManager.class);
-        mockedCacheManager = mockStatic(BitwardenCacheManager.class);
+        mockedCacheManager = mockStatic(CacheManager.class);
         mockedCliManager = mockStatic(BitwardenCLIManager.class);
         mockedCli = mockStatic(BitwardenCLI.class);
         mockedGlobalConfig = mockStatic(GlobalConfiguration.class);
@@ -120,7 +120,7 @@ class BitwardenConfigTest {
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(Timer.get()).thenReturn(executorMock);
         when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
-        when(BitwardenCacheManager.getInstance()).thenReturn(cacheManagerMock);
+        when(CacheManager.getInstance()).thenReturn(cacheManagerMock);
         when(BitwardenCLIManager.getInstance()).thenReturn(cliManagerMock);
 
         // Mocks for getInstance()

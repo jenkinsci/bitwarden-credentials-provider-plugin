@@ -54,7 +54,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         }
 
         List<BitwardenItemMetadata> bitwardenItemMetadata =
-                BitwardenCacheManager.getInstance().getMetadata();
+                CacheManager.getInstance().getMetadata();
 
         final Set<String> seenNames = new HashSet<>(bitwardenItemMetadata.size());
         final Set<String> duplicateNames = new HashSet<>();

@@ -34,7 +34,7 @@ import org.springframework.security.core.Authentication;
  * without modifying the source code, and focuses on the public API.
  */
 @DisplayName("BitwardenCacheManager")
-class BitwardenCacheManagerTest {
+class CacheManagerTest {
 
     @TempDir
     Path tempDir;
@@ -71,9 +71,9 @@ class BitwardenCacheManagerTest {
     private Secret mockSecret;
 
     @Mock
-    private ExtensionList<BitwardenCacheManager> extensionListMock;
+    private ExtensionList<CacheManager> extensionListMock;
 
-    private BitwardenCacheManager cacheManager;
+    private CacheManager cacheManager;
     private AutoCloseable closeable;
 
     @BeforeEach
@@ -101,7 +101,7 @@ class BitwardenCacheManagerTest {
         when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
         when(configMock.getCacheDuration()).thenReturn(5);
 
-        cacheManager = new BitwardenCacheManager();
+        cacheManager = new CacheManager();
     }
 
     @AfterEach
@@ -119,7 +119,7 @@ class BitwardenCacheManagerTest {
     }
 
     private void injectMockCache() throws NoSuchFieldException, IllegalAccessException {
-        Field cacheField = BitwardenCacheManager.class.getDeclaredField("itemMetadataCache");
+        Field cacheField = CacheManager.class.getDeclaredField("itemMetadataCache");
         cacheField.setAccessible(true);
         cacheField.set(cacheManager, cacheMock);
     }
@@ -128,7 +128,7 @@ class BitwardenCacheManagerTest {
      * Resets the cache manager's internal cache to null, forcing re-initialization.
      */
     private void forceCacheReinitialization() throws NoSuchFieldException, IllegalAccessException {
-        Field cacheField = BitwardenCacheManager.class.getDeclaredField("itemMetadataCache");
+        Field cacheField = CacheManager.class.getDeclaredField("itemMetadataCache");
         cacheField.setAccessible(true);
         cacheField.set(cacheManager, null);
     }
@@ -140,15 +140,15 @@ class BitwardenCacheManagerTest {
         @DisplayName("should return singleton from ExtensionList")
         void getInstanceShouldReturnSingleton() {
             // GIVEN
-            when(jenkinsMock.getExtensionList(BitwardenCacheManager.class)).thenReturn(extensionListMock);
+            when(jenkinsMock.getExtensionList(CacheManager.class)).thenReturn(extensionListMock);
             when(extensionListMock.get(0)).thenReturn(cacheManager);
 
             // WHEN
-            BitwardenCacheManager instance = BitwardenCacheManager.getInstance();
+            CacheManager instance = CacheManager.getInstance();
 
             // THEN
             assertEquals(cacheManager, instance);
-            verify(jenkinsMock).getExtensionList(BitwardenCacheManager.class);
+            verify(jenkinsMock).getExtensionList(CacheManager.class);
             verify(extensionListMock).get(0);
         }
     }

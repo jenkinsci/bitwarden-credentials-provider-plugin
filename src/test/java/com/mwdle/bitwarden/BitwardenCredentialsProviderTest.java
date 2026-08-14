@@ -28,7 +28,7 @@ import org.springframework.security.core.Authentication;
 class BitwardenCredentialsProviderTest {
 
     private MockedStatic<BitwardenConfig> mockedConfig;
-    private MockedStatic<BitwardenCacheManager> mockedCacheManager;
+    private MockedStatic<CacheManager> mockedCacheManager;
     private MockedStatic<CredentialConverter> mockedConverter;
     private MockedStatic<Jenkins> mockedJenkins;
 
@@ -36,7 +36,7 @@ class BitwardenCredentialsProviderTest {
     private BitwardenConfig configMock;
 
     @Mock
-    private BitwardenCacheManager cacheManagerMock;
+    private CacheManager cacheManagerMock;
 
     @Mock
     private ItemGroup<?> mockItemGroup;
@@ -52,12 +52,12 @@ class BitwardenCredentialsProviderTest {
         closeable = MockitoAnnotations.openMocks(this);
 
         mockedConfig = mockStatic(BitwardenConfig.class);
-        mockedCacheManager = mockStatic(BitwardenCacheManager.class);
+        mockedCacheManager = mockStatic(CacheManager.class);
         mockedConverter = mockStatic(CredentialConverter.class);
         mockedJenkins = mockStatic(Jenkins.class);
 
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
-        when(BitwardenCacheManager.getInstance()).thenReturn(cacheManagerMock);
+        when(CacheManager.getInstance()).thenReturn(cacheManagerMock);
 
         provider = new BitwardenCredentialsProvider();
     }

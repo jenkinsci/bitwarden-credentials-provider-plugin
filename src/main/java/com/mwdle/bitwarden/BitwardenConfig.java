@@ -210,18 +210,18 @@ public final class BitwardenConfig extends GlobalConfiguration {
             LOGGER.info("Bitwarden primary configuration settings updated.");
             Timer.get().submit(() -> {
                 SessionManager.getInstance().invalidateSession();
-                BitwardenCacheManager.getInstance().invalidateCache();
+                CacheManager.getInstance().invalidateCache();
                 if (isConfigured() && BitwardenCLIManager.getInstance().provisionExecutable()) {
-                    BitwardenCacheManager.getInstance().refreshCache();
+                    CacheManager.getInstance().refreshCache();
                 }
             });
         } else if (requiresCacheRefresh) {
             this.requiresCacheRefresh = false;
             LOGGER.info("Bitwarden item processing configuration settings updated.");
             Timer.get().submit(() -> {
-                BitwardenCacheManager.getInstance().invalidateCache();
+                CacheManager.getInstance().invalidateCache();
                 if (isConfigured()) {
-                    BitwardenCacheManager.getInstance().refreshCache();
+                    CacheManager.getInstance().refreshCache();
                 }
             });
         }
@@ -295,7 +295,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         LOGGER.info("Manual cache refresh triggered by administrator");
         SessionManager.getInstance().invalidateSession();
-        BitwardenCacheManager.getInstance().refreshCache();
+        CacheManager.getInstance().refreshCache();
         return FormValidation.ok(Messages.validation_refreshStarted());
     }
 

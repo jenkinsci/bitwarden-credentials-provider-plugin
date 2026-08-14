@@ -26,9 +26,9 @@ import jenkins.util.Timer;
  * A singleton that manages the lifecycle, background loading, and caching of Bitwarden item metadata.
  */
 @Extension
-public final class BitwardenCacheManager {
+public final class CacheManager {
 
-    private static final Logger LOGGER = Logger.getLogger(BitwardenCacheManager.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(CacheManager.class.getName());
     private static final String CACHE_KEY = "bitwarden_item_metadata";
     private final Object lock = new Object();
 
@@ -39,8 +39,8 @@ public final class BitwardenCacheManager {
      * @return the singleton instance of this manager
      */
     @NonNull
-    public static BitwardenCacheManager getInstance() {
-        return ExtensionList.lookupSingleton(BitwardenCacheManager.class);
+    public static CacheManager getInstance() {
+        return ExtensionList.lookupSingleton(CacheManager.class);
     }
 
     /**
@@ -126,7 +126,7 @@ public final class BitwardenCacheManager {
                                 public ListenableFuture<List<BitwardenItemMetadata>> reload(
                                         @NonNull String key, @NonNull List<BitwardenItemMetadata> oldValue) {
                                     return MoreExecutors.listeningDecorator(Timer.get())
-                                            .submit(BitwardenCacheManager.this::fetchMetadata);
+                                            .submit(CacheManager.this::fetchMetadata);
                                 }
                             });
                 }
