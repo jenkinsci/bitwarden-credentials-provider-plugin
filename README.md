@@ -34,7 +34,7 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 
 You must first configure the plugin's global settings under **Manage Jenkins > System > Bitwarden Credentials Provider Configuration**.
 
-- **Bitwarden Server URL:** For self-hosted instances like Vaultwarden. Leave blank for the official Bitwarden cloud ([vault.bitwarden.com](https://vault.bitwarden.com)).
+- **Bitwarden Server URL:** Defaults to the official Bitwarden USA cloud ([vault.bitwarden.com](https://vault.bitwarden.com)). Override it to use a self-hosted instance like Vaultwarden or the Bitwarden EU cloud.
 - **Bitwarden API Key Credential:** Select a Jenkins "Username with password" credential that stores your Bitwarden Client ID and Client Secret.
     - *It is highly recommended to create this manually via the Jenkins UI (not JCasC) with **System** scope to prevent exposure to standard pipelines.*
 - **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
@@ -109,7 +109,7 @@ This plugin is fully compatible with the Jenkins Configuration as Code plugin an
 unclassified:
   bitwarden:
     # The URL of your self-hosted Bitwarden/Vaultwarden server.
-    # Leave blank for the official Bitwarden cloud.
+    # Defaults to the official Bitwarden USA cloud (https://vault.bitwarden.com); set a self-hosted or Bitwarden EU cloud URL here to override it.
     serverUrl: "https://vault.example.com"
     # The Jenkins credential ID for your Bitwarden API Key.
     # I recommend creating this credential manually via the Jenkins UI and giving it SYSTEM (not global) scope.
