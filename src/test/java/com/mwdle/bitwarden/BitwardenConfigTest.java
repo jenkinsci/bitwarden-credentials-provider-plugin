@@ -10,7 +10,7 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenCLIManager;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import hudson.ExtensionList;
 import hudson.model.ItemGroup;
 import hudson.security.ACL;
@@ -53,7 +53,7 @@ class BitwardenConfigTest {
     // Mocks for static Jenkins and plugin classes
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<Timer> mockedTimer;
-    private MockedStatic<BitwardenSessionManager> mockedSessionManager;
+    private MockedStatic<SessionManager> mockedSessionManager;
     private MockedStatic<BitwardenCacheManager> mockedCacheManager;
     private MockedStatic<BitwardenCLIManager> mockedCliManager;
     private MockedStatic<BitwardenCLI> mockedCli;
@@ -69,7 +69,7 @@ class BitwardenConfigTest {
     private ScheduledExecutorService executorMock;
 
     @Mock
-    private BitwardenSessionManager sessionManagerMock;
+    private SessionManager sessionManagerMock;
 
     @Mock
     private BitwardenCacheManager cacheManagerMock;
@@ -105,7 +105,7 @@ class BitwardenConfigTest {
         // Initialize all static mocks
         mockedJenkins = mockStatic(Jenkins.class);
         mockedTimer = mockStatic(Timer.class);
-        mockedSessionManager = mockStatic(BitwardenSessionManager.class);
+        mockedSessionManager = mockStatic(SessionManager.class);
         mockedCacheManager = mockStatic(BitwardenCacheManager.class);
         mockedCliManager = mockStatic(BitwardenCLIManager.class);
         mockedCli = mockStatic(BitwardenCLI.class);
@@ -119,7 +119,7 @@ class BitwardenConfigTest {
         when(jenkinsMock.getItemGroup()).thenReturn(jenkinsMock); // Jenkins *is* the ItemGroup
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(Timer.get()).thenReturn(executorMock);
-        when(BitwardenSessionManager.getInstance()).thenReturn(sessionManagerMock);
+        when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
         when(BitwardenCacheManager.getInstance()).thenReturn(cacheManagerMock);
         when(BitwardenCLIManager.getInstance()).thenReturn(cliManagerMock);
 

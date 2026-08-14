@@ -5,7 +5,7 @@ import com.cloudbees.plugins.credentials.common.IdCredentials;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
@@ -70,7 +70,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
             BitwardenItem item;
             try {
                 item = BitwardenCLI.getItem(
-                        BitwardenSessionManager.getInstance().getSessionKey(), this.itemId);
+                        SessionManager.getInstance().getSessionKey(), this.itemId);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);

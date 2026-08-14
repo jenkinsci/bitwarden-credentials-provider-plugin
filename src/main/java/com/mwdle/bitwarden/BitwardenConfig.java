@@ -10,7 +10,7 @@ import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
 import com.mwdle.bitwarden.cli.BitwardenCLIManager;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.converters.CredentialProxy;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -209,7 +209,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
             this.requiresCacheRefresh = false;
             LOGGER.info("Bitwarden primary configuration settings updated.");
             Timer.get().submit(() -> {
-                BitwardenSessionManager.getInstance().invalidateSession();
+                SessionManager.getInstance().invalidateSession();
                 BitwardenCacheManager.getInstance().invalidateCache();
                 if (isConfigured() && BitwardenCLIManager.getInstance().provisionExecutable()) {
                     BitwardenCacheManager.getInstance().refreshCache();
@@ -294,7 +294,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     public FormValidation doRefreshCache() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         LOGGER.info("Manual cache refresh triggered by administrator");
-        BitwardenSessionManager.getInstance().invalidateSession();
+        SessionManager.getInstance().invalidateSession();
         BitwardenCacheManager.getInstance().refreshCache();
         return FormValidation.ok(Messages.validation_refreshStarted());
     }
@@ -358,7 +358,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         if (!isConfigured()) {
             return FormValidation.warning(Messages.validation_sessionNotConfigured());
         }
-        boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
+        boolean isValid = SessionManager.getInstance().isSessionValid();
         if (isValid) {
             return FormValidation.ok(Messages.validation_sessionOk());
         } else {

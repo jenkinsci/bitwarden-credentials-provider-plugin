@@ -5,7 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.google.common.cache.LoadingCache;
 import com.mwdle.bitwarden.cli.BitwardenCLI;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import hudson.ExtensionList;
 import hudson.XmlFile;
@@ -44,7 +44,7 @@ class BitwardenCacheManagerTest {
     private MockedStatic<Timer> mockedTimer;
     private MockedStatic<BitwardenConfig> mockedConfig;
     private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
-    private MockedStatic<BitwardenSessionManager> mockedSessionManager;
+    private MockedStatic<SessionManager> mockedSessionManager;
     private MockedStatic<BitwardenCLI> mockedCli;
     private MockedStatic<Secret> mockedStaticSecret;
 
@@ -59,7 +59,7 @@ class BitwardenCacheManagerTest {
     private BitwardenConfig configMock;
 
     @Mock
-    private BitwardenSessionManager sessionManagerMock;
+    private SessionManager sessionManagerMock;
 
     @Mock
     private LoadingCache<String, List<BitwardenItemMetadata>> cacheMock;
@@ -85,7 +85,7 @@ class BitwardenCacheManagerTest {
         mockedTimer = mockStatic(Timer.class);
         mockedConfig = mockStatic(BitwardenConfig.class);
         mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
-        mockedSessionManager = mockStatic(BitwardenSessionManager.class);
+        mockedSessionManager = mockStatic(SessionManager.class);
         mockedCli = mockStatic(BitwardenCLI.class);
 
         // Mock static Secret.toString for BitwardenCLI.sync
@@ -98,7 +98,7 @@ class BitwardenCacheManagerTest {
         when(Timer.get()).thenReturn(executorMock);
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
         when(PluginDirectoryProvider.getPluginDataDirectory()).thenReturn(tempDir.toFile());
-        when(BitwardenSessionManager.getInstance()).thenReturn(sessionManagerMock);
+        when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
         when(configMock.getCacheDuration()).thenReturn(5);
 
         cacheManager = new BitwardenCacheManager();
