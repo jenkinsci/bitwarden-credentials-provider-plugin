@@ -12,12 +12,15 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.Extension;
+import hudson.init.InitMilestone;
+import hudson.init.Initializer;
 import hudson.model.ItemGroup;
 import hudson.model.ModelObject;
 import hudson.security.ACL;
 import hudson.security.Permission;
 import java.util.*;
 import jenkins.model.Jenkins;
+import jenkins.util.Timer;
 import org.springframework.security.core.Authentication;
 
 /**
@@ -27,6 +30,16 @@ import org.springframework.security.core.Authentication;
 public final class BitwardenCredentialsProvider extends CredentialsProvider {
 
     private final BitwardenCredentialsStore store = new BitwardenCredentialsStore();
+
+    /**
+     * Schedules a background task to populate the cache after Jenkins starts.
+     */
+    @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED)
+    public static void triggerCacheRefresh() {
+        if (BitwardenConfig.getInstance().isConfigured()) {
+            Timer.get().submit(CacheManager.getInstance()::refreshCache);
+        }
+    }
 
     @Override
     @CheckForNull

@@ -9,10 +9,6 @@ import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import hudson.Extension;
-import hudson.ExtensionList;
-import hudson.init.InitMilestone;
-import hudson.init.Initializer;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -25,36 +21,24 @@ import jenkins.util.Timer;
 /**
  * A singleton that manages the lifecycle, background loading, and caching of Bitwarden item metadata.
  */
-@Extension
 public final class CacheManager {
 
     private static final Logger LOGGER = Logger.getLogger(CacheManager.class.getName());
     private static final String CACHE_KEY = "bitwarden_item_metadata";
+    private static final CacheManager INSTANCE = new CacheManager();
     private final Object lock = new Object();
 
     @SuppressWarnings("squid:S3077")
     private volatile LoadingCache<String, List<BitwardenItemMetadata>> metadataCache;
+
+    private CacheManager() {}
 
     /**
      * @return the singleton instance of this manager
      */
     @NonNull
     public static CacheManager getInstance() {
-        return ExtensionList.lookupSingleton(CacheManager.class);
-    }
-
-    /**
-     * Schedules a background task to populate the cache after Jenkins starts.
-     */
-    // TODO: code smell to make this class an extension just for the sake of adding an initializer? consider moving this to an existing extension class.
-    @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED)
-    public void refreshCacheOnStartup() {
-        BitwardenConfig config = BitwardenConfig.getInstance();
-        if (!config.isConfigured()) {
-            LOGGER.info("Plugin is not configured. Skipping initial cache update.");
-            return;
-        }
-        Timer.get().submit(this::refreshCache); // Update the cache in a separate thread to not delay Jenkins startup.
+        return INSTANCE;
     }
 
     /**
@@ -97,8 +81,7 @@ public final class CacheManager {
     @NonNull
     private List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
         BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
-        return BitwardenCli.listItemsMetadata(
-                SessionManager.getInstance().getSessionKey());
+        return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
     }
 
     /**
