@@ -48,7 +48,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
      * @return a list of all available {@link Credentials} from Bitwarden
      */
     @NonNull
-    private List<Credentials> getCredentials() {
+    private List<Credentials> getBitwardenCredentials() {
         if (!BitwardenConfig.getInstance().isConfigured()) {
             return Collections.emptyList();
         }
@@ -82,19 +82,13 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
             @Nullable ItemGroup itemGroup,
             @Nullable Authentication authentication,
             @NonNull List<DomainRequirement> domainRequirements) {
-
         if (!ACL.SYSTEM2.equals(authentication)) {
             return Collections.emptyList();
         }
-
-        List<Credentials> credentials = getCredentials();
-        List<C> matching = new ArrayList<>();
-        for (Credentials c : credentials) {
-            if (type.isInstance(c)) {
-                matching.add(type.cast(c));
-            }
-        }
-        return matching;
+        return getBitwardenCredentials().stream()
+                .filter(type::isInstance)
+                .map(type::cast)
+                .toList();
     }
 
     @Override
@@ -138,7 +132,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         public List<Credentials> getCredentials(@NonNull Domain domain) {
             if (hasPermission2(Jenkins.getAuthentication2(), CredentialsProvider.VIEW)
                     && getDomains().contains(domain)) {
-                return Collections.unmodifiableList(BitwardenCredentialsProvider.this.getCredentials());
+                return Collections.unmodifiableList(BitwardenCredentialsProvider.this.getBitwardenCredentials());
             }
             return Collections.emptyList();
         }
