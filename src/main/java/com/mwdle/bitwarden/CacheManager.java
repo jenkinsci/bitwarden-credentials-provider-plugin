@@ -59,7 +59,7 @@ public final class CacheManager {
     }
 
     /**
-     * @return the list of metadata, or an empty list if retrieval fails
+     * @return the cached list of metadata, or an empty list if retrieval fails
      */
     @NonNull
     public List<BitwardenItemMetadata> getMetadata() {
