@@ -207,7 +207,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         if (requiresReauthentication) {
             this.requiresReauthentication = false;
             this.requiresCacheRefresh = false;
-            LOGGER.info("Bitwarden primary configuration settings updated.");
+            LOGGER.info("Bitwarden primary configuration settings updated");
             Timer.get().submit(() -> {
                 SessionManager.getInstance().invalidateSession();
                 CacheManager.getInstance().invalidateCache();
@@ -217,7 +217,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
             });
         } else if (requiresCacheRefresh) {
             this.requiresCacheRefresh = false;
-            LOGGER.info("Bitwarden item processing configuration settings updated.");
+            LOGGER.info("Bitwarden item processing configuration settings updated");
             Timer.get().submit(() -> {
                 CacheManager.getInstance().invalidateCache();
                 if (isConfigured()) {
