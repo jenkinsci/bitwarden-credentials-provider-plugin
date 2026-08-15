@@ -60,7 +60,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     }
 
     /**
-     * Fetches and returns the full Bitwarden item from the CLI as a concrete Jenkins credential.
+     * Returns a Bitwarden item from the CLI as a concrete Jenkins credential.
      *
      * @return the concrete Jenkins credential
      */
@@ -85,9 +85,9 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     /**
      * Constructs a new proxy handler for a Bitwarden credential.
      *
-     * @param credentialId   the ID this credential will be known by in Jenkins (either the name or UUID)
-     * @param itemId         the unique, persistent UUID of the item in Bitwarden
-     * @param itemName       the user-provided name of the item in Bitwarden
+     * @param credentialId the ID this credential will be known by in Jenkins (either the name or UUID)
+     * @param itemId the unique, persistent UUID of the item in Bitwarden
+     * @param itemName the user-provided name of the item in Bitwarden
      * @param credentialClass the concrete Jenkins credential type this proxy represents
      */
     private CredentialProxy(
@@ -104,14 +104,14 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     }
 
     /**
-     * Creates a dynamically proxied Jenkins credential instance.
+     * Returns a Jenkins credential proxy.
      *
-     * @param id                  the Jenkins credential ID
-     * @param metadata            the Bitwarden item metadata
+     * @param id the Jenkins credential ID
+     * @param metadata the Bitwarden item metadata
      * @param credentialInterface the standard credential interface this proxy implements
-     * @param credentialClass     the concrete Jenkins credential type this proxy represents
-     * @param <T>                 the type of the standard credential interface
-     * @return a proxy object implementing the specified standard credential interface
+     * @param credentialClass the concrete Jenkins credential type this proxy represents
+     * @param <T> the type of the standard credential interface
+     * @return a proxy implementing the specified standard credential interface
      */
     @NonNull
     public static <T extends StandardCredentials> T create(
