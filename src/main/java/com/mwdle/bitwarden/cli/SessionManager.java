@@ -94,7 +94,6 @@ public final class SessionManager {
             @NonNull String serverUrl)
             throws IOException, InterruptedException {
         BitwardenCli.logout();
-        BitwardenCli.clearBitwardenAppData();
         BitwardenCli.configServer(serverUrl);
         BitwardenCli.login(apiKey);
         return BitwardenCli.unlock(masterPassword);

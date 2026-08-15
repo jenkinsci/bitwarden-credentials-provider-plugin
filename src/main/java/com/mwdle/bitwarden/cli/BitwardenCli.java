@@ -9,6 +9,7 @@ import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
@@ -29,58 +30,56 @@ import java.util.logging.Logger;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 
 /**
- * A utility class for executing Bitwarden CLI commands.
- * <p>
- * This class contains only static methods and holds no state. It is a thin wrapper around the {@code bw} executable,
- * responsible for the low-level logic of constructing and running commands and interpreting their results.
+ * A utility for executing Bitwarden CLI commands.
  */
 public final class BitwardenCli {
 
+    // TODO: reorganize methods and fields in this class
+
     private static final Logger LOGGER = Logger.getLogger(BitwardenCli.class.getName());
+
     // Disable JSON source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
     private static final ObjectMapper OBJECT_MAPPER = JsonMapper.builder()
             .disable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
             .build();
-    private static final String KEY_BW_SESSION = "BW_SESSION";
+    private static final String ENV_BW_SESSION = "BW_SESSION";
 
     private BitwardenCli() {
         throw new UnsupportedOperationException();
     }
 
     /**
-     * Gets the isolated Jenkins data directory for the Bitwarden CLI.
-     *
-     * @return The File object representing the 'bwcli' subdirectory within the plugin data directory.
+     * @return the isolated data directory for the Bitwarden CLI
      */
+    @NonNull
     private static File getBitwardenDataDir() {
         return new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
     }
 
     /**
-     * Clears the Bitwarden CLI application data by deleting data.json.
-     * Ensures the CLI always has a clean working state
-     * to mitigate potential corruption caused by updating the CLI and/or using newer CLI versions.
+     * Deletes the Bitwarden CLI data.json file.
+     * <p>
      * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
      */
-    public static void clearBitwardenAppData() {
+    private static void clearBitwardenData() {
         Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
         try {
             if (Files.deleteIfExists(dataJsonPath))
-                LOGGER.info(
-                        "Bitwarden CLI application data file (data.json) was deleted successfully to ensure a clean state.");
-            else LOGGER.fine("No existing Bitwarden CLI application data found, skipping deletion.");
+                LOGGER.info("Reset the Bitwarden CLI to ensure a clean working state");
+            else LOGGER.fine("No existing Bitwarden CLI data found, skipping deletion");
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to delete Bitwarden CLI application data", e);
+            LOGGER.log(Level.WARNING, "Failed to reset the Bitwarden CLI", e);
         }
     }
 
     /**
-     * Creates a {@link ArgumentListBuilder} for a Bitwarden CLI command, using the managed executable.
+     * Creates an argument list builder for a {@code bw} command, using the managed executable.
      *
-     * @param args The arguments to pass to the {@code bw} command (e.g., "login", "--apikey").
-     * @return A configured ArgumentListBuilder instance.
+     * @param args the argument(s) to pass to the command (e.g., "login", "--apikey")
+     * @return an argument list builder representing the command
      */
-    private static ArgumentListBuilder bitwardenCommand(String... args) {
+    @NonNull
+    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) {
         String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
         ArgumentListBuilder command = new ArgumentListBuilder();
         command.add(executablePath);
@@ -91,74 +90,76 @@ public final class BitwardenCli {
     }
 
     /**
-     * Fetches the version of the installed Bitwarden CLI.
-     *
-     * @return The version string from the CLI.
-     * @throws IOException          if the CLI command fails.
-     * @throws InterruptedException if the thread is interrupted.
+     * @return the version of the installed Bitwarden CLI
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
      */
+    @NonNull
     public static String version() throws IOException, InterruptedException {
         LOGGER.info("Fetching Bitwarden CLI version");
         return executeCommand(bitwardenCommand("--version"), Map.of());
     }
 
     /**
-     * Logs into the Bitwarden CLI using an API key.
+     * Logs into the vault.
      *
-     * @param apiKey The Jenkins credential containing the Bitwarden Client ID and Client Secret.
-     * @throws IOException                      if the CLI command fails.
-     * @throws ConnectionException     if a network error occurs.
-     * @throws AuthenticationException if the provided API key is incorrect.
-     * @throws InterruptedException             if the thread is interrupted.
+     * @param apiKey the Jenkins credential containing the Bitwarden API key
+     * @throws AuthenticationException if the provided API key is incorrect
+     * @throws ConnectionException if a network error occurs
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
      */
-    public static void login(StandardUsernamePasswordCredentials apiKey) throws IOException, InterruptedException {
-        LOGGER.info("Logging in with API key credentials.");
+    public static void login(@NonNull StandardUsernamePasswordCredentials apiKey)
+            throws IOException, InterruptedException {
+        LOGGER.info("Logging into vault");
         Map<String, String> env = Map.of(
                 "BW_CLIENTID", apiKey.getUsername(),
                 "BW_CLIENTSECRET", apiKey.getPassword().getPlainText());
         try {
             executeCommand(bitwardenCommand("login", "--apikey"), env);
-            LOGGER.info("Login successful.");
+            LOGGER.info("Login successful");
         } catch (IOException e) {
             if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
                 throw new ConnectionException(Messages.exception_connectionError(), e);
+                // todo move these identifiers into the AuthenticationException class maybe?
             } else if (e.getMessage().contains("Username or password is incorrect")
                     || e.getMessage().contains("Invalid API Key")
                     || e.getMessage().contains("Incorrect client_secret")) {
                 throw new AuthenticationException(Messages.exception_loginError(), e);
             }
-            throw e; // Re-throw the original generic exception if it's not a known type
+            throw e;
         }
     }
 
     /**
-     * Logs out of the Bitwarden CLI. This is a best-effort operation, and failures are ignored.
+     * Logs out of the Bitwarden CLI.
      *
-     * @throws InterruptedException if the thread is interrupted.
+     * @throws InterruptedException if the command is interrupted
      */
     public static void logout() throws InterruptedException {
-        LOGGER.info("Logging out...");
+        LOGGER.info("Logging out of vault");
         try {
             executeCommand(bitwardenCommand("logout"), Map.of());
-            LOGGER.info("Logout successful.");
+            LOGGER.info("Logout successful");
         } catch (IOException ignored) {
-            // If logout fails, we are likely already logged out. Regardless, the plugin resets the CLI data directory
-            // on reauthentication.
+            // Likely already logged out
         }
+        clearBitwardenData();
     }
 
     /**
-     * Unlocks the vault using the Master Password and returns the session key.
+     * Unlocks the vault and returns the session key.
      *
-     * @param masterPassword The Jenkins credential containing the Bitwarden Master Password.
-     * @return The session key for subsequent commands.
-     * @throws IOException                      if the CLI command fails.
-     * @throws ConnectionException     if a network error occurs.
-     * @throws AuthenticationException if the provided Master Password is incorrect.
-     * @throws InterruptedException             if the thread is interrupted.
+     * @param masterPassword the Jenkins credential containing the Bitwarden master password
+     * @return an active session key
+     * @throws AuthenticationException if the provided password is incorrect or the vault is locked/logged out
+     * @throws ConnectionException if a network error occurs
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
      */
-    public static Secret unlock(StringCredentials masterPassword) throws IOException, InterruptedException {
-        LOGGER.info("Unlocking vault.");
+    @NonNull
+    public static Secret unlock(@NonNull StringCredentials masterPassword) throws IOException, InterruptedException {
+        LOGGER.info("Unlocking vault");
         Map<String, String> env =
                 Map.of("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
         try {
@@ -167,6 +168,7 @@ public final class BitwardenCli {
         } catch (IOException e) {
             if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
                 throw new ConnectionException(Messages.exception_connectionError(), e);
+                // TODO: See other comment about moving these identifiers into the AuthenticationException class
             } else if (e.getMessage().contains("Invalid master password")) {
                 throw new AuthenticationException(Messages.exception_unlockError(), e);
             }
@@ -175,19 +177,19 @@ public final class BitwardenCli {
     }
 
     /**
-     * Syncs the local CLI database with the remote Bitwarden vault.
+     * Synchronizes the vault with the Bitwarden server.
      *
-     * @param sessionKey The active session key to use for authentication.
-     * @throws IOException                  if the CLI command fails.
-     * @throws ConnectionException if a network error occurs.
-     * @throws InterruptedException         if the thread is interrupted.
+     * @param sessionKey an active session key
+     * @throws ConnectionException if a network error occurs
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
      */
-    public static void sync(Secret sessionKey) throws IOException, InterruptedException {
-        LOGGER.info("Syncing vault.");
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
+    public static void sync(@NonNull Secret sessionKey) throws IOException, InterruptedException {
+        LOGGER.info("Syncing vault");
+        Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         try {
             executeCommand(bitwardenCommand("sync"), env);
-            LOGGER.info("Vault sync complete.");
+            LOGGER.info("Vault sync complete");
         } catch (IOException e) {
             if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
                 throw new ConnectionException(Messages.exception_syncError(), e);
@@ -197,65 +199,69 @@ public final class BitwardenCli {
     }
 
     /**
-     * Fetches a list of all item metadata from the vault.
+     * Returns a list of all Bitwarden item metadata from the vault.
      *
-     * @param sessionKey The active session key to use for authentication.
-     * @return A List of {@link BitwardenItemMetadata} objects.
-     * @throws IOException          if the CLI command fails or JSON parsing fails.
-     * @throws InterruptedException if the command is interrupted.
+     * @param sessionKey an active session key
+     * @return a list of Bitwarden item metadata
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command or JSON parsing fails
      */
-    public static List<BitwardenItemMetadata> listItemsMetadata(Secret sessionKey)
+    @NonNull
+    public static List<BitwardenItemMetadata> listItemsMetadata(@NonNull Secret sessionKey)
             throws IOException, InterruptedException {
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
+        LOGGER.info("Fetching list of Bitwarden item metadata from the vault");
+        Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("list", "items"), env);
         List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
-        LOGGER.info(() -> "Successfully deserialized metadata for " + metadataList.size() + " items.");
+        LOGGER.log(Level.INFO, "Fetched metadata for {0} items", metadataList.size());
         return metadataList;
     }
 
     /**
-     * Fetches a single, complete item from the vault by its ID.
+     * Returns a single Bitwarden item from the vault.
      *
-     * @param sessionKey The active session key.
-     * @param itemId       The UUID of the item to fetch.
-     * @return A complete {@link BitwardenItem} object.
-     * @throws IOException          if the CLI command fails or JSON parsing fails.
-     * @throws InterruptedException if the command is interrupted.
+     * @param sessionKey an active session key
+     * @param itemId the UUID of the Bitwarden item to fetch
+     * @return a Bitwarden item
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command or JSON parsing fails
      */
-    public static BitwardenItem getItem(Secret sessionKey, String itemId) throws IOException, InterruptedException {
-        LOGGER.fine(() -> "Fetching single vault item with ID: " + itemId);
-        Map<String, String> env = Map.of(KEY_BW_SESSION, Secret.toString(sessionKey));
+    @NonNull
+    public static BitwardenItem getItem(@NonNull Secret sessionKey, @NonNull String itemId)
+            throws IOException, InterruptedException {
+        LOGGER.log(Level.FINE, "Fetching single vault item with ID: {0}", itemId);
+        Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("get", "item", itemId), env);
-        LOGGER.fine(() -> "Single vault item " + itemId + " fetched successfully.");
+        LOGGER.log(Level.FINE, "Fetched single vault item: {0}", itemId);
         return OBJECT_MAPPER.readValue(json, BitwardenItem.class);
     }
 
     /**
-     * Configures the Bitwarden CLI to point to a specific server URL.
+     * Configures the Bitwarden server URL.
      *
-     * @param serverUrl The URL of the self-hosted Bitwarden or Vaultwarden instance.
-     * @throws IOException          if the CLI command fails.
-     * @throws InterruptedException if the CLI command is interrupted.
+     * @param serverUrl the URL of the Bitwarden server
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
      */
-    public static void configServer(String serverUrl) throws IOException, InterruptedException {
-        LOGGER.info(() -> "Configuring server URL: " + serverUrl);
+    public static void configServer(@NonNull String serverUrl) throws IOException, InterruptedException {
+        LOGGER.log(Level.INFO, "Configuring server URL: {0}", serverUrl);
         executeCommand(bitwardenCommand("config", "server", serverUrl), Map.of());
-        LOGGER.info("Server URL configured successfully.");
+        LOGGER.info("Configured server URL");
     }
 
     /**
-     * The low-level command executor. This is the only method that runs the Bitwarden CLI.
-     * It ensures every command runs with the isolated data directory.
+     * Returns the standard output from executing the given Bitwarden CLI command with the specified environment variables.
      *
-     * @param args The configured ArgumentListBuilder for the command to run.
-     * @param environment Map of environment variables. Cannot be null.
-     * @return The standard output of the command as a trimmed String.
-     * @throws IOException          if the command returns a non-zero exit code or fails to start.
-     * @throws InterruptedException if the thread is interrupted.
+     * @param args an argument list builder representing the command to execute
+     * @param environment a map of environment variables to use for command execution
+     * @return the stripped standard output from executing the command
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command returns a non-zero exit code or fails to start
      */
-    private static String executeCommand(ArgumentListBuilder args, Map<String, String> environment)
+    @NonNull
+    private static String executeCommand(@NonNull ArgumentListBuilder args, @NonNull Map<String, String> environment)
             throws IOException, InterruptedException {
-        LOGGER.fine(() -> "Executing command: " + args);
+        LOGGER.log(Level.FINE, "Executing command: {0}", args);
 
         Map<String, String> env = new HashMap<>(environment);
         env.put("BITWARDENCLI_APPDATA_DIR", getBitwardenDataDir().getAbsolutePath());
@@ -271,17 +277,17 @@ public final class BitwardenCli {
                 .stderr(stderr)
                 .start();
 
-        int exitCode = process.joinWithTimeout(5, TimeUnit.MINUTES, TaskListener.NULL);
-        String output = stdout.toString(StandardCharsets.UTF_8).trim();
-        String errors = stderr.toString(StandardCharsets.UTF_8).trim();
+        int exitCode = process.joinWithTimeout(3, TimeUnit.MINUTES, TaskListener.NULL);
+        String output = stdout.toString(StandardCharsets.UTF_8).strip();
+        String errors = stderr.toString(StandardCharsets.UTF_8).strip();
 
         if (process.isAlive()) {
             process.kill();
-            throw new IOException("Bitwarden CLI command timed out after 5 minutes: " + args + ". Stderr: " + errors);
+            throw new IOException("Command timed out after 3 minutes: %s. Stderr: %s".formatted(args, errors));
         } else if (exitCode != 0) {
-            throw new IOException("Command failed with exit code " + exitCode + ". Stderr: " + errors);
+            throw new IOException("Command failed with exit code %s. Stderr: %s".formatted(exitCode, errors));
         } else if (!errors.isEmpty()) {
-            LOGGER.fine(() -> "CLI Exit code is 0, but stderr is not empty: " + errors);
+            LOGGER.log(Level.FINE, "Command exit code is 0, but stderr is not empty: {0}", errors);
         }
 
         return output;
