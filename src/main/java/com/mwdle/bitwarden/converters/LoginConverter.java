@@ -29,7 +29,7 @@ public final class LoginConverter implements CredentialConverter {
     /**
      * {@inheritDoc}
      *
-     * @return a proxy object that implements {@link StandardUsernamePasswordCredentials}
+     * @return a Jenkins credential proxy implementing {@link StandardUsernamePasswordCredentials}
      */
     @Override
     @NonNull

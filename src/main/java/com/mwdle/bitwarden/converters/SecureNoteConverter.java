@@ -54,7 +54,7 @@ public final class SecureNoteConverter implements CredentialConverter {
     /**
      * {@inheritDoc}
      *
-     * @return a proxy object that implements {@link StringCredentials} or {@link FileCredentials}, depending on the result of {@link SecureNoteConverter#hasFileCredentialSuffix}
+     * @return a Jenkins credential proxy implementing {@link StringCredentials} or {@link FileCredentials}, depending on the result of {@link SecureNoteConverter#hasFileCredentialSuffix}
      */
     @Override
     @NonNull

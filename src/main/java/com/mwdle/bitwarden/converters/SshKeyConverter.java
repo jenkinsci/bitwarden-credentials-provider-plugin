@@ -55,7 +55,7 @@ public final class SshKeyConverter implements CredentialConverter {
     /**
      * {@inheritDoc}
      *
-     * @return a proxy object that implements {@link SSHUserPrivateKey}
+     * @return a Jenkins credential proxy implementing {@link SSHUserPrivateKey}
      */
     @Override
     @NonNull
