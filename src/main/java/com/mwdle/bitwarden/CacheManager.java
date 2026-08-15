@@ -75,9 +75,9 @@ public final class CacheManager {
      * Synchronously fetches the latest item metadata from the Bitwarden CLI.
      * This is a blocking, network-intensive operation.
      *
-     * @return a fresh list of {@link BitwardenItemMetadata}
+     * @return a list of Bitwarden item metadata
+     * @throws InterruptedException if the command is interrupted
      * @throws IOException if a CLI command fails
-     * @throws InterruptedException if the thread is interrupted
      */
     @NonNull
     private List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
