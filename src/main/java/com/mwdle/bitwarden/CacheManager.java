@@ -24,8 +24,9 @@ import jenkins.util.Timer;
 public final class CacheManager {
 
     private static final Logger LOGGER = Logger.getLogger(CacheManager.class.getName());
-    private static final String CACHE_KEY = "bitwarden_item_metadata";
     private static final CacheManager INSTANCE = new CacheManager();
+
+    private static final String CACHE_KEY = "bitwarden-item-metadata";
     private final Object lock = new Object();
 
     @SuppressWarnings("squid:S3077")
