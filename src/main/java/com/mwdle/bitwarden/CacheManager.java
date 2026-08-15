@@ -72,8 +72,7 @@ public final class CacheManager {
     }
 
     /**
-     * Synchronously fetches the latest item metadata from the Bitwarden CLI.
-     * This is a blocking, network-intensive operation.
+     * Synchronizes the Bitwarden CLI and returns the latest Bitwarden item metadata.
      *
      * @return a list of Bitwarden item metadata
      * @throws InterruptedException if the command is interrupted
