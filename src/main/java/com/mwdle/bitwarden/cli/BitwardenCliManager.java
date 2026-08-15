@@ -20,28 +20,20 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * A thread-safe singleton that manages the lifecycle of the Bitwarden CLI executable.
- * <p>
- * This class handles OS detection, on-demand downloading from the official Bitwarden site,
- * extraction of the executable, and provides a reliable, cached path for other components to use.
- * It ensures the CLI is always available when needed, attempting to download it if it's missing.
+ * A singleton that manages the lifecycle of the Bitwarden CLI executable.
  */
 public final class BitwardenCliManager {
 
-    private static final BitwardenCliManager INSTANCE = new BitwardenCliManager();
     private static final Logger LOGGER = Logger.getLogger(BitwardenCliManager.class.getName());
-    private volatile String executablePath;
-    private final transient Object provisionLock = new Object();
+    private static final BitwardenCliManager INSTANCE = new BitwardenCliManager();
 
-    /**
-     * A private constructor to prevent instantiation of this utility class.
-     */
+    private volatile String executablePath;
+    private final Object lock = new Object();
+
     private BitwardenCliManager() {}
 
     /**
-     * Provides global access to the single instance of this manager.
-     *
-     * @return The singleton instance of {@link BitwardenCliManager}.
+     * @return The singleton instance of this manager.
      */
     public static BitwardenCliManager getInstance() {
         return INSTANCE;
@@ -178,7 +170,7 @@ public final class BitwardenCliManager {
     // This annotation resolves those false positives in Jenkins Security Scan.
     @SuppressWarnings({"lgtm[jenkins/csrf]", "lgtm[jenkins/no-permission-check]"})
     public boolean downloadLatestExecutable() {
-        synchronized (provisionLock) {
+        synchronized (lock) {
             LOGGER.info("Downloading and provisioning the latest Bitwarden CLI executable...");
             try {
                 String downloadUrl = getDownloadUrl();
