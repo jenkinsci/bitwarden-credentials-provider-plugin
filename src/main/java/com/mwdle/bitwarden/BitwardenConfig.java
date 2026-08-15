@@ -55,7 +55,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
             credential -> !(Proxy.isProxyClass(credential.getClass())
                     && Proxy.getInvocationHandler(credential) instanceof CredentialProxy));
 
-    /** The default cache duration in minutes. */
+    /** The default Bitwarden server URL. */
     private static final String DEFAULT_SERVER_URL = "https://vault.bitwarden.com";
     /** The default cache duration in minutes. */
     private static final int DEFAULT_CACHE_DURATION = 5;
