@@ -66,7 +66,7 @@ public final class CacheManager {
         try {
             return getCache().get(CACHE_KEY);
         } catch (ExecutionException e) {
-            LOGGER.log(Level.WARNING, "Failed to fetch Bitwarden metadata from cache.", e);
+            LOGGER.log(Level.WARNING, "Failed to fetch Bitwarden item metadata from cache", e);
             return Collections.emptyList();
         }
     }
