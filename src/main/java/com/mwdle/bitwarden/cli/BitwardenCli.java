@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
@@ -104,8 +103,6 @@ public final class BitwardenCli {
      * Logs into the vault.
      *
      * @param apiKey the Jenkins credential containing the Bitwarden API key
-     * @throws AuthenticationException if the provided API key is incorrect
-     * @throws ConnectionException if a network error occurs
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
      */
@@ -115,20 +112,8 @@ public final class BitwardenCli {
         Map<String, String> env = Map.of(
                 "BW_CLIENTID", apiKey.getUsername(),
                 "BW_CLIENTSECRET", apiKey.getPassword().getPlainText());
-        try {
-            executeCommand(bitwardenCommand("login", "--apikey"), env);
-            LOGGER.info("Login successful");
-        } catch (IOException e) {
-            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
-                throw new ConnectionException(Messages.exception_connectionError(), e);
-                // todo move these identifiers into the AuthenticationException class maybe?
-            } else if (e.getMessage().contains("Username or password is incorrect")
-                    || e.getMessage().contains("Invalid API Key")
-                    || e.getMessage().contains("Incorrect client_secret")) {
-                throw new AuthenticationException(Messages.exception_loginError(), e);
-            }
-            throw e;
-        }
+        executeCommand(bitwardenCommand("login", "--apikey"), env);
+        LOGGER.info("Login successful");
     }
 
     /**
@@ -152,8 +137,6 @@ public final class BitwardenCli {
      *
      * @param masterPassword the Jenkins credential containing the Bitwarden master password
      * @return an active session key
-     * @throws AuthenticationException if the provided password is incorrect or the vault is locked/logged out
-     * @throws ConnectionException if a network error occurs
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
      */
@@ -162,40 +145,22 @@ public final class BitwardenCli {
         LOGGER.info("Unlocking vault");
         Map<String, String> env =
                 Map.of("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
-        try {
-            return Secret.fromString(
-                    executeCommand(bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), env));
-        } catch (IOException e) {
-            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
-                throw new ConnectionException(Messages.exception_connectionError(), e);
-                // TODO: See other comment about moving these identifiers into the AuthenticationException class
-            } else if (e.getMessage().contains("Invalid master password")) {
-                throw new AuthenticationException(Messages.exception_unlockError(), e);
-            }
-            throw e; // Re-throw the original generic exception if it's not a known type
-        }
+        return Secret.fromString(
+                executeCommand(bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), env));
     }
 
     /**
      * Synchronizes the vault with the Bitwarden server.
      *
      * @param sessionKey an active session key
-     * @throws ConnectionException if a network error occurs
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
      */
     public static void sync(@NonNull Secret sessionKey) throws IOException, InterruptedException {
         LOGGER.info("Syncing vault");
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
-        try {
-            executeCommand(bitwardenCommand("sync"), env);
-            LOGGER.info("Vault sync complete");
-        } catch (IOException e) {
-            if (e.getMessage().contains(ConnectionException.IDENTIFIER)) {
-                throw new ConnectionException(Messages.exception_syncError(), e);
-            }
-            throw e; // Re-throw the original generic exception if it's not a known type
-        }
+        executeCommand(bitwardenCommand("sync"), env);
+        LOGGER.info("Vault sync complete");
     }
 
     /**
