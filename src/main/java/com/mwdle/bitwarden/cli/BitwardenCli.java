@@ -66,7 +66,6 @@ public final class BitwardenCli {
     public static void configServer(@NonNull String serverUrl) throws IOException, InterruptedException {
         LOGGER.log(Level.INFO, "Configuring server URL: {0}", serverUrl);
         executeCommand(bitwardenCommand("config", "server", serverUrl), Map.of());
-        LOGGER.info("Configured server URL");
     }
 
     /**
@@ -83,7 +82,6 @@ public final class BitwardenCli {
                 "BW_CLIENTID", apiKey.getUsername(),
                 "BW_CLIENTSECRET", apiKey.getPassword().getPlainText());
         executeCommand(bitwardenCommand("login", "--apikey"), env);
-        LOGGER.info("Login successful");
     }
 
     /**
@@ -111,10 +109,9 @@ public final class BitwardenCli {
      * @throws IOException if the command fails
      */
     public static void sync(@NonNull Secret sessionKey) throws IOException, InterruptedException {
-        LOGGER.info("Syncing vault");
+        LOGGER.fine("Syncing vault");
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         executeCommand(bitwardenCommand("sync"), env);
-        LOGGER.info("Vault sync complete");
     }
 
     /**
@@ -128,7 +125,7 @@ public final class BitwardenCli {
     @NonNull
     public static List<BitwardenItemMetadata> listItemsMetadata(@NonNull Secret sessionKey)
             throws IOException, InterruptedException {
-        LOGGER.info("Fetching list of Bitwarden item metadata from the vault");
+        LOGGER.fine("Fetching list of Bitwarden item metadata from the vault");
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("list", "items"), env);
         List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
@@ -164,7 +161,6 @@ public final class BitwardenCli {
         LOGGER.info("Logging out of vault");
         try {
             executeCommand(bitwardenCommand("logout"), Map.of());
-            LOGGER.info("Logout successful");
         } catch (IOException ignored) {
             // Likely already logged out
         }
