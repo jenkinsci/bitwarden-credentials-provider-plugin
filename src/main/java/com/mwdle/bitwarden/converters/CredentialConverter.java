@@ -31,7 +31,7 @@ public interface CredentialConverter extends ExtensionPoint {
     }
 
     /**
-     * @return the {@link BitwardenItemType} this converter handles
+     * @return the Bitwarden item type this converter handles
      */
     @NonNull
     BitwardenItemType supportedType();
@@ -40,8 +40,8 @@ public interface CredentialConverter extends ExtensionPoint {
      * Creates a lightweight, lazy-loading {@link CredentialProxy}.
      *
      * @param id the Jenkins credential ID
-     * @param metadata the item metadata
-     * @return a standard credentials proxy
+     * @param metadata the Bitwarden item metadata
+     * @return a Jenkins credential proxy
      */
     @NonNull
     StandardCredentials createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata);
@@ -54,7 +54,7 @@ public interface CredentialConverter extends ExtensionPoint {
      * @param id the Jenkins credential ID
      * @param description the user-facing description
      * @param item the Bitwarden item
-     * @return the concrete Jenkins credential instance
+     * @return the concrete Jenkins credential
      */
     @NonNull
     StandardCredentials convert(@NonNull String id, @NonNull String description, @NonNull BitwardenItem item);
