@@ -54,8 +54,8 @@ public final class SessionManager {
 
     /**
      * @return a Bitwarden CLI session key
-     * @throws IOException if the login/unlock process fails
      * @throws InterruptedException if the Bitwarden CLI command is interrupted
+     * @throws IOException if the login/unlock process fails
      */
     @NonNull
     public Secret getSessionKey() throws IOException, InterruptedException {
@@ -84,8 +84,8 @@ public final class SessionManager {
      * @param masterPassword the Jenkins String credential containing Bitwarden Master Password
      * @param serverUrl the Bitwarden server URL
      * @return a new, valid session key
-     * @throws IOException if a CLI command fails
      * @throws InterruptedException if a CLI command is interrupted
+     * @throws IOException if a CLI command fails
      */
     @NonNull
     private static Secret acquireSessionKey(
