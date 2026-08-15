@@ -33,8 +33,6 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
  */
 public final class BitwardenCli {
 
-    // TODO: reorganize methods and fields in this class
-
     private static final Logger LOGGER = Logger.getLogger(BitwardenCli.class.getName());
 
     // Disable JSON source inclusion to prevent parsing exceptions from leaking sensitive data into Jenkins logs
@@ -48,47 +46,6 @@ public final class BitwardenCli {
     }
 
     /**
-     * @return the isolated data directory for the Bitwarden CLI
-     */
-    @NonNull
-    private static File getBitwardenDataDir() {
-        return new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
-    }
-
-    /**
-     * Deletes the Bitwarden CLI data.json file.
-     * <p>
-     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
-     */
-    private static void clearBitwardenData() {
-        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
-        try {
-            if (Files.deleteIfExists(dataJsonPath))
-                LOGGER.info("Reset the Bitwarden CLI to ensure a clean working state");
-            else LOGGER.fine("No existing Bitwarden CLI data found, skipping deletion");
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to reset the Bitwarden CLI", e);
-        }
-    }
-
-    /**
-     * Creates an argument list builder for a {@code bw} command, using the managed executable.
-     *
-     * @param args the argument(s) to pass to the command (e.g., "login", "--apikey")
-     * @return an argument list builder representing the command
-     */
-    @NonNull
-    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) {
-        String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
-        ArgumentListBuilder command = new ArgumentListBuilder();
-        command.add(executablePath);
-        command.add("--nointeraction");
-        command.add("--raw");
-        command.add(args);
-        return command;
-    }
-
-    /**
      * @return the version of the installed Bitwarden CLI
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
@@ -97,6 +54,19 @@ public final class BitwardenCli {
     public static String version() throws IOException, InterruptedException {
         LOGGER.info("Fetching Bitwarden CLI version");
         return executeCommand(bitwardenCommand("--version"), Map.of());
+    }
+
+    /**
+     * Configures the Bitwarden server URL.
+     *
+     * @param serverUrl the URL of the Bitwarden server
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the command fails
+     */
+    public static void configServer(@NonNull String serverUrl) throws IOException, InterruptedException {
+        LOGGER.log(Level.INFO, "Configuring server URL: {0}", serverUrl);
+        executeCommand(bitwardenCommand("config", "server", serverUrl), Map.of());
+        LOGGER.info("Configured server URL");
     }
 
     /**
@@ -114,22 +84,6 @@ public final class BitwardenCli {
                 "BW_CLIENTSECRET", apiKey.getPassword().getPlainText());
         executeCommand(bitwardenCommand("login", "--apikey"), env);
         LOGGER.info("Login successful");
-    }
-
-    /**
-     * Logs out of the Bitwarden CLI.
-     *
-     * @throws InterruptedException if the command is interrupted
-     */
-    public static void logout() throws InterruptedException {
-        LOGGER.info("Logging out of vault");
-        try {
-            executeCommand(bitwardenCommand("logout"), Map.of());
-            LOGGER.info("Logout successful");
-        } catch (IOException ignored) {
-            // Likely already logged out
-        }
-        clearBitwardenData();
     }
 
     /**
@@ -202,16 +156,60 @@ public final class BitwardenCli {
     }
 
     /**
-     * Configures the Bitwarden server URL.
+     * Logs out of the Bitwarden CLI.
      *
-     * @param serverUrl the URL of the Bitwarden server
      * @throws InterruptedException if the command is interrupted
-     * @throws IOException if the command fails
      */
-    public static void configServer(@NonNull String serverUrl) throws IOException, InterruptedException {
-        LOGGER.log(Level.INFO, "Configuring server URL: {0}", serverUrl);
-        executeCommand(bitwardenCommand("config", "server", serverUrl), Map.of());
-        LOGGER.info("Configured server URL");
+    public static void logout() throws InterruptedException {
+        LOGGER.info("Logging out of vault");
+        try {
+            executeCommand(bitwardenCommand("logout"), Map.of());
+            LOGGER.info("Logout successful");
+        } catch (IOException ignored) {
+            // Likely already logged out
+        }
+        clearBitwardenData();
+    }
+
+    /**
+     * @return the isolated data directory for the Bitwarden CLI
+     */
+    @NonNull
+    private static File getBitwardenDataDir() {
+        return new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
+    }
+
+    /**
+     * Deletes the Bitwarden CLI data.json file.
+     * <p>
+     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
+     */
+    private static void clearBitwardenData() {
+        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
+        try {
+            if (Files.deleteIfExists(dataJsonPath))
+                LOGGER.info("Reset the Bitwarden CLI to ensure a clean working state");
+            else LOGGER.fine("No existing Bitwarden CLI data found, skipping deletion");
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to reset the Bitwarden CLI", e);
+        }
+    }
+
+    /**
+     * Creates an argument list builder for a {@code bw} command, using the managed executable.
+     *
+     * @param args the argument(s) to pass to the command (e.g., "login", "--apikey")
+     * @return an argument list builder representing the command
+     */
+    @NonNull
+    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) {
+        String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
+        ArgumentListBuilder command = new ArgumentListBuilder();
+        command.add(executablePath);
+        command.add("--nointeraction");
+        command.add("--raw");
+        command.add(args);
+        return command;
     }
 
     /**
