@@ -72,19 +72,6 @@ public final class CacheManager {
     }
 
     /**
-     * Synchronizes the Bitwarden CLI and returns the latest Bitwarden item metadata.
-     *
-     * @return a list of Bitwarden item metadata
-     * @throws InterruptedException if the command is interrupted
-     * @throws IOException if a CLI command fails
-     */
-    @NonNull
-    private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
-        BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
-        return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
-    }
-
-    /**
      * Lazily initializes and returns the singleton instance of the Bitwarden metadata cache.
      *
      * @return the singleton cache instance
@@ -116,5 +103,18 @@ public final class CacheManager {
             }
         }
         return metadataCache;
+    }
+
+    /**
+     * Synchronizes the Bitwarden CLI and returns the latest Bitwarden item metadata.
+     *
+     * @return a list of Bitwarden item metadata
+     * @throws InterruptedException if the command is interrupted
+     * @throws IOException if a CLI command fails
+     */
+    @NonNull
+    private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
+        BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
+        return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
     }
 }
