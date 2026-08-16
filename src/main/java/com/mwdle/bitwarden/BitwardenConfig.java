@@ -293,10 +293,18 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @NonNull
     public FormValidation doRefreshCache() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        if (!isConfigured()) {
+            return FormValidation.warning(Messages.validation_sessionNotConfigured());
+        }
         LOGGER.info("Manual cache refresh triggered by administrator");
         SessionManager.getInstance().invalidateSession();
-        CacheManager.getInstance().refreshCache();
-        return FormValidation.ok(Messages.validation_refreshStarted());
+        CacheManager.getInstance().invalidateCache();
+        if (BitwardenCliManager.getInstance().provisionExecutable()) {
+            CacheManager.getInstance().refreshCache();
+            return FormValidation.ok(Messages.validation_refreshStarted());
+        }
+        LOGGER.log(Level.WARNING, "Failed to start manual cache refresh: CLI provisioning failed.");
+        return FormValidation.error(Messages.validation_refreshError());
     }
 
     /**
