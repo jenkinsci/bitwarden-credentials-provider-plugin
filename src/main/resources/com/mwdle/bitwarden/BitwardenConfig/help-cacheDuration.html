@@ -12,10 +12,10 @@
         Crucially, this refresh operation does <strong>not</strong> slow down Jenkins. The request that triggers the refresh is served the existing (stale) data immediately, while the new, updated list is fetched in the background for all subsequent requests. This keeps the UI responsive and ensures pipelines start without delay.
     </p>
     <p>
-        <strong>Note:</strong> The plugin <b>never caches your actual secret values</b> (passwords, keys, etc.). They are fetched "live" from the CLI's local, encrypted database at the exact moment a build needs them. This cache duration only controls how often that local database is updated.
+        <strong>Note:</strong> The plugin <b>never caches your actual secret values</b> (passwords, keys, etc.). They are fetched "live" from the Bitwarden CLI's local, encrypted database at the exact moment a build needs them. This cache duration only controls how often that local database is updated.
     </p>
     <p>
-        This design also means Jenkins can continue to use your secrets even if it temporarily loses its internet connection, as it can read from the last successful sync.
+        This design also means Jenkins can continue providing Bitwarden secrets even if it temporarily loses its internet connection, as the Bitwarden CLI itself still has the data from the last successful sync.
     </p>
     <p>
         A minimum value of 1 minute is enforced. The default is 5 minutes.
