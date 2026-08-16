@@ -79,7 +79,7 @@ public final class CacheManager {
      * @throws IOException if a CLI command fails
      */
     @NonNull
-    private List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
+    private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
         BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
         return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
     }
@@ -109,7 +109,7 @@ public final class CacheManager {
                                 public ListenableFuture<List<BitwardenItemMetadata>> reload(
                                         @NonNull String key, @NonNull List<BitwardenItemMetadata> oldValue) {
                                     return MoreExecutors.listeningDecorator(Timer.get())
-                                            .submit(CacheManager.this::fetchMetadata);
+                                            .submit(CacheManager::fetchMetadata);
                                 }
                             });
                 }
