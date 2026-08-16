@@ -97,8 +97,10 @@ public final class BitwardenCli {
         LOGGER.info("Unlocking vault");
         Map<String, String> env =
                 Map.of("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
-        return Secret.fromString(
+        Secret sessionKey = Secret.fromString(
                 executeCommand(bitwardenCommand("unlock", "--passwordenv", "BITWARDEN_MASTER_PASSWORD"), env));
+        LOGGER.info("Unlocked vault successfully");
+        return sessionKey;
     }
 
     /**
@@ -129,7 +131,7 @@ public final class BitwardenCli {
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("list", "items"), env);
         List<BitwardenItemMetadata> metadataList = OBJECT_MAPPER.readValue(json, new TypeReference<>() {});
-        LOGGER.log(Level.INFO, "Fetched metadata for {0} items", metadataList.size());
+        LOGGER.log(Level.FINE, "Fetched metadata for {0} items", metadataList.size());
         return metadataList;
     }
 
