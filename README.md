@@ -122,7 +122,8 @@ unclassified:
     cliExecutablePath: "/usr/local/bin/bw"
     # The time (in minutes) before the local Bitwarden CLI data is considered stale.
     cacheDuration: 10
-    # Comma-separated list of suffixes for Secure Notes names to be treated as File Credentials.
+    # (Optional) Comma-separated list of suffixes for Secure Notes names to be treated as File credentials.
+    # If omitted, defaults to treating all notes as String credentials.
     fileCredentialSuffixes: ".env,.properties,.yaml"
 
 # The credentials section allows you to define your Bitwarden credentials via JCasC, if desired (NOT RECOMMENDED - keep reading).
