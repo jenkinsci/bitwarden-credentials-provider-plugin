@@ -42,6 +42,12 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
     }
 
     @Override
+    @NonNull
+    public String getIconClassName() {
+        return "symbol-icon plugin-bitwarden-credentials-provider";
+    }
+
+    @Override
     @CheckForNull
     public CredentialsStore getStore(@CheckForNull ModelObject object) {
         if (object == Jenkins.get()) {
@@ -102,12 +108,6 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
             }
         }
         return credentials;
-    }
-
-    @Override
-    @NonNull
-    public String getIconClassName() {
-        return "symbol-icon plugin-bitwarden-credentials-provider";
     }
 
     /**
