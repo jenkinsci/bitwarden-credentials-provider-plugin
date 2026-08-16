@@ -44,45 +44,6 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     private transient StandardCredentials resolvedCredential;
 
     /**
-     * Generates an intuitive credential description for the Jenkins UI that displays consistently across all converted Bitwarden credential types.
-     *
-     * @return the user-facing description for this credential
-     */
-    @NonNull
-    private String getDescription() {
-        boolean isDuplicate = !credentialId.equals(this.itemName);
-        String duplicateLabel = isDuplicate ? ", " + Messages.description_nonUniqueLabel() : "";
-        String idString = "%s %s%s".formatted(Messages.description_idLabel(), this.itemId, duplicateLabel);
-        if (FileCredentials.class.isAssignableFrom(this.credentialClass)) {
-            return idString;
-        }
-        return "%s (%s)".formatted(this.itemName, idString);
-    }
-
-    /**
-     * Returns a Bitwarden item from the CLI as a concrete Jenkins credential.
-     *
-     * @return the concrete Jenkins credential
-     */
-    @NonNull
-    private synchronized StandardCredentials getResolvedCredential() {
-        if (resolvedCredential == null) {
-            BitwardenItem item;
-            try {
-                item = BitwardenCli.getItem(SessionManager.getInstance().getSessionKey(), this.itemId);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
-            } catch (IOException e) {
-                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
-            }
-            CredentialConverter converter = ExtensionList.lookupSingleton(this.converterClass);
-            resolvedCredential = converter.convert(this.credentialId, getDescription(), item);
-        }
-        return resolvedCredential;
-    }
-
-    /**
      * Constructs a new proxy handler for a Bitwarden credential.
      *
      * @param credentialId the ID this credential will be known by in Jenkins (either the name or UUID)
@@ -153,5 +114,44 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
                 }
             }
         };
+    }
+
+    /**
+     * Returns a Bitwarden item from the CLI as a concrete Jenkins credential.
+     *
+     * @return the concrete Jenkins credential
+     */
+    @NonNull
+    private synchronized StandardCredentials getResolvedCredential() {
+        if (resolvedCredential == null) {
+            BitwardenItem item;
+            try {
+                item = BitwardenCli.getItem(SessionManager.getInstance().getSessionKey(), this.itemId);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
+            }
+            CredentialConverter converter = ExtensionList.lookupSingleton(this.converterClass);
+            resolvedCredential = converter.convert(this.credentialId, getDescription(), item);
+        }
+        return resolvedCredential;
+    }
+
+    /**
+     * Generates an intuitive credential description for the Jenkins UI that displays consistently across all converted Bitwarden credential types.
+     *
+     * @return the user-facing description for this credential
+     */
+    @NonNull
+    private String getDescription() {
+        boolean isDuplicate = !credentialId.equals(this.itemName);
+        String duplicateLabel = isDuplicate ? ", " + Messages.description_nonUniqueLabel() : "";
+        String idString = "%s %s%s".formatted(Messages.description_idLabel(), this.itemId, duplicateLabel);
+        if (FileCredentials.class.isAssignableFrom(this.credentialClass)) {
+            return idString;
+        }
+        return "%s (%s)".formatted(this.itemName, idString);
     }
 }
