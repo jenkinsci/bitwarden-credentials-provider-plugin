@@ -221,9 +221,9 @@ public final class BitwardenCliManager {
      * will automatically attempt to provision it on-demand.
      *
      * @return The full path to the {@code bw} executable.
-     * @throws IllegalStateException if the executable is not found and cannot be downloaded.
+     * @throws IOException if the executable is not found and cannot be downloaded.
      */
-    public String getExecutablePath() {
+    public String getExecutablePath() throws IOException {
         String userPath = BitwardenConfig.getInstance().getCliExecutablePath();
         if (userPath != null && !userPath.trim().isEmpty()) {
             File userCli = new File(userPath.trim());
@@ -231,8 +231,10 @@ public final class BitwardenCliManager {
                 LOGGER.fine(() -> "Using user-configured Bitwarden CLI path: " + userPath);
                 return userCli.getAbsolutePath();
             } else {
-                LOGGER.warning("User-configured Bitwarden CLI path is invalid (does not exist or is not executable). "
-                        + "Falling back to automatic provisioning. Path: " + userPath);
+                LOGGER.log(
+                        Level.WARNING,
+                        "User-configured Bitwarden CLI path is invalid (does not exist or is not executable). Falling back to automatic provisioning. Path: {0}",
+                        userPath);
             }
         }
         if (executablePath != null && new File(executablePath).exists()) {
@@ -241,7 +243,7 @@ public final class BitwardenCliManager {
         if (provisionExecutable()) {
             return executablePath;
         } else {
-            throw new IllegalStateException(
+            throw new IOException(
                     "Bitwarden CLI is not installed and could not be downloaded automatically. "
                             + "If on an unsupported architecture, please install it manually and set the path in the Jenkins configuration.");
         }

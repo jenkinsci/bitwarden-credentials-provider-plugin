@@ -158,13 +158,15 @@ public final class BitwardenCli {
      * Logs out of the Bitwarden CLI.
      *
      * @throws InterruptedException if the command is interrupted
+     * @throws IOException if the CLI executable path cannot be determined
      */
-    public static void logout() throws InterruptedException {
+    public static void logout() throws InterruptedException, IOException {
         LOGGER.info("Logging out of vault");
+        ArgumentListBuilder command = bitwardenCommand("logout");
         try {
-            executeCommand(bitwardenCommand("logout"), Map.of());
+            executeCommand(command, Map.of());
         } catch (IOException ignored) {
-            // Likely already logged out
+            LOGGER.fine("Logout failed (likely already logged out).");
         }
         clearBitwardenData();
     }
@@ -198,9 +200,10 @@ public final class BitwardenCli {
      *
      * @param args the argument(s) to pass to the command (e.g., "login", "--apikey")
      * @return an argument list builder representing the command
+     * @throws IOException if the CLI executable path cannot be determined
      */
     @NonNull
-    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) {
+    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) throws IOException {
         String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
         ArgumentListBuilder command = new ArgumentListBuilder();
         command.add(executablePath);
