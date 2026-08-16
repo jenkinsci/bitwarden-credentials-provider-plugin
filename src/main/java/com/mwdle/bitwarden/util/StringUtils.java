@@ -12,7 +12,7 @@ public final class StringUtils {
     }
 
     /**
-     * Converts empty or whitespace-only strings to null and strip whitespace.
+     * Converts empty or whitespace-only strings to null and strips whitespace.
      *
      * @param value the string to normalize
      * @return the stripped string, or null if it is blank or null
