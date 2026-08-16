@@ -21,31 +21,6 @@ import java.util.Objects;
 @Extension
 public final class SshKeyConverter implements CredentialConverter {
 
-    /**
-     * Derives a username from the public key's comment, if available.
-     * <p>
-     * If the comment is in "user@host" or email format, it extracts the "user" part.
-     * Otherwise, it falls back to using an empty string.
-     *
-     * @param publicKey the SSH public key from the Bitwarden item
-     * @return the derived username, or an empty string if it cannot be determined
-     */
-    @NonNull
-    private static String getUsername(@CheckForNull String publicKey) {
-        String strippedPublicKey = stripToNull(publicKey);
-        String username = "";
-        if (strippedPublicKey != null) {
-            String[] parts = strippedPublicKey.split("\\s+");
-            if (parts.length > 2) {
-                String comment = parts[2];
-                if (comment.contains("@")) {
-                    username = comment.split("@", 2)[0].strip();
-                }
-            }
-        }
-        return username;
-    }
-
     @Override
     @NonNull
     public BitwardenItemType supportedType() {
@@ -78,5 +53,30 @@ public final class SshKeyConverter implements CredentialConverter {
         DirectEntryPrivateKeySource privateKeySource = new DirectEntryPrivateKeySource(sshKeyData.privateKey());
         // Pass in null for the passphrase since Bitwarden does not provide such a field
         return new BasicSSHUserPrivateKey(CredentialsScope.GLOBAL, id, username, privateKeySource, null, description);
+    }
+
+    /**
+     * Derives a username from the public key's comment, if available.
+     * <p>
+     * If the comment is in "user@host" or email format, it extracts the "user" part.
+     * Otherwise, it falls back to using an empty string.
+     *
+     * @param publicKey the SSH public key from the Bitwarden item
+     * @return the derived username, or an empty string if it cannot be determined
+     */
+    @NonNull
+    private static String getUsername(@CheckForNull String publicKey) {
+        String strippedPublicKey = stripToNull(publicKey);
+        String username = "";
+        if (strippedPublicKey != null) {
+            String[] parts = strippedPublicKey.split("\\s+");
+            if (parts.length > 2) {
+                String comment = parts[2];
+                if (comment.contains("@")) {
+                    username = comment.split("@", 2)[0].strip();
+                }
+            }
+        }
+        return username;
     }
 }

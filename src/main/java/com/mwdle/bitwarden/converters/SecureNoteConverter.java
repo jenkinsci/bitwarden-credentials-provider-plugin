@@ -26,25 +26,6 @@ import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 @Extension
 public final class SecureNoteConverter implements CredentialConverter {
 
-    /**
-     * Checks if a given item name ends with one of the user-configured suffixes for file credentials.
-     *
-     * @param name the name of the Bitwarden item
-     * @return {@code true} if the name matches a configured suffix
-     */
-    private static boolean hasFileCredentialSuffix(@NonNull String name) {
-        String suffixes = BitwardenConfig.getInstance().getFileCredentialSuffixes();
-        if (suffixes == null) {
-            return false;
-        }
-        // Split by comma and strip whitespace from each entry
-        String strippedName = name.strip();
-        return Arrays.stream(suffixes.split(","))
-                .map(String::strip)
-                .filter(s -> !s.isEmpty())
-                .anyMatch(strippedName::endsWith);
-    }
-
     @Override
     @NonNull
     public BitwardenItemType supportedType() {
@@ -88,5 +69,24 @@ public final class SecureNoteConverter implements CredentialConverter {
         } else {
             return new StringCredentialsImpl(CredentialsScope.GLOBAL, id, description, notes);
         }
+    }
+
+    /**
+     * Checks if a given item name ends with one of the user-configured suffixes for file credentials.
+     *
+     * @param name the name of the Bitwarden item
+     * @return {@code true} if the name matches a configured suffix
+     */
+    private static boolean hasFileCredentialSuffix(@NonNull String name) {
+        String suffixes = BitwardenConfig.getInstance().getFileCredentialSuffixes();
+        if (suffixes == null) {
+            return false;
+        }
+        // Split by comma and strip whitespace from each entry
+        String strippedName = name.strip();
+        return Arrays.stream(suffixes.split(","))
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(strippedName::endsWith);
     }
 }
