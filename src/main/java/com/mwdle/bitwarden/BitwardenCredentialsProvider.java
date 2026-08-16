@@ -50,6 +50,22 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         return null;
     }
 
+    @Override
+    @NonNull
+    public <C extends Credentials> List<C> getCredentialsInItemGroup(
+            @NonNull Class<C> type,
+            @Nullable ItemGroup itemGroup,
+            @Nullable Authentication authentication,
+            @NonNull List<DomainRequirement> domainRequirements) {
+        if (!ACL.SYSTEM2.equals(authentication)) {
+            return Collections.emptyList();
+        }
+        return getBitwardenCredentials().stream()
+                .filter(type::isInstance)
+                .map(type::cast)
+                .toList();
+    }
+
     /**
      * Returns a list of all available Bitwarden credentials.
      * <p>
@@ -61,7 +77,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
      * @return a list of all available {@link Credentials} from Bitwarden
      */
     @NonNull
-    private List<Credentials> getBitwardenCredentials() {
+    private static List<Credentials> getBitwardenCredentials() {
         if (!BitwardenConfig.getInstance().isConfigured()) {
             return Collections.emptyList();
         }
@@ -90,22 +106,6 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
 
     @Override
     @NonNull
-    public <C extends Credentials> List<C> getCredentialsInItemGroup(
-            @NonNull Class<C> type,
-            @Nullable ItemGroup itemGroup,
-            @Nullable Authentication authentication,
-            @NonNull List<DomainRequirement> domainRequirements) {
-        if (!ACL.SYSTEM2.equals(authentication)) {
-            return Collections.emptyList();
-        }
-        return getBitwardenCredentials().stream()
-                .filter(type::isInstance)
-                .map(type::cast)
-                .toList();
-    }
-
-    @Override
-    @NonNull
     public String getIconClassName() {
         return "symbol-icon plugin-bitwarden-credentials-provider";
     }
@@ -117,7 +117,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
      * in the Jenkins "Credentials" page. It acts as a read-only view and delegates all
      * credential-listing logic to the provider.
      */
-    public final class BitwardenCredentialsStore extends CredentialsStore {
+    public static final class BitwardenCredentialsStore extends CredentialsStore {
 
         private final BitwardenCredentialStoreAction storeAction;
 
@@ -145,7 +145,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         public List<Credentials> getCredentials(@NonNull Domain domain) {
             if (hasPermission2(Jenkins.getAuthentication2(), CredentialsProvider.VIEW)
                     && getDomains().contains(domain)) {
-                return Collections.unmodifiableList(BitwardenCredentialsProvider.this.getBitwardenCredentials());
+                return Collections.unmodifiableList(getBitwardenCredentials());
             }
             return Collections.emptyList();
         }
@@ -198,7 +198,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         public final class BitwardenCredentialStoreAction extends CredentialsStoreAction {
 
             /**
-             * Constructs the store. Marked private so only the enclosing class ({@link BitwardenCredentialsStore}) can construct it.
+             * Constructs the store action. Marked private so only the enclosing class ({@link BitwardenCredentialsStore}) can construct it.
              */
             private BitwardenCredentialStoreAction() {}
 
