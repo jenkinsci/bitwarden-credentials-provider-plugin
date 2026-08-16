@@ -10,23 +10,15 @@
         <f:entry title="${%field.masterPasswordCredentialId}" field="masterPasswordCredentialId">
             <c:select />
         </f:entry>
-        <f:entry title="${%field.cacheDuration}" field="cacheDuration">
-            <f:number min="1" />
-        </f:entry>
-        <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
-            <f:textbox />
-        </f:entry>
         <f:advanced title="${%section.advancedActions}">
-            <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
+            <f:entry title="${%field.cacheDuration}" field="cacheDuration">
+                <f:number min="1" />
+            </f:entry>
+            <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
                 <f:textbox />
             </f:entry>
-            <f:entry title="${%field.verifySession}" field="verifySession">
-                <f:helpArea />
-                <f:validateButton
-                        title="${%button.verifySession}"
-                        progress="${%button.checking}"
-                        method="verifySession"
-                />
+            <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
+                <f:textbox />
             </f:entry>
             <f:entry title="${%field.cliManagement}" field="cliManagement">
                 <f:helpArea />
@@ -47,6 +39,14 @@
                         title="${%button.refreshNow}"
                         progress="${%button.refreshing}"
                         method="refreshCache"
+                />
+            </f:entry>
+            <f:entry title="${%field.verifySession}" field="verifySession">
+                <f:helpArea />
+                <f:validateButton
+                        title="${%button.verifySession}"
+                        progress="${%button.checking}"
+                        method="verifySession"
                 />
             </f:entry>
         </f:advanced>
