@@ -18,21 +18,21 @@ import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 /**
  * A singleton that caches a Bitwarden CLI session key to prevent API rate-limiting and improve performance.
  */
-public final class SessionManager {
+public final class BitwardenSessionManager {
 
-    private static final SessionManager INSTANCE = new SessionManager();
+    private static final BitwardenSessionManager INSTANCE = new BitwardenSessionManager();
     private final Object lock = new Object();
 
     @SuppressWarnings("squid:S3077")
     private volatile Secret sessionKey;
 
-    private SessionManager() {}
+    private BitwardenSessionManager() {}
 
     /**
      * @return The singleton instance of this manager.
      */
     @NonNull
-    public static SessionManager getInstance() {
+    public static BitwardenSessionManager getInstance() {
         return INSTANCE;
     }
 

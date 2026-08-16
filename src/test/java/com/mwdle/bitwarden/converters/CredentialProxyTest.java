@@ -8,7 +8,7 @@ import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardUsernameCredentials;
 import com.mwdle.bitwarden.Messages;
 import com.mwdle.bitwarden.cli.BitwardenCli;
-import com.mwdle.bitwarden.cli.SessionManager;
+import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import hudson.model.Descriptor;
 import hudson.util.Secret;
@@ -34,12 +34,12 @@ import org.mockito.MockitoAnnotations;
 class CredentialProxyTest {
 
     @Mock
-    private SessionManager sessionManagerMock;
+    private BitwardenSessionManager bitwardenSessionManagerMock;
 
     private Descriptor<?> stringDescriptor;
     private Descriptor<?> fileDescriptor;
 
-    private MockedStatic<SessionManager> mockedSessionManager;
+    private MockedStatic<BitwardenSessionManager> mockedSessionManager;
     private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<CredentialConverter> mockedConverter;
     private MockedStatic<Messages> mockedMessages;
@@ -51,10 +51,10 @@ class CredentialProxyTest {
     void setUp() throws IOException, InterruptedException {
         closeable = MockitoAnnotations.openMocks(this);
 
-        mockedSessionManager = mockStatic(SessionManager.class);
-        when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
+        mockedSessionManager = mockStatic(BitwardenSessionManager.class);
+        when(BitwardenSessionManager.getInstance()).thenReturn(bitwardenSessionManagerMock);
         doReturn(Secret.fromString("test-session-token"))
-                .when(sessionManagerMock)
+                .when(bitwardenSessionManagerMock)
                 .getSessionKey();
 
         mockedCli = mockStatic(BitwardenCli.class);

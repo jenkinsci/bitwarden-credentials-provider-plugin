@@ -35,7 +35,7 @@ import org.springframework.security.core.Authentication;
  * production code's access modifiers.
  */
 @DisplayName("BitwardenSessionManager")
-class SessionManagerTest {
+class BitwardenSessionManagerTest {
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<BitwardenConfig> mockedConfig;
     private MockedStatic<BitwardenCli> mockedCli;
@@ -49,7 +49,7 @@ class SessionManagerTest {
     @Mock
     private Authentication authenticationMock;
 
-    private SessionManager manager;
+    private BitwardenSessionManager manager;
     private Field sessionTokenField;
     private AutoCloseable closeable;
 
@@ -65,11 +65,11 @@ class SessionManagerTest {
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
 
-        Constructor<SessionManager> constructor = SessionManager.class.getDeclaredConstructor();
+        Constructor<BitwardenSessionManager> constructor = BitwardenSessionManager.class.getDeclaredConstructor();
         constructor.setAccessible(true);
         manager = constructor.newInstance();
 
-        sessionTokenField = SessionManager.class.getDeclaredField("sessionToken");
+        sessionTokenField = BitwardenSessionManager.class.getDeclaredField("sessionToken");
         sessionTokenField.setAccessible(true);
     }
 
