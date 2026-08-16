@@ -51,7 +51,7 @@ public final class BitwardenCli {
      * @throws IOException if the command fails
      */
     @NonNull
-    public static String version() throws IOException, InterruptedException {
+    public static String version() throws InterruptedException, IOException {
         LOGGER.info("Fetching Bitwarden CLI version");
         return executeCommand(bitwardenCommand("--version"), Map.of());
     }
@@ -63,7 +63,7 @@ public final class BitwardenCli {
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
      */
-    public static void configServer(@NonNull String serverUrl) throws IOException, InterruptedException {
+    public static void configServer(@NonNull String serverUrl) throws InterruptedException, IOException {
         LOGGER.log(Level.INFO, "Configuring server URL: {0}", serverUrl);
         executeCommand(bitwardenCommand("config", "server", serverUrl), Map.of());
     }
@@ -76,7 +76,7 @@ public final class BitwardenCli {
      * @throws IOException if the command fails
      */
     public static void login(@NonNull StandardUsernamePasswordCredentials apiKey)
-            throws IOException, InterruptedException {
+            throws InterruptedException, IOException {
         LOGGER.info("Logging into vault");
         Map<String, String> env = Map.of(
                 "BW_CLIENTID", apiKey.getUsername(),
@@ -93,7 +93,7 @@ public final class BitwardenCli {
      * @throws IOException if the command fails
      */
     @NonNull
-    public static Secret unlock(@NonNull StringCredentials masterPassword) throws IOException, InterruptedException {
+    public static Secret unlock(@NonNull StringCredentials masterPassword) throws InterruptedException, IOException {
         LOGGER.info("Unlocking vault");
         Map<String, String> env =
                 Map.of("BITWARDEN_MASTER_PASSWORD", masterPassword.getSecret().getPlainText());
@@ -110,7 +110,7 @@ public final class BitwardenCli {
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the command fails
      */
-    public static void sync(@NonNull Secret sessionKey) throws IOException, InterruptedException {
+    public static void sync(@NonNull Secret sessionKey) throws InterruptedException, IOException {
         LOGGER.fine("Syncing vault");
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         executeCommand(bitwardenCommand("sync"), env);
@@ -126,7 +126,7 @@ public final class BitwardenCli {
      */
     @NonNull
     public static List<BitwardenItemMetadata> listItemsMetadata(@NonNull Secret sessionKey)
-            throws IOException, InterruptedException {
+            throws InterruptedException, IOException {
         LOGGER.fine("Fetching list of Bitwarden item metadata from the vault");
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("list", "items"), env);
@@ -146,7 +146,7 @@ public final class BitwardenCli {
      */
     @NonNull
     public static BitwardenItem getItem(@NonNull Secret sessionKey, @NonNull String itemId)
-            throws IOException, InterruptedException {
+            throws InterruptedException, IOException {
         LOGGER.log(Level.FINE, "Fetching single vault item with ID: {0}", itemId);
         Map<String, String> env = Map.of(ENV_BW_SESSION, Secret.toString(sessionKey));
         String json = executeCommand(bitwardenCommand("get", "item", itemId), env);
@@ -224,7 +224,7 @@ public final class BitwardenCli {
      */
     @NonNull
     private static String executeCommand(@NonNull ArgumentListBuilder args, @NonNull Map<String, String> environment)
-            throws IOException, InterruptedException {
+            throws InterruptedException, IOException {
         LOGGER.log(Level.FINE, "Executing command: {0}", args);
 
         Map<String, String> env = new HashMap<>(environment);
