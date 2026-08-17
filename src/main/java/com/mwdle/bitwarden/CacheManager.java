@@ -115,6 +115,7 @@ public final class CacheManager {
     @NonNull
     private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
         BitwardenCli.sync(BitwardenSessionManager.getInstance().getSessionKey());
-        return BitwardenCli.listItemsMetadata(BitwardenSessionManager.getInstance().getSessionKey());
+        return BitwardenCli.listItemsMetadata(
+                BitwardenSessionManager.getInstance().getSessionKey());
     }
 }
