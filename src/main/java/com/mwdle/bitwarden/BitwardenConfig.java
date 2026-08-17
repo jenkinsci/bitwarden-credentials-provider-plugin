@@ -283,28 +283,26 @@ public final class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * An action for the "Refresh Now" button in the UI.
-     * <p>
-     * Forces background Bitwarden reauthentication and sync.
+     * An action for the "Sync Vault" button in the UI.
      *
      * @return a form validation indicating the action was triggered
      */
     @POST
     @NonNull
-    public FormValidation doRefreshCache() {
+    public FormValidation doSyncVault() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (!isConfigured()) {
             return FormValidation.warning(Messages.validation_sessionNotConfigured());
         }
-        LOGGER.info("Manual cache refresh triggered by administrator");
+        LOGGER.info("Vault sync triggered by administrator");
         BitwardenSessionManager.getInstance().invalidateSession();
         CacheManager.getInstance().invalidateCache();
         if (BitwardenCliManager.getInstance().provisionExecutable()) {
             CacheManager.getInstance().refreshCache();
-            return FormValidation.ok(Messages.validation_refreshStarted());
+            return FormValidation.ok(Messages.validation_syncCompleted());
         }
-        LOGGER.log(Level.WARNING, "Failed to start manual cache refresh: CLI provisioning failed.");
-        return FormValidation.error(Messages.validation_refreshError());
+        LOGGER.log(Level.WARNING, "Failed to sync vault: CLI provisioning failed.");
+        return FormValidation.error(Messages.validation_syncError());
     }
 
     /**
@@ -329,13 +327,13 @@ public final class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * An action for the "Download Latest" button in the UI.
+     * An action for the "Update CLI" button in the UI.
      *
      * @return a form validation indicating the result of the download/update attempt
      */
     @POST
     @NonNull
-    public FormValidation doForceUpdateCli() {
+    public FormValidation doUpdateCli() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (getCliExecutablePath() != null) {
             return FormValidation.warning(Messages.validation_cliUpdateManual());
