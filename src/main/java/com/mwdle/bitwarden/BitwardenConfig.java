@@ -47,7 +47,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
 
-    /** A matcher including SYSTEM and GLOBAL credentials, excluding those created by this plugin to prevent a circular dependency. */
+    /** A matcher including SYSTEM and GLOBAL credentials, excluding those created by this plugin to prevent circular dependencies. */
     private static final CredentialsMatcher CREDENTIALS_MATCHER = CredentialsMatchers.allOf(
             CredentialsMatchers.anyOf(
                     CredentialsMatchers.withScope(CredentialsScope.SYSTEM),
