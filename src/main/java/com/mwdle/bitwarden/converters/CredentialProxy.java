@@ -96,9 +96,9 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         }
         return switch (method.getName()) {
             case "getDescription" -> getDescription();
-            case "getDescriptor" -> Jenkins.get().getDescriptorOrDie(this.credentialClass);
-            case "getFileName" -> this.itemName;
-            case "getId" -> this.credentialId;
+            case "getDescriptor" -> Jenkins.get().getDescriptorOrDie(credentialClass);
+            case "getFileName" -> itemName;
+            case "getId" -> credentialId;
             case "getPassphrase" -> null; // Bitwarden does not have a passphrase field for SSH Key secrets.
             case "getScope" -> CredentialsScope.GLOBAL;
             case "equals" -> {
@@ -127,15 +127,15 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
             BitwardenItem item;
             try {
                 item = BitwardenCli.getItem(
-                        BitwardenSessionManager.getInstance().getSessionKey(), this.itemId);
+                        BitwardenSessionManager.getInstance().getSessionKey(), itemId);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
-                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
+                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(itemId), e);
             } catch (IOException e) {
-                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(this.itemId), e);
+                throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(itemId), e);
             }
-            CredentialConverter converter = ExtensionList.lookupSingleton(this.converterClass);
-            resolvedCredential = converter.convert(this.credentialId, getDescription(), item);
+            CredentialConverter converter = ExtensionList.lookupSingleton(converterClass);
+            resolvedCredential = converter.convert(credentialId, getDescription(), item);
         }
         return resolvedCredential;
     }
@@ -147,12 +147,12 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
      */
     @NonNull
     private String getDescription() {
-        boolean isDuplicate = !credentialId.equals(this.itemName);
+        boolean isDuplicate = !credentialId.equals(itemName);
         String duplicateLabel = isDuplicate ? ", " + Messages.description_nonUniqueLabel() : "";
-        String idString = "%s %s%s".formatted(Messages.description_idLabel(), this.itemId, duplicateLabel);
-        if (FileCredentials.class.isAssignableFrom(this.credentialClass)) {
+        String idString = "%s %s%s".formatted(Messages.description_idLabel(), itemId, duplicateLabel);
+        if (FileCredentials.class.isAssignableFrom(credentialClass)) {
             return idString;
         }
-        return "%s (%s)".formatted(this.itemName, idString);
+        return "%s (%s)".formatted(itemName, idString);
     }
 }
