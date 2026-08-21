@@ -155,11 +155,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @DataBoundSetter
     public void setFileCredentialSuffixes(@CheckForNull String fileCredentialSuffixes) {
-        String strippedSuffixes = stripToNull(fileCredentialSuffixes);
-        if (!Objects.equals(this.fileCredentialSuffixes, strippedSuffixes)) {
-            requiresCacheRefresh = true;
-        }
-        this.fileCredentialSuffixes = strippedSuffixes;
+        this.fileCredentialSuffixes = stripToNull(fileCredentialSuffixes);
     }
 
     @CheckForNull
@@ -183,10 +179,10 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setCacheDuration(int duration) {
         int newDuration = (duration > 0) ? duration : DEFAULT_CACHE_DURATION;
-        if (this.cacheDuration != newDuration) {
+        if (cacheDuration != newDuration) {
             requiresCacheRefresh = true;
         }
-        this.cacheDuration = newDuration;
+        cacheDuration = newDuration;
     }
 
     @Override
@@ -205,25 +201,27 @@ public final class BitwardenConfig extends GlobalConfiguration {
     public synchronized void save() {
         super.save();
         if (requiresReauthentication) {
-            this.requiresReauthentication = false;
-            this.requiresCacheRefresh = false;
-            LOGGER.info("Bitwarden primary configuration settings updated");
+            requiresReauthentication = false;
+            requiresCacheRefresh = false;
+            LOGGER.info("Primary Bitwarden configuration settings updated. Reloading");
             Timer.get().submit(() -> {
                 BitwardenSessionManager.getInstance().invalidateSession();
-                CacheManager.getInstance().invalidateCache();
-                if (isConfigured() && BitwardenCliManager.getInstance().provisionExecutable()) {
-                    CacheManager.getInstance().refreshCache();
-                }
+                invalidateAndRefreshCache();
             });
         } else if (requiresCacheRefresh) {
-            this.requiresCacheRefresh = false;
-            LOGGER.info("Bitwarden item processing configuration settings updated");
-            Timer.get().submit(() -> {
-                CacheManager.getInstance().invalidateCache();
-                if (isConfigured()) {
-                    CacheManager.getInstance().refreshCache();
-                }
-            });
+            requiresCacheRefresh = false;
+            LOGGER.info("Cache configuration settings updated. Reloading");
+            Timer.get().submit(this::invalidateAndRefreshCache);
+        }
+    }
+
+    /**
+     * Invalidates the Bitwarden item metadata cache and refreshes it if the plugin is configured.
+     */
+    private void invalidateAndRefreshCache() {
+        CacheManager.getInstance().invalidateCache();
+        if (isConfigured()) {
+            CacheManager.getInstance().refreshCache();
         }
     }
 
@@ -285,7 +283,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     /**
      * An action for the "Sync Vault" button in the UI.
      *
-     * @return a form validation indicating the action was triggered
+     * @return a form validation indicating the action was attempted
      */
     @POST
     @NonNull
@@ -297,12 +295,8 @@ public final class BitwardenConfig extends GlobalConfiguration {
         LOGGER.info("Vault sync triggered by administrator");
         BitwardenSessionManager.getInstance().invalidateSession();
         CacheManager.getInstance().invalidateCache();
-        if (BitwardenCliManager.getInstance().provisionExecutable()) {
-            CacheManager.getInstance().refreshCache();
-            return FormValidation.ok(Messages.validation_syncCompleted());
-        }
-        LOGGER.log(Level.WARNING, "Failed to sync vault: CLI provisioning failed.");
-        return FormValidation.error(Messages.validation_syncError());
+        CacheManager.getInstance().refreshCache();
+        return FormValidation.ok(Messages.validation_syncCompleted());
     }
 
     /**
@@ -339,8 +333,8 @@ public final class BitwardenConfig extends GlobalConfiguration {
             return FormValidation.warning(Messages.validation_cliUpdateManual());
         }
         LOGGER.info("Bitwarden CLI update triggered by administrator");
-        BitwardenCliManager.getInstance().downloadLatestExecutable();
         try {
+            BitwardenCliManager.updateExecutable();
             return FormValidation.ok(Messages.validation_cliUpdateOk(BitwardenCli.version()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();

@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import com.mwdle.bitwarden.BitwardenConfig;
-import com.mwdle.bitwarden.PluginDirectoryProvider;
 import hudson.ProxyConfiguration;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -40,7 +39,7 @@ class BitwardenCliManagerTest {
     @TempDir
     Path tempDir;
 
-    private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
+    private MockedStatic<BitwardenDirectoryProvider> mockedPluginDir;
     private MockedStatic<ProxyConfiguration> mockedProxy;
     private MockedStatic<BitwardenConfig> mockedConfig;
 
@@ -61,8 +60,8 @@ class BitwardenCliManagerTest {
         BitwardenCliManager instance = constructor.newInstance();
         manager = spy(instance);
 
-        mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
-        mockedPluginDir.when(PluginDirectoryProvider::getPluginDataDirectory).thenReturn(tempDir.toFile());
+        mockedPluginDir = mockStatic(BitwardenDirectoryProvider.class);
+        mockedPluginDir.when(BitwardenDirectoryProvider::getCliDataDirectory).thenReturn(tempDir.toFile());
 
         mockedProxy = mockStatic(ProxyConfiguration.class);
         mockedConfig = mockStatic(BitwardenConfig.class);
@@ -167,7 +166,7 @@ class BitwardenCliManagerTest {
             File executable = new File(binDir, "bw");
             assertDoesNotThrow(executable::createNewFile, "Test setup failed: could not create fake executable.");
             assertTrue(manager.provisionExecutable());
-            verify(manager, never()).downloadLatestExecutable();
+            verify(manager, never()).updateExecutable();
         }
 
         @Test
@@ -175,10 +174,10 @@ class BitwardenCliManagerTest {
         void shouldDownloadIfMissing() {
             System.setProperty("os.name", "Linux");
             System.setProperty("os.arch", "amd64");
-            doReturn(true).when(manager).downloadLatestExecutable();
+            doReturn(true).when(manager).updateExecutable();
 
             assertTrue(manager.provisionExecutable());
-            verify(manager, times(1)).downloadLatestExecutable();
+            verify(manager, times(1)).updateExecutable();
         }
     }
 
@@ -205,7 +204,7 @@ class BitwardenCliManagerTest {
             when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                     .thenReturn(mockResponse);
 
-            assertTrue(manager.downloadLatestExecutable());
+            assertTrue(manager.updateExecutable());
 
             Field pathField = BitwardenCliManager.class.getDeclaredField("executablePath");
             pathField.setAccessible(true);
@@ -228,7 +227,7 @@ class BitwardenCliManagerTest {
             when(mockClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                     .thenThrow(new IOException("Network error"));
 
-            assertFalse(manager.downloadLatestExecutable());
+            assertFalse(manager.updateExecutable());
         }
 
         @Test
@@ -248,7 +247,7 @@ class BitwardenCliManagerTest {
             Thread.interrupted();
 
             // WHEN
-            boolean result = manager.downloadLatestExecutable();
+            boolean result = manager.updateExecutable();
 
             // THEN
             assertFalse(result, "downloadLatestExecutable should return false when interrupted");

@@ -5,7 +5,6 @@ import com.fasterxml.jackson.core.StreamReadFeature;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.json.JsonMapper;
-import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -15,11 +14,9 @@ import hudson.model.TaskListener;
 import hudson.util.ArgumentListBuilder;
 import hudson.util.Secret;
 import java.io.ByteArrayOutputStream;
-import java.io.File;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -161,37 +158,19 @@ public final class BitwardenCli {
      * @throws IOException if the CLI executable path cannot be determined
      */
     public static void logout() throws InterruptedException, IOException {
-        LOGGER.info("Logging out of vault");
+        LOGGER.info("Logging out of vault and resetting Bitwarden CLI");
         ArgumentListBuilder command = bitwardenCommand("logout");
         try {
             executeCommand(command, Map.of());
-        } catch (IOException ignored) {
-            LOGGER.fine("Logout failed (likely already logged out).");
-        }
-        clearBitwardenData();
-    }
-
-    /**
-     * @return the isolated data directory for the Bitwarden CLI
-     */
-    @NonNull
-    private static File getBitwardenDataDir() {
-        return new File(PluginDirectoryProvider.getPluginDataDirectory().getAbsolutePath(), "bwcli");
-    }
-
-    /**
-     * Deletes the Bitwarden CLI data.json file.
-     * <p>
-     * See <a href="https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18">Issue #18</a> for more information.
-     */
-    private static void clearBitwardenData() {
-        Path dataJsonPath = getBitwardenDataDir().toPath().resolve("data.json");
-        try {
-            if (Files.deleteIfExists(dataJsonPath))
-                LOGGER.info("Reset the Bitwarden CLI to ensure a clean working state");
-            else LOGGER.fine("No existing Bitwarden CLI data found, skipping deletion");
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to reset the Bitwarden CLI", e);
+            LOGGER.log(Level.WARNING, "Logout failed (likely already logged out)", e);
+        }
+        try {
+            // See https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18
+            Files.deleteIfExists(
+                    BitwardenDirectoryProvider.getCliDataDirectory().toPath().resolve("data.json"));
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to reset Bitwarden CLI", e);
         }
     }
 
@@ -200,11 +179,13 @@ public final class BitwardenCli {
      *
      * @param args the argument(s) to pass to the command (e.g., "login", "--apikey")
      * @return an argument list builder representing the command
+     * @throws InterruptedException if automatic Bitwarden CLI provisioning is interrupted
      * @throws IOException if the CLI executable path cannot be determined
      */
     @NonNull
-    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args) throws IOException {
-        String executablePath = BitwardenCliManager.getInstance().getExecutablePath();
+    private static ArgumentListBuilder bitwardenCommand(@NonNull String... args)
+            throws InterruptedException, IOException {
+        String executablePath = BitwardenCliManager.getExecutablePath();
         ArgumentListBuilder command = new ArgumentListBuilder();
         command.add(executablePath);
         command.add("--nointeraction");
@@ -228,7 +209,9 @@ public final class BitwardenCli {
         LOGGER.log(Level.FINE, "Executing command: {0}", args);
 
         Map<String, String> env = new HashMap<>(environment);
-        env.put("BITWARDENCLI_APPDATA_DIR", getBitwardenDataDir().getAbsolutePath());
+        env.put(
+                "BITWARDENCLI_APPDATA_DIR",
+                BitwardenDirectoryProvider.getCliDataDirectory().getAbsolutePath());
 
         Launcher launcher = new Launcher.LocalLauncher(TaskListener.NULL);
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();

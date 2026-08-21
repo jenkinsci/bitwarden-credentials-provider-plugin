@@ -3,7 +3,7 @@ package com.mwdle.bitwarden.util;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.mwdle.bitwarden.PluginDirectoryProvider;
+import com.mwdle.bitwarden.cli.BitwardenDirectoryProvider;
 import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -25,7 +25,7 @@ import org.mockito.MockitoAnnotations;
  * and returns the dedicated plugin data directory under various conditions.
  */
 @DisplayName("PluginDirectoryProvider")
-class PluginDirectoryProviderTest {
+class BitwardenDirectoryProviderTest {
 
     @TempDir
     Path tempDir;
@@ -41,7 +41,7 @@ class PluginDirectoryProviderTest {
         closeable = MockitoAnnotations.openMocks(this);
 
         // Reset the static field in PluginDirectoryProvider before each test
-        Field field = PluginDirectoryProvider.class.getDeclaredField("pluginDirectory");
+        Field field = BitwardenDirectoryProvider.class.getDeclaredField("pluginDirectory");
         field.setAccessible(true);
         field.set(null, null);
 
@@ -65,7 +65,7 @@ class PluginDirectoryProviderTest {
         assertFalse(expectedDir.exists());
 
         // WHEN
-        File result = PluginDirectoryProvider.getPluginDataDirectory();
+        File result = BitwardenDirectoryProvider.getCliDataDirectory();
 
         // THEN
         assertEquals(expectedDir.getAbsolutePath(), result.getAbsolutePath());
@@ -77,11 +77,11 @@ class PluginDirectoryProviderTest {
     @DisplayName("should return cached directory on subsequent calls")
     void shouldReturnCachedDirectoryOnSubsequentCalls() {
         // GIVEN: The directory is fetched once to populate the cache
-        File firstResult = PluginDirectoryProvider.getPluginDataDirectory();
+        File firstResult = BitwardenDirectoryProvider.getCliDataDirectory();
         assertTrue(firstResult.exists());
 
         // WHEN: We call it a second time
-        File secondResult = PluginDirectoryProvider.getPluginDataDirectory();
+        File secondResult = BitwardenDirectoryProvider.getCliDataDirectory();
 
         // THEN: The result should be the same instance, and the creation logic
         // in Jenkins.get() should only have been called once.
@@ -97,7 +97,7 @@ class PluginDirectoryProviderTest {
         assertTrue(expectedDir.mkdirs());
 
         // WHEN
-        File result = PluginDirectoryProvider.getPluginDataDirectory();
+        File result = BitwardenDirectoryProvider.getCliDataDirectory();
 
         // THEN
         assertEquals(expectedDir.getAbsolutePath(), result.getAbsolutePath());
@@ -117,7 +117,7 @@ class PluginDirectoryProviderTest {
 
         // WHEN & THEN: An exception should be thrown because mkdirs() will fail
         RuntimeException exception =
-                assertThrows(RuntimeException.class, PluginDirectoryProvider::getPluginDataDirectory);
+                assertThrows(RuntimeException.class, BitwardenDirectoryProvider::getCliDataDirectory);
         assertTrue(exception.getMessage().contains("Could not create plugin directory"));
     }
 
@@ -142,7 +142,7 @@ class PluginDirectoryProviderTest {
         Runnable task = () -> {
             try (MockedStatic<Jenkins> threadMockedJenkins = mockStatic(Jenkins.class)) {
                 threadMockedJenkins.when(Jenkins::get).thenReturn(jenkinsMock);
-                PluginDirectoryProvider.getPluginDataDirectory();
+                BitwardenDirectoryProvider.getCliDataDirectory();
             } catch (Exception e) {
                 fail("Test task failed with exception", e);
             }

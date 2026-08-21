@@ -420,7 +420,7 @@ class BitwardenConfigTest {
         @DisplayName("doForceUpdateCli should return OK with new version")
         void doForceUpdateCliSuccess() throws Exception {
             // GIVEN
-            when(cliManagerMock.downloadLatestExecutable()).thenReturn(true);
+            when(cliManagerMock.updateExecutable()).thenReturn(true);
             when(BitwardenCli.version()).thenReturn("2023.10.1");
             when(Messages.validation_cliUpdateOk(anyString())).thenReturn("Updated to 2023.10.1");
 
@@ -428,7 +428,7 @@ class BitwardenConfigTest {
             FormValidation result = config.doForceUpdateCli();
 
             // THEN
-            verify(cliManagerMock, times(1)).downloadLatestExecutable();
+            verify(cliManagerMock, times(1)).updateExecutable();
             assertEquals(FormValidation.Kind.OK, result.kind);
             assertEquals("Updated to 2023.10.1", result.getMessage());
         }
@@ -437,7 +437,7 @@ class BitwardenConfigTest {
         @DisplayName("doForceUpdateCli should return ERROR on exception")
         void doForceUpdateCliError() {
             // GIVEN
-            when(cliManagerMock.downloadLatestExecutable()).thenThrow(new RuntimeException("Download failed"));
+            when(cliManagerMock.updateExecutable()).thenThrow(new RuntimeException("Download failed"));
             when(Messages.validation_cliUpdateError(anyString())).thenReturn("Error: Download failed");
 
             // WHEN
@@ -461,7 +461,7 @@ class BitwardenConfigTest {
             // THEN
             assertEquals(FormValidation.Kind.WARNING, result.kind);
             assertEquals("Manual path set.", result.getMessage());
-            verify(cliManagerMock, never()).downloadLatestExecutable();
+            verify(cliManagerMock, never()).updateExecutable();
         }
     }
 

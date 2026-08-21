@@ -5,7 +5,6 @@ import static org.mockito.Mockito.*;
 
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.Messages;
-import com.mwdle.bitwarden.PluginDirectoryProvider;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import hudson.Launcher;
@@ -53,7 +52,7 @@ class BitwardenCliTest {
 
     // Mocks for static dependencies
     private static MockedStatic<BitwardenCliManager> mockedCliManager;
-    private static MockedStatic<PluginDirectoryProvider> mockedPluginDir;
+    private static MockedStatic<BitwardenDirectoryProvider> mockedPluginDir;
     private static MockedStatic<ConfidentialStore> mockedConfidentialStore;
     private static MockedStatic<Secret> mockedSecret;
     private static MockedStatic<Messages> mockedMessages;
@@ -101,10 +100,10 @@ class BitwardenCliTest {
         when(BitwardenCliManager.getInstance()).thenReturn(cliManagerMock);
         when(cliManagerMock.getExecutablePath()).thenReturn(FAKE_EXECUTABLE_PATH);
 
-        mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
+        mockedPluginDir = mockStatic(BitwardenDirectoryProvider.class);
         File fakePluginDataDir = tempDir.resolve("plugin-data").toFile();
         assertTrue(fakePluginDataDir.mkdirs(), "Failed to create fake plugin data dir");
-        when(PluginDirectoryProvider.getPluginDataDirectory()).thenReturn(fakePluginDataDir);
+        when(BitwardenDirectoryProvider.getCliDataDirectory()).thenReturn(fakePluginDataDir);
 
         // Mock dependencies for Secret class
         mockedConfidentialStore = mockStatic(ConfidentialStore.class);
@@ -685,7 +684,7 @@ class BitwardenCliTest {
         @DisplayName("should delete data.json if it exists")
         void shouldDeleteDataJsonIfExists() throws IOException {
             // GIVEN: Manually create the file in our mocked plugin data directory
-            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            File bwCliDir = new File(BitwardenDirectoryProvider.getCliDataDirectory(), "bwcli");
             if (!bwCliDir.exists()) bwCliDir.mkdirs();
 
             File dataJson = new File(bwCliDir, "data.json");
@@ -703,7 +702,7 @@ class BitwardenCliTest {
         @DisplayName("should not throw error if data.json does not exist")
         void shouldNotThrowIfFileMissing() {
             // GIVEN: Ensure the file does NOT exist
-            File bwCliDir = new File(PluginDirectoryProvider.getPluginDataDirectory(), "bwcli");
+            File bwCliDir = new File(BitwardenDirectoryProvider.getCliDataDirectory(), "bwcli");
             File dataJson = new File(bwCliDir, "data.json");
             if (dataJson.exists()) dataJson.delete();
 

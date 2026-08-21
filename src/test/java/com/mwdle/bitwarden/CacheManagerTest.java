@@ -5,6 +5,7 @@ import static org.mockito.Mockito.*;
 
 import com.google.common.cache.LoadingCache;
 import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.BitwardenDirectoryProvider;
 import com.mwdle.bitwarden.cli.BitwardenSessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import hudson.ExtensionList;
@@ -43,7 +44,7 @@ class CacheManagerTest {
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<Timer> mockedTimer;
     private MockedStatic<BitwardenConfig> mockedConfig;
-    private MockedStatic<PluginDirectoryProvider> mockedPluginDir;
+    private MockedStatic<BitwardenDirectoryProvider> mockedPluginDir;
     private MockedStatic<BitwardenSessionManager> mockedSessionManager;
     private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<Secret> mockedStaticSecret;
@@ -84,7 +85,7 @@ class CacheManagerTest {
         mockedJenkins = mockStatic(Jenkins.class);
         mockedTimer = mockStatic(Timer.class);
         mockedConfig = mockStatic(BitwardenConfig.class);
-        mockedPluginDir = mockStatic(PluginDirectoryProvider.class);
+        mockedPluginDir = mockStatic(BitwardenDirectoryProvider.class);
         mockedSessionManager = mockStatic(BitwardenSessionManager.class);
         mockedCli = mockStatic(BitwardenCli.class);
 
@@ -97,7 +98,7 @@ class CacheManagerTest {
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(Timer.get()).thenReturn(executorMock);
         when(BitwardenConfig.getInstance()).thenReturn(configMock);
-        when(PluginDirectoryProvider.getPluginDataDirectory()).thenReturn(tempDir.toFile());
+        when(BitwardenDirectoryProvider.getCliDataDirectory()).thenReturn(tempDir.toFile());
         when(BitwardenSessionManager.getInstance()).thenReturn(bitwardenSessionManagerMock);
         when(configMock.getCacheDuration()).thenReturn(5);
 
