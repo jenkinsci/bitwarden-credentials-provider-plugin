@@ -182,6 +182,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         }
 
         @Override
+        @NonNull
         public String getDisplayName() {
             return Messages.BitwardenCredentialsStore_DisplayName();
         }

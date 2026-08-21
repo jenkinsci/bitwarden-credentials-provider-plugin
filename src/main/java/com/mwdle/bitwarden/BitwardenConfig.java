@@ -313,10 +313,10 @@ public final class BitwardenConfig extends GlobalConfiguration {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
-            return FormValidation.error(Messages.validation_cliError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliError(Util.fixNull(e.getMessage(), e.toString())));
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
-            return FormValidation.error(Messages.validation_cliError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliError(Util.fixNull(e.getMessage(), e.toString())));
         }
     }
 
@@ -339,10 +339,10 @@ public final class BitwardenConfig extends GlobalConfiguration {
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
-            return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliUpdateError(Util.fixNull(e.getMessage(), e.toString())));
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
-            return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliUpdateError(Util.fixNull(e.getMessage(), e.toString())));
         }
     }
 

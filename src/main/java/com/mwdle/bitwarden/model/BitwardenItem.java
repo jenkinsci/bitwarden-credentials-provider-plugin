@@ -6,7 +6,6 @@ import com.fasterxml.jackson.annotation.JsonProperty;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import edu.umd.cs.findbugs.annotations.Nullable;
 import hudson.util.Secret;
 
 /**
@@ -29,9 +28,9 @@ public final class BitwardenItem extends BitwardenItemMetadata {
             @NonNull @JsonProperty("id") String id,
             @NonNull @JsonProperty("name") String name,
             @NonNull @JsonProperty("type") BitwardenItemType type,
-            @Nullable @JsonProperty("notes") @JsonDeserialize(using = SecretDeserializer.class) Secret notes,
-            @Nullable @JsonProperty("login") BitwardenLogin login,
-            @Nullable @JsonProperty("sshKey") BitwardenSshKey sshKey) {
+            @CheckForNull @JsonProperty("notes") @JsonDeserialize(using = SecretDeserializer.class) Secret notes,
+            @CheckForNull @JsonProperty("login") BitwardenLogin login,
+            @CheckForNull @JsonProperty("sshKey") BitwardenSshKey sshKey) {
         super(id, name, type);
         this.notes = notes;
         this.login = login;
