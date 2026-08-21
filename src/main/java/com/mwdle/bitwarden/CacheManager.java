@@ -78,10 +78,12 @@ public final class CacheManager {
      */
     @NonNull
     private LoadingCache<String, List<BitwardenItemMetadata>> getCache() {
-        if (metadataCache == null) {
+        LoadingCache<String, List<BitwardenItemMetadata>> cache = metadataCache;
+        if (cache == null) {
             synchronized (lock) {
-                if (metadataCache == null) {
-                    metadataCache = CacheBuilder.newBuilder()
+                cache = metadataCache;
+                if (cache == null) {
+                    cache = CacheBuilder.newBuilder()
                             .refreshAfterWrite(BitwardenConfig.getInstance().getCacheDuration(), TimeUnit.MINUTES)
                             .build(new CacheLoader<>() {
                                 @Override
@@ -99,10 +101,11 @@ public final class CacheManager {
                                             .submit(CacheManager::fetchMetadata);
                                 }
                             });
+                    metadataCache = cache;
                 }
             }
         }
-        return metadataCache;
+        return cache;
     }
 
     /**

@@ -59,9 +59,11 @@ public final class BitwardenSessionManager {
      */
     @NonNull
     public Secret getSessionKey() throws IOException, InterruptedException {
-        if (sessionKey == null) {
+        Secret key = sessionKey;
+        if (key == null) {
             synchronized (lock) {
-                if (sessionKey == null) {
+                key = sessionKey;
+                if (key == null) {
                     BitwardenConfig config = BitwardenConfig.getInstance();
                     StandardUsernamePasswordCredentials apiKey = lookupJenkinsCredential(
                             config.getApiCredentialId(), StandardUsernamePasswordCredentials.class);
@@ -70,11 +72,12 @@ public final class BitwardenSessionManager {
                     if (apiKey == null || masterPassword == null) {
                         throw new IOException("API Key or Master Password missing; session refresh failed");
                     }
-                    sessionKey = acquireSessionKey(apiKey, masterPassword, config.getServerUrl());
+                    key = acquireSessionKey(apiKey, masterPassword, config.getServerUrl());
+                    sessionKey = key;
                 }
             }
         }
-        return sessionKey;
+        return key;
     }
 
     /**
