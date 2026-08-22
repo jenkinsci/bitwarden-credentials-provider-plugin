@@ -22,6 +22,7 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -156,6 +157,22 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setFileCredentialSuffixes(@CheckForNull String fileCredentialSuffixes) {
         this.fileCredentialSuffixes = stripToNull(fileCredentialSuffixes);
+    }
+
+    /**
+     * Returns whether the given item name ends with a user-configured file credential suffix.
+     *
+     * @param name the name of the Bitwarden item
+     * @return {@code true} if the name ends with a configured suffix
+     */
+    public boolean hasFileCredentialSuffix(@NonNull String name) {
+        String suffixes = getFileCredentialSuffixes();
+        if (suffixes == null) return false;
+        String strippedName = name.strip();
+        return Arrays.stream(suffixes.split(","))
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(strippedName::endsWith);
     }
 
     @CheckForNull

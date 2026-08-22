@@ -14,6 +14,7 @@ import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
 import java.util.Objects;
+import java.util.Optional;
 
 /**
  * Converts {@link BitwardenItemType#SSH_KEY} items into Jenkins {@link BasicSSHUserPrivateKey}.
@@ -23,60 +24,37 @@ public final class SshKeyConverter implements CredentialConverter {
 
     @Override
     @NonNull
-    public BitwardenItemType supportedType() {
-        return BitwardenItemType.SSH_KEY;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @return a Jenkins credential proxy implementing {@link SSHUserPrivateKey}
-     */
-    @Override
-    @NonNull
     public SSHUserPrivateKey createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
         return CredentialProxy.create(getClass(), id, metadata, SSHUserPrivateKey.class, BasicSSHUserPrivateKey.class);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @return a concrete {@link BasicSSHUserPrivateKey}, deriving the username from the public key's comment field if available
-     */
     @Override
     @NonNull
     public BasicSSHUserPrivateKey convert(
             @NonNull String id, @NonNull String description, @NonNull BitwardenItem item) {
         BitwardenSshKey sshKeyData =
-                Objects.requireNonNull(item.sshKey, "Bitwarden item is type SSH_KEY but missing SSH Key data!");
+                Objects.requireNonNull(item.sshKey, "Bitwarden item is an SSH key but missing SSH key data!");
         String username = getUsername(sshKeyData.publicKey());
-        DirectEntryPrivateKeySource privateKeySource = new DirectEntryPrivateKeySource(sshKeyData.privateKey());
-        // Pass in null for the passphrase since Bitwarden does not provide such a field
+        DirectEntryPrivateKeySource privateKeySource =
+                sshKeyData.privateKey() != null ? new DirectEntryPrivateKeySource(sshKeyData.privateKey()) : null;
         return new BasicSSHUserPrivateKey(CredentialsScope.GLOBAL, id, username, privateKeySource, null, description);
     }
 
     /**
      * Derives a username from the public key's comment, if available.
      * <p>
-     * If the comment is in "user@host" or email format, it extracts the "user" part.
-     * Otherwise, it falls back to using an empty string.
+     * If the comment is in "user@host" or email format, extracts the "user" part.
+     * Otherwise, falls back to an empty string.
      *
      * @param publicKey the SSH public key from the Bitwarden item
      * @return the derived username, or an empty string if it cannot be determined
      */
     @NonNull
     private static String getUsername(@CheckForNull String publicKey) {
-        String strippedPublicKey = stripToNull(publicKey);
-        String username = "";
-        if (strippedPublicKey != null) {
-            String[] parts = strippedPublicKey.split("\\s+");
-            if (parts.length > 2) {
-                String comment = parts[2];
-                if (comment.contains("@")) {
-                    username = comment.split("@", 2)[0].strip();
-                }
-            }
-        }
-        return username;
+        return Optional.ofNullable(stripToNull(publicKey))
+                .map(key -> key.split("\\s+", 3))
+                .filter(parts -> parts.length > 2 && parts[2].contains("@"))
+                .map(parts -> parts[2].substring(0, parts[2].indexOf('@')).strip())
+                .orElse("");
     }
 }

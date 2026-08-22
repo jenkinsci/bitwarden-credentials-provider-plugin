@@ -1,40 +1,39 @@
 package com.mwdle.bitwarden.converters;
 
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
-import com.mwdle.bitwarden.model.BitwardenItemType;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionList;
-import hudson.ExtensionPoint;
 
 /**
  * Converts Bitwarden items into Jenkins {@link StandardCredentials}.
  */
-public interface CredentialConverter extends ExtensionPoint {
+public sealed interface CredentialConverter
+        permits LoginConverter, SecureNoteStringConverter, SecureNoteFileConverter, SshKeyConverter {
 
     /**
-     * Finds the first registered converter that supports the given item type.
+     * Returns a converter that supports the given item, if one exists.
      *
-     * @param type the Bitwarden item type
+     * @param metadata the Bitwarden item metadata
      * @return a suitable converter instance, or {@code null} if none is found
      */
     @CheckForNull
-    static CredentialConverter getConverter(@NonNull BitwardenItemType type) {
-        for (CredentialConverter converter : ExtensionList.lookup(CredentialConverter.class)) {
-            if (converter.supportedType() == type) {
-                return converter;
-            }
-        }
-        return null;
+    static CredentialConverter getConverter(@NonNull BitwardenItemMetadata metadata) {
+        Class<? extends CredentialConverter> converterClass =
+                switch (metadata.type) {
+                    case LOGIN -> LoginConverter.class;
+                    case SECURE_NOTE ->
+                        BitwardenConfig.getInstance().hasFileCredentialSuffix(metadata.name)
+                                ? SecureNoteFileConverter.class
+                                : SecureNoteStringConverter.class;
+                    case SSH_KEY -> SshKeyConverter.class;
+                    case CARD, IDENTITY, UNKNOWN -> null;
+                };
+        return converterClass != null ? ExtensionList.lookupSingleton(converterClass) : null;
     }
-
-    /**
-     * @return the Bitwarden item type this converter handles
-     */
-    @NonNull
-    BitwardenItemType supportedType();
 
     /**
      * Creates a lightweight, lazy-loading {@link CredentialProxy}.

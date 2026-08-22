@@ -3,7 +3,6 @@ package com.mwdle.bitwarden.model;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.databind.annotation.JsonDeserialize;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.util.Secret;
 
 /**
@@ -11,7 +10,7 @@ import hudson.util.Secret;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record BitwardenSshKey(
-        @NonNull @JsonDeserialize(using = SecretDeserializer.class)
+        @CheckForNull @JsonDeserialize(using = SecretDeserializer.class)
         Secret privateKey,
 
         @CheckForNull @SuppressWarnings("lgtm[jenkins/plaintext-storage]")

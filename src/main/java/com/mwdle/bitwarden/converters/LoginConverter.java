@@ -12,25 +12,13 @@ import hudson.Extension;
 import hudson.model.Descriptor;
 import hudson.util.Secret;
 import java.util.Objects;
-import java.util.Optional;
 
 /**
- * Converts Bitwarden {@link BitwardenItemType#LOGIN} items into Jenkins {@link UsernamePasswordCredentialsImpl}.
+ * Converts {@link BitwardenItemType#LOGIN} items into Jenkins {@link UsernamePasswordCredentialsImpl}.
  */
 @Extension
 public final class LoginConverter implements CredentialConverter {
 
-    @Override
-    @NonNull
-    public BitwardenItemType supportedType() {
-        return BitwardenItemType.LOGIN;
-    }
-
-    /**
-     * {@inheritDoc}
-     *
-     * @return a Jenkins credential proxy implementing {@link StandardUsernamePasswordCredentials}
-     */
     @Override
     @NonNull
     public StandardUsernamePasswordCredentials createProxy(
@@ -43,26 +31,19 @@ public final class LoginConverter implements CredentialConverter {
                 UsernamePasswordCredentialsImpl.class);
     }
 
-    /**
-     * {@inheritDoc}
-     *
-     * @return a concrete {@link UsernamePasswordCredentialsImpl} using the username and
-     * password from the Bitwarden item, safely handling null values by substituting empty strings
-     */
     @Override
     @NonNull
     public UsernamePasswordCredentialsImpl convert(
             @NonNull String id, @NonNull String description, @NonNull BitwardenItem item) {
-        BitwardenLogin loginData =
-                Objects.requireNonNull(item.login, "Bitwarden item is type LOGIN but missing login data!");
-        Secret username = Optional.ofNullable(loginData.username()).orElseGet(() -> Secret.fromString(""));
-        Secret password = Optional.ofNullable(loginData.password()).orElseGet(() -> Secret.fromString(""));
+        BitwardenLogin login = Objects.requireNonNull(item.login, "Bitwarden item is a login but missing login data!");
+        Secret username = login.username() != null ? login.username() : Secret.fromString("");
+        Secret password = login.password() != null ? login.password() : Secret.fromString("");
         try {
             return new UsernamePasswordCredentialsImpl(
                     CredentialsScope.GLOBAL, id, description, username.getPlainText(), password.getPlainText());
         } catch (Descriptor.FormException e) {
             throw new IllegalStateException(
-                    "Failed to create Username/Password credential for Bitwarden Item '%s' (ID: %s)"
+                    "Username/Password credential creation failed for Bitwarden Item '%s' (ID: %s)"
                             .formatted(item.name, item.id),
                     e);
         }

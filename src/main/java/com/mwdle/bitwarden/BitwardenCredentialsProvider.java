@@ -101,7 +101,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
 
         final List<Credentials> credentials = new ArrayList<>(bitwardenItemMetadata.size());
         for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
-            CredentialConverter converter = CredentialConverter.getConverter(metadata.type);
+            CredentialConverter converter = CredentialConverter.getConverter(metadata);
             if (converter != null) {
                 String jenkinsId = duplicateNames.contains(metadata.name) ? metadata.id : metadata.name;
                 credentials.add(converter.createProxy(jenkinsId, metadata));
