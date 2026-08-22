@@ -96,7 +96,7 @@ public final class BitwardenCliManager {
                     if (!executableTemp.setExecutable(true, true)) {
                         throw new IOException(
                                 "Failed to set execute permission on downloaded Bitwarden CLI executable %s"
-                                        .formatted(executable.getAbsolutePath()));
+                                        .formatted(executableTemp.getAbsolutePath()));
                     }
                     Files.move(
                             executableTemp.toPath(),
