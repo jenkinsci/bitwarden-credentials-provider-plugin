@@ -84,7 +84,6 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         CredentialProxy handler = new CredentialProxy(converterClass, id, metadata.id, metadata.name, credentialClass);
         Object proxy = Proxy.newProxyInstance(
                 credentialInterface.getClassLoader(), new Class<?>[] {credentialInterface}, handler);
-
         return credentialInterface.cast(proxy);
     }
 
@@ -97,10 +96,9 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         return switch (method.getName()) {
             case "getDescription" -> getDescription();
             case "getDescriptor" -> Jenkins.get().getDescriptorOrDie(credentialClass);
-            case "getFileName" -> itemName;
             case "getId" -> credentialId;
-            case "getPassphrase" -> null; // Bitwarden does not have a passphrase field for SSH Key secrets.
             case "getScope" -> CredentialsScope.GLOBAL;
+            case "getFileName" -> itemName;
             case "equals" -> {
                 if (args == null || args.length != 1) yield false;
                 yield IdCredentials.Helpers.equals((IdCredentials) proxy, args[0]);
