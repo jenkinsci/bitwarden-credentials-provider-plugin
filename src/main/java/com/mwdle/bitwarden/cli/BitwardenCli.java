@@ -12,6 +12,7 @@ import hudson.Launcher;
 import hudson.Proc;
 import hudson.model.TaskListener;
 import hudson.util.ArgumentListBuilder;
+import hudson.util.LogTaskListener;
 import hudson.util.Secret;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -224,7 +225,7 @@ public final class BitwardenCli {
                 .stderr(stderr)
                 .start();
 
-        int exitCode = process.joinWithTimeout(3, TimeUnit.MINUTES, TaskListener.NULL);
+        int exitCode = process.joinWithTimeout(3, TimeUnit.MINUTES, new LogTaskListener(LOGGER, Level.SEVERE));
         String output = stdout.toString(StandardCharsets.UTF_8).strip();
         String errors = stderr.toString(StandardCharsets.UTF_8).strip();
 
