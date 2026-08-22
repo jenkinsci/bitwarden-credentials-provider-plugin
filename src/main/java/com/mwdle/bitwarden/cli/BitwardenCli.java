@@ -228,10 +228,7 @@ public final class BitwardenCli {
         String output = stdout.toString(StandardCharsets.UTF_8).strip();
         String errors = stderr.toString(StandardCharsets.UTF_8).strip();
 
-        if (process.isAlive()) {
-            process.kill();
-            throw new IOException("Command timed out after 3 minutes: %s. Stderr: %s".formatted(args, errors));
-        } else if (exitCode != 0) {
+        if (exitCode != 0) {
             throw new IOException("Command failed with exit code %s. Stderr: %s".formatted(exitCode, errors));
         } else if (!errors.isEmpty()) {
             LOGGER.log(Level.FINE, "Command exit code is 0, but stderr is not empty: {0}", errors);
