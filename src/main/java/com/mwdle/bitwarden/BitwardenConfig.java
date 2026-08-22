@@ -246,28 +246,28 @@ public final class BitwardenConfig extends GlobalConfiguration {
      * Populates the Bitwarden API Key Credential dropdown in the UI.
      *
      * @param context the current Jenkins context
-     * @param credentialId the ID of the currently selected credential
+     * @param apiCredentialId the ID of the currently selected credential
      * @return a list of suitable credentials
      */
     @POST
     @NonNull
     public ListBoxModel doFillApiCredentialIdItems(
-            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String credentialId) {
-        return createCredentialsListBox(credentialId, context, StandardUsernamePasswordCredentials.class);
+            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String apiCredentialId) {
+        return createCredentialsListBox(apiCredentialId, context, StandardUsernamePasswordCredentials.class);
     }
 
     /**
      * Populates the Bitwarden Master Password Credential dropdown in the UI.
      *
      * @param context the current Jenkins context
-     * @param credentialId the ID of the currently selected credential
+     * @param masterPasswordCredentialId the ID of the currently selected credential
      * @return a list of suitable credentials
      */
     @POST
     @NonNull
     public ListBoxModel doFillMasterPasswordCredentialIdItems(
-            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String credentialId) {
-        return createCredentialsListBox(credentialId, context, StringCredentials.class);
+            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String masterPasswordCredentialId) {
+        return createCredentialsListBox(masterPasswordCredentialId, context, StringCredentials.class);
     }
 
     /**
