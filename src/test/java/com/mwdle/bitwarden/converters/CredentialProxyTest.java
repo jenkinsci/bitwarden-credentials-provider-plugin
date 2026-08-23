@@ -43,12 +43,7 @@ class CredentialProxyTest {
 
     private static BitwardenItem note() {
         return new BitwardenItem(
-                "item-id",
-                "Note",
-                BitwardenItemType.SECURE_NOTE,
-                Secret.fromString("my-secret-value"),
-                null,
-                null);
+                "item-id", "Note", BitwardenItemType.SECURE_NOTE, Secret.fromString("my-secret-value"), null, null);
     }
 
     @Nested
