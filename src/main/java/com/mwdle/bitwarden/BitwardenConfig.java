@@ -76,9 +76,9 @@ public final class BitwardenConfig extends GlobalConfiguration {
     private String fileCredentialSuffixes;
 
     /** Determines if primary settings (server URL, core credentials, CLI path) changed and require Bitwarden reauthentication and sync. */
-    private transient boolean requiresReauthentication = false;
+    private transient volatile boolean requiresReauthentication = false;
     /** Determines if file credential suffixes changed and require a Bitwarden sync. */
-    private transient boolean requiresCacheRefresh = false;
+    private transient volatile boolean requiresCacheRefresh = false;
 
     public BitwardenConfig() {
         load();
