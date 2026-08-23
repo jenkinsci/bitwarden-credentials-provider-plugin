@@ -1,331 +1,85 @@
 package com.mwdle.bitwarden.converters;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import com.cloudbees.plugins.credentials.SecretBytes;
-import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItem;
-import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.util.Secret;
-import java.lang.reflect.Proxy;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.Path;
-import jenkins.model.Jenkins;
-import jenkins.security.ConfidentialStore;
-import org.jenkinsci.plugins.plaincredentials.FileCredentials;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.FileCredentialsImpl;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
-import org.junit.jupiter.api.*;
-import org.junit.jupiter.api.io.TempDir;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EmptySource;
-import org.junit.jupiter.params.provider.NullSource;
-import org.junit.jupiter.params.provider.ValueSource;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 /**
- * Unit tests for the SecureNoteConverter class.
+ * Verifies that Secure Notes convert into either String or File credentials.
  */
-@DisplayName("SecureNoteConverter")
+@WithJenkins
+@DisplayName("Secure Note converters")
 class SecureNoteConverterTest {
 
-    @TempDir
-    Path tempDir;
-
-    @Mock
-    private Jenkins jenkinsMock;
-
-    @Mock
-    private ConfidentialStore confidentialStoreMock;
-
-    @Mock
-    private BitwardenConfig configMock;
-
-    private MockedStatic<Jenkins> mockedJenkins;
-    private MockedStatic<ConfidentialStore> mockedConfidentialStore;
-    private MockedStatic<Secret> mockedSecret;
-    private MockedStatic<SecretBytes> mockedSecretBytes;
-    private MockedStatic<BitwardenConfig> mockedConfig;
-
-    private SecureNoteConverter converter;
-    private AutoCloseable closeable;
-
-    @BeforeEach
-    void setUp() {
-        closeable = MockitoAnnotations.openMocks(this);
-
-        mockedJenkins = mockStatic(Jenkins.class);
-        when(Jenkins.get()).thenReturn(jenkinsMock);
-        when(jenkinsMock.getLegacyInstanceId()).thenReturn("test-instance-id");
-        when(jenkinsMock.getRootDir()).thenReturn(tempDir.toFile());
-
-        mockedConfidentialStore = mockStatic(ConfidentialStore.class);
-        when(ConfidentialStore.get()).thenReturn(confidentialStoreMock);
-
-        mockedSecret = mockStatic(Secret.class);
-        mockedSecret.when(() -> Secret.fromString(anyString())).thenAnswer(invocation -> {
-            String plainText = invocation.getArgument(0);
-            Secret secretMock = mock(Secret.class);
-            when(secretMock.getPlainText()).thenReturn(plainText);
-            return secretMock;
-        });
-
-        mockedSecretBytes = mockStatic(SecretBytes.class);
-        mockedSecretBytes
-                .when(() -> SecretBytes.fromRawBytes(any(byte[].class)))
-                .thenAnswer(invocation -> {
-                    byte[] bytes = invocation.getArgument(0);
-                    SecretBytes secretBytesMock = mock(SecretBytes.class);
-                    when(secretBytesMock.getPlainData()).thenReturn(bytes);
-                    return secretBytesMock;
-                });
-
-        mockedConfig = mockStatic(BitwardenConfig.class);
-        when(BitwardenConfig.getInstance()).thenReturn(configMock);
-
-        converter = new SecureNoteConverter();
-    }
-
-    @AfterEach
-    void tearDown() throws Exception {
-        mockedJenkins.close();
-        mockedConfidentialStore.close();
-        mockedSecret.close();
-        mockedSecretBytes.close();
-        mockedConfig.close();
-        closeable.close();
+    private static BitwardenItem note(String name, @CheckForNull String notes) {
+        return new BitwardenItem(
+                "id", name, BitwardenItemType.SECURE_NOTE, notes != null ? Secret.fromString(notes) : null, null, null);
     }
 
     @Nested
-    @DisplayName("canConvert methods")
-    class CanConvert {
-        @Test
-        @DisplayName("should return true for SECURE_NOTE metadata type")
-        void shouldReturnTrueForSecureNoteMetadata() {
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
-            assertTrue(converter.canConvert(metadata));
-        }
+    @DisplayName("SecureNoteStringConverter.convert")
+    class StringConverter {
+
+        private final SecureNoteStringConverter converter = new SecureNoteStringConverter();
 
         @Test
-        @DisplayName("should return false for other metadata types")
-        void shouldReturnFalseForOtherMetadataTypes() {
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.type()).thenReturn(BitwardenItemType.LOGIN);
-            assertFalse(converter.canConvert(metadata));
-        }
+        @DisplayName("maps the note body onto the secret text")
+        void mapsNoteBody(JenkinsRule ignored) {
+            StringCredentialsImpl credential = converter.convert("cred-id", "desc", note("My Note", "secret content"));
 
-        @Test
-        @DisplayName("should return true for a SECURE_NOTE item with notes")
-        void shouldReturnTrueForSecureNoteItemWithNotes() {
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
-            Secret notesSecret = Secret.fromString("some content");
-            when(item.notes()).thenReturn(notesSecret);
-            assertTrue(converter.canConvert(item));
-        }
-
-        @Test
-        @DisplayName("should return true for a SECURE_NOTE item with null notes")
-        void shouldReturnTrueForSecureNoteItemWithNullNotes() {
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.type()).thenReturn(BitwardenItemType.SECURE_NOTE);
-            when(item.notes()).thenReturn(null);
-            assertTrue(converter.canConvert(item));
-        }
-
-        @Test
-        @DisplayName("should return false for a non-SECURE_NOTE item")
-        void shouldReturnFalseForNonSecureNoteItem() {
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.type()).thenReturn(BitwardenItemType.LOGIN);
-            assertFalse(converter.canConvert(item));
-        }
-    }
-
-    @Nested
-    @DisplayName("createProxy() method")
-    class CreateProxy {
-        @Test
-        @DisplayName("should create a StringCredentials proxy for a standard note")
-        void shouldCreateStringProxy() {
-            // GIVEN
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class))
-                    .thenReturn(new StringCredentialsImpl.DescriptorImpl());
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.name()).thenReturn("my-api-key");
-
-            // WHEN
-            StandardCredentials proxy = converter.convert("cred-id", metadata);
-
-            // THEN
-            assertNotNull(proxy);
-            assertInstanceOf(StringCredentials.class, proxy);
-            assertInstanceOf(CredentialProxy.class, Proxy.getInvocationHandler(proxy));
-        }
-
-        @Test
-        @DisplayName("should create a FileCredentials proxy for a matching suffix")
-        void shouldCreateFileProxy() {
-            // GIVEN
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env, .properties");
-            when(jenkinsMock.getDescriptor(FileCredentialsImpl.class))
-                    .thenReturn(new FileCredentialsImpl.DescriptorImpl());
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.name()).thenReturn("config.properties");
-
-            // WHEN
-            StandardCredentials proxy = converter.convert("cred-id", metadata);
-
-            // THEN
-            assertNotNull(proxy);
-            assertInstanceOf(FileCredentials.class, proxy);
-            assertInstanceOf(CredentialProxy.class, Proxy.getInvocationHandler(proxy));
-        }
-
-        @Test
-        @DisplayName("should return null if String descriptor is not found")
-        void shouldReturnNullForMissingStringDescriptor() {
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class)).thenReturn(null);
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.name()).thenReturn("my-api-key");
-
-            assertNull(converter.convert("cred-id", metadata));
-        }
-
-        @Test
-        @DisplayName("should return null if File descriptor is not found")
-        void shouldReturnNullForMissingFileDescriptor() {
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            when(jenkinsMock.getDescriptor(FileCredentialsImpl.class)).thenReturn(null);
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.name()).thenReturn("my-file.env");
-
-            assertNull(converter.convert("cred-id", metadata));
-        }
-
-        @ParameterizedTest
-        @NullSource
-        @EmptySource
-        @ValueSource(strings = {" ", "  "})
-        @DisplayName("should create a StringCredentials proxy when suffixes are null or empty")
-        void shouldCreateStringProxyWhenSuffixesAreEmpty(String emptySuffixes) {
-            // GIVEN: The file credential suffixes are null or blank
-            when(configMock.getFileCredentialSuffixes()).thenReturn(emptySuffixes);
-            when(jenkinsMock.getDescriptor(StringCredentialsImpl.class))
-                    .thenReturn(new StringCredentialsImpl.DescriptorImpl());
-
-            // An item that might otherwise be treated as a file
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            when(metadata.name()).thenReturn("production.env");
-
-            // WHEN
-            StandardCredentials proxy = converter.convert("cred-id", metadata);
-
-            // THEN: It should be treated as a StringCredentials, not a FileCredentials
-            assertNotNull(proxy);
-            assertInstanceOf(StringCredentials.class, proxy);
-            assertInstanceOf(CredentialProxy.class, Proxy.getInvocationHandler(proxy));
-        }
-    }
-
-    @Nested
-    @DisplayName("convert() method")
-    class Convert {
-
-        @Test
-        @DisplayName("should convert a standard note to StringCredentials")
-        void shouldConvertToStringCredentials() {
-            // GIVEN
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.name()).thenReturn("My API Key");
-            Secret notesSecret = Secret.fromString("my-super-secret-value");
-            when(item.notes()).thenReturn(notesSecret);
-
-            // WHEN
-            StringCredentials credential = (StringCredentials) converter.convert("cred-id", "A test credential", item);
-
-            // THEN
-            assertNotNull(credential);
-            assertInstanceOf(StringCredentialsImpl.class, credential);
             assertEquals("cred-id", credential.getId());
-            assertEquals("my-super-secret-value", credential.getSecret().getPlainText());
-        }
-
-        @ParameterizedTest
-        @ValueSource(strings = {"docker.env", "  production.env  ", "TEST.PROPERTIES"})
-        @DisplayName("should convert a note with matching suffix to FileCredentials")
-        void shouldConvertToEnvFileCredentials(String envFileName) {
-            // GIVEN
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env, .properties");
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.name()).thenReturn(envFileName);
-            Secret notesSecret = Secret.fromString("API_KEY=12345");
-            when(item.notes()).thenReturn(notesSecret);
-
-            // WHEN
-            FileCredentials credential = (FileCredentials) converter.convert("cred-id", "A test .env file", item);
-
-            // THEN
-            assertNotNull(credential);
-            assertInstanceOf(FileCredentialsImpl.class, credential);
-            assertEquals("cred-id", credential.getId());
-            // Verify that the file name is NOT trimmed, which is the actual behavior.
-            assertEquals(envFileName, credential.getFileName());
-
-            // Verify the raw bytes were passed correctly
-            ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-            mockedSecretBytes.verify(() -> SecretBytes.fromRawBytes(captor.capture()));
-            assertEquals("API_KEY=12345", new String(captor.getValue(), StandardCharsets.UTF_8));
+            assertEquals("desc", credential.getDescription());
+            assertEquals("secret content", credential.getSecret().getPlainText());
         }
 
         @Test
-        @DisplayName("should convert null notes to empty StringCredentials")
-        void shouldConvertNullNotesToEmptyStringCredential() {
-            // GIVEN: notes field is null (empty secure note)
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.name()).thenReturn("My Empty Note");
-            when(item.notes()).thenReturn(null);
+        @DisplayName("treats a missing note body as empty")
+        void missingNoteBecomesEmpty(JenkinsRule ignored) {
+            StringCredentialsImpl credential = converter.convert("cred-id", "desc", note("My Note", null));
 
-            // WHEN
-            StringCredentials credential = (StringCredentials) converter.convert("cred-id", "Empty note", item);
-
-            // THEN
-            assertNotNull(credential);
-            assertInstanceOf(StringCredentialsImpl.class, credential);
             assertEquals("", credential.getSecret().getPlainText());
         }
+    }
+
+    @Nested
+    @DisplayName("SecureNoteFileConverter.convert")
+    class FileConverter {
+
+        private final SecureNoteFileConverter converter = new SecureNoteFileConverter();
 
         @Test
-        @DisplayName("should convert null notes to empty FileCredentials")
-        void shouldConvertNullNotesToEmptyFileCredential() {
-            // GIVEN: notes field is null but item name matches a file suffix
-            when(configMock.getFileCredentialSuffixes()).thenReturn(".env");
-            BitwardenItem item = mock(BitwardenItem.class);
-            when(item.name()).thenReturn("config.env");
-            when(item.notes()).thenReturn(null);
+        @DisplayName("maps the note body onto the file content and uses the item name as the file name")
+        void mapsNoteBodyToFile(JenkinsRule ignored) throws Exception {
+            FileCredentialsImpl credential = converter.convert("cred-id", "desc", note("config.env", "API_KEY=123"));
 
-            // WHEN
-            FileCredentials credential = (FileCredentials) converter.convert("cred-id", "Empty env file", item);
+            assertEquals("cred-id", credential.getId());
+            assertEquals("config.env", credential.getFileName());
+            try (InputStream content = credential.getContent()) {
+                assertArrayEquals("API_KEY=123".getBytes(StandardCharsets.UTF_8), content.readAllBytes());
+            }
+        }
 
-            // THEN
-            assertNotNull(credential);
-            assertInstanceOf(FileCredentialsImpl.class, credential);
+        @Test
+        @DisplayName("treats a missing note body as an empty file")
+        void missingNoteBecomesEmptyFile(JenkinsRule ignored) throws Exception {
+            FileCredentialsImpl credential = converter.convert("cred-id", "desc", note("config.env", null));
 
-            ArgumentCaptor<byte[]> captor = ArgumentCaptor.forClass(byte[].class);
-            mockedSecretBytes.verify(() -> SecretBytes.fromRawBytes(captor.capture()));
-            assertEquals("", new String(captor.getValue(), StandardCharsets.UTF_8));
+            try (InputStream content = credential.getContent()) {
+                assertArrayEquals(new byte[0], content.readAllBytes());
+            }
         }
     }
 }

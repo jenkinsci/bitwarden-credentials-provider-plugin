@@ -1,153 +1,63 @@
 package com.mwdle.bitwarden.converters;
 
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.mockito.Mockito.*;
 
-import com.mwdle.bitwarden.model.BitwardenItem;
+import com.mwdle.bitwarden.BitwardenConfig;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
-import hudson.ExtensionList;
-import java.util.stream.Stream;
-import jenkins.model.Jenkins;
-import org.junit.jupiter.api.*;
-import org.mockito.Mock;
-import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
+import com.mwdle.bitwarden.model.BitwardenItemType;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 /**
- * Unit tests for the abstract CredentialConverter class.
- * <p>
- * This test suite focuses specifically on the static {@code findConverter} factory methods,
- * verifying that they correctly query the Jenkins {@link ExtensionList} to find a suitable
- * converter.
+ * Verifies that {@link CredentialConverter#getConverter} routes each Bitwarden item type to the correct converter.
  */
-@DisplayName("CredentialConverter")
+@WithJenkins
+@DisplayName("CredentialConverter.getConverter")
 class CredentialConverterTest {
 
-    @Mock
-    private Jenkins jenkinsMock;
-
-    @Mock
-    private ExtensionList<CredentialConverter> extensionListMock;
-
-    private MockedStatic<Jenkins> mockedJenkins;
-    private AutoCloseable closeable;
-
-    @BeforeEach
-    void setUp() {
-        closeable = MockitoAnnotations.openMocks(this);
-
-        mockedJenkins = mockStatic(Jenkins.class);
-        when(Jenkins.get()).thenReturn(jenkinsMock);
-        when(jenkinsMock.getExtensionList(CredentialConverter.class)).thenReturn(extensionListMock);
+    private static BitwardenItemMetadata metadata(String name, BitwardenItemType type) {
+        return new BitwardenItemMetadata("id", name, type);
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        mockedJenkins.close();
-        closeable.close();
+    @Test
+    @DisplayName("routes LOGIN items to the login converter")
+    void routesLogin(JenkinsRule ignored) {
+        assertInstanceOf(
+                LoginConverter.class, CredentialConverter.getConverter(metadata("login", BitwardenItemType.LOGIN)));
     }
 
-    @Nested
-    @DisplayName("findConverter(BitwardenItemMetadata)")
-    class FindConverterByMetadata {
-        @Test
-        @DisplayName("should return the first matching converter")
-        void shouldReturnFirstMatch() {
-            // GIVEN
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            CredentialConverter nonMatchingConverter = mock(CredentialConverter.class);
-            when(nonMatchingConverter.canConvert(metadata)).thenReturn(false);
-            CredentialConverter matchingConverter = mock(CredentialConverter.class);
-            when(matchingConverter.canConvert(metadata)).thenReturn(true);
-            CredentialConverter anotherConverter = mock(CredentialConverter.class);
-
-            when(extensionListMock.stream())
-                    .thenReturn(Stream.of(nonMatchingConverter, matchingConverter, anotherConverter));
-
-            // WHEN
-            CredentialConverter result = CredentialConverter.getConverter(metadata);
-
-            // THEN
-            assertSame(matchingConverter, result);
-            verify(anotherConverter, never()).canConvert(metadata);
-        }
-
-        @Test
-        @DisplayName("should return null if no converters match")
-        void shouldReturnNullIfNoMatch() {
-            // GIVEN
-            BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-            CredentialConverter converter1 = mock(CredentialConverter.class);
-            when(converter1.canConvert(metadata)).thenReturn(false);
-            CredentialConverter converter2 = mock(CredentialConverter.class);
-            when(converter2.canConvert(metadata)).thenReturn(false);
-
-            when(extensionListMock.stream()).thenReturn(Stream.of(converter1, converter2));
-
-            // WHEN
-            CredentialConverter result = CredentialConverter.getConverter(metadata);
-
-            // THEN
-            assertNull(result);
-        }
-
-        @Test
-        @DisplayName("should return null if extension list is empty")
-        void shouldReturnNullIfListIsEmpty() {
-            // GIVEN
-            when(extensionListMock.stream()).thenReturn(Stream.empty());
-
-            // WHEN
-            CredentialConverter result = CredentialConverter.getConverter(mock(BitwardenItemMetadata.class));
-
-            // THEN
-            assertNull(result);
-        }
+    @Test
+    @DisplayName("routes SSH_KEY items to the SSH key converter")
+    void routesSshKey(JenkinsRule ignored) {
+        assertInstanceOf(
+                SshKeyConverter.class, CredentialConverter.getConverter(metadata("sshkey", BitwardenItemType.SSH_KEY)));
     }
 
-    @Nested
-    @DisplayName("findConverter(BitwardenItem)")
-    class FindConverterByItem {
-        @Test
-        @DisplayName("should return the first matching converter")
-        void shouldReturnFirstMatch() {
-            // GIVEN
-            BitwardenItem item = mock(BitwardenItem.class);
-            CredentialConverter nonMatchingConverter = mock(CredentialConverter.class);
-            when(nonMatchingConverter.canConvert(item)).thenReturn(false);
-            CredentialConverter matchingConverter = mock(CredentialConverter.class);
-            when(matchingConverter.canConvert(item)).thenReturn(true);
-            CredentialConverter anotherConverter = mock(CredentialConverter.class);
+    @Test
+    @DisplayName("routes Secure Notes to the string converter by default")
+    void routesSecureNoteToString(JenkinsRule ignored) {
+        assertInstanceOf(
+                SecureNoteStringConverter.class,
+                CredentialConverter.getConverter(metadata("plain-note", BitwardenItemType.SECURE_NOTE)));
+    }
 
-            when(extensionListMock.stream())
-                    .thenReturn(Stream.of(nonMatchingConverter, matchingConverter, anotherConverter));
+    @Test
+    @DisplayName("routes Secure Notes to the file converter when the name matches a configured suffix")
+    void routesSecureNoteToFile(JenkinsRule ignored) {
+        BitwardenConfig.getInstance().setFileCredentialSuffixes(".env");
+        assertInstanceOf(
+                SecureNoteFileConverter.class,
+                CredentialConverter.getConverter(metadata("config.env", BitwardenItemType.SECURE_NOTE)));
+    }
 
-            // WHEN
-            CredentialConverter result = CredentialConverter.getConverter(item);
-
-            // THEN
-            assertSame(matchingConverter, result);
-            verify(anotherConverter, never()).canConvert(item);
-        }
-
-        @Test
-        @DisplayName("should return null if no converters match")
-        void shouldReturnNullIfNoMatch() {
-            // GIVEN
-            BitwardenItem item = mock(BitwardenItem.class);
-            CredentialConverter converter1 = mock(CredentialConverter.class);
-            when(converter1.canConvert(item)).thenReturn(false);
-            CredentialConverter converter2 = mock(CredentialConverter.class);
-            when(converter2.canConvert(item)).thenReturn(false);
-
-            when(extensionListMock.stream()).thenReturn(Stream.of(converter1, converter2));
-
-            // WHEN
-            CredentialConverter result = CredentialConverter.getConverter(item);
-
-            // THEN
-            assertNull(result);
-        }
+    @Test
+    @DisplayName("returns null for unsupported item types")
+    void returnsNullForUnsupportedTypes(JenkinsRule ignored) {
+        assertNull(CredentialConverter.getConverter(metadata("card", BitwardenItemType.CARD)));
+        assertNull(CredentialConverter.getConverter(metadata("identity", BitwardenItemType.IDENTITY)));
+        assertNull(CredentialConverter.getConverter(metadata("unknown", BitwardenItemType.UNKNOWN)));
     }
 }

@@ -1,292 +1,203 @@
 package com.mwdle.bitwarden;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.Mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
+import static org.mockito.Mockito.when;
 
 import com.cloudbees.plugins.credentials.Credentials;
+import com.cloudbees.plugins.credentials.CredentialsStore;
+import com.cloudbees.plugins.credentials.CredentialsStoreAction;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
-import com.mwdle.bitwarden.converters.CredentialConverter;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
-import hudson.model.ItemGroup;
-import java.util.Collections;
+import com.mwdle.bitwarden.model.BitwardenItemType;
+import hudson.ExtensionList;
+import hudson.security.ACL;
+import hudson.util.Secret;
 import java.util.List;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.plaincredentials.StringCredentials;
-import org.junit.jupiter.api.*;
-import org.mockito.ArgumentCaptor;
-import org.mockito.Mock;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.jvnet.hudson.test.JenkinsRule;
+import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 import org.mockito.MockedStatic;
-import org.mockito.MockitoAnnotations;
-import org.springframework.security.core.Authentication;
 
 /**
- * Unit tests for the BitwardenCredentialsProvider.
- * This is a pure unit test that uses Mockito's static mocking to completely
- * isolate the provider from its dependencies. It does not require a running Jenkins instance.
+ * Integration tests for {@link BitwardenCredentialsProvider} and its read-only store, exercising the real
+ * cache → provider → store chain with only the CLI/session boundary stubbed.
  */
+@WithJenkins
 @DisplayName("BitwardenCredentialsProvider")
 class BitwardenCredentialsProviderTest {
 
-    private MockedStatic<BitwardenConfig> mockedConfig;
-    private MockedStatic<CacheManager> mockedCacheManager;
-    private MockedStatic<CredentialConverter> mockedConverter;
-    private MockedStatic<Jenkins> mockedJenkins;
-
-    @Mock
-    private BitwardenConfig configMock;
-
-    @Mock
-    private CacheManager cacheManagerMock;
-
-    @Mock
-    private ItemGroup<?> mockItemGroup;
-
-    @Mock
-    private Authentication mockAuthentication;
-
-    private BitwardenCredentialsProvider provider;
-    private AutoCloseable closeable;
-
-    @BeforeEach
-    void setUp() {
-        closeable = MockitoAnnotations.openMocks(this);
-
-        mockedConfig = mockStatic(BitwardenConfig.class);
-        mockedCacheManager = mockStatic(CacheManager.class);
-        mockedConverter = mockStatic(CredentialConverter.class);
-        mockedJenkins = mockStatic(Jenkins.class);
-
-        when(BitwardenConfig.getInstance()).thenReturn(configMock);
-        when(CacheManager.getInstance()).thenReturn(cacheManagerMock);
-
-        provider = new BitwardenCredentialsProvider();
+    private static BitwardenCredentialsProvider provider() {
+        return ExtensionList.lookupSingleton(BitwardenCredentialsProvider.class);
     }
 
-    @AfterEach
-    void tearDown() throws Exception {
-        mockedConfig.close();
-        mockedCacheManager.close();
-        mockedConverter.close();
-        mockedJenkins.close();
-        closeable.close();
+    private static void configure() {
+        BitwardenConfig config = BitwardenConfig.getInstance();
+        config.setApiCredentialId("api-id");
+        config.setMasterPasswordCredentialId("master-id");
     }
 
-    private BitwardenItemMetadata createMockMetadata(String id, String name) {
-        BitwardenItemMetadata metadata = mock(BitwardenItemMetadata.class);
-        when(metadata.getId()).thenReturn(id);
-        when(metadata.getName()).thenReturn(name);
-        return metadata;
+    /**
+     * Stubs the CLI/session boundary so the cache loads the given metadata, then runs the supplied assertions.
+     */
+    @SuppressWarnings("ResultOfMethodCallIgnored")
+    private static void withMetadata(List<BitwardenItemMetadata> metadata, Runnable body) throws Exception {
+        SessionManager sessionManager = mock(SessionManager.class);
+        when(sessionManager.getSessionKey()).thenReturn(Secret.fromString("session"));
+        try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
+                MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+            sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
+            cli.when(() -> BitwardenCli.listItemsMetadata(any())).thenReturn(metadata);
+            CacheManager.getInstance().invalidateCache();
+            try {
+                body.run();
+            } finally {
+                CacheManager.getInstance().invalidateCache();
+            }
+        }
+    }
+
+    private static List<String> credentialIds(List<? extends Credentials> credentials) {
+        return credentials.stream().map(c -> ((StandardCredentials) c).getId()).toList();
+    }
+
+    @Test
+    @DisplayName("exposes the correct plugin icon class name")
+    void exposesIconClassName(JenkinsRule ignored) {
+        assertEquals(
+                "symbol-icon plugin-bitwarden-credentials-provider", provider().getIconClassName());
     }
 
     @Nested
-    @DisplayName("listCredentials() method")
-    class ListCredentials {
+    @DisplayName("credential listing")
+    class Listing {
 
         @Test
-        @DisplayName("should return empty list when plugin is not configured")
-        void shouldReturnEmptyListWhenNotConfigured() {
-            when(configMock.isConfigured()).thenReturn(false);
-            assertTrue(provider.listCredentials().isEmpty());
+        @DisplayName("returns nothing when the plugin is not configured")
+        void emptyWhenNotConfigured(JenkinsRule ignored) {
+            List<Credentials> credentials =
+                    provider().getCredentialsInItemGroup(Credentials.class, Jenkins.get(), ACL.SYSTEM2, List.of());
+
+            assertTrue(credentials.isEmpty());
         }
 
         @Test
-        @DisplayName("should return empty list when cache is empty")
-        void shouldReturnEmptyListWhenCacheIsEmpty() {
-            when(configMock.isConfigured()).thenReturn(true);
-            when(cacheManagerMock.getMetadata()).thenReturn(Collections.emptyList());
-            assertTrue(provider.listCredentials().isEmpty());
+        @DisplayName("uses the name as the id for uniquely-named items and the UUID for duplicates")
+        void assignsIdsByUniqueness(JenkinsRule ignored) throws Exception {
+            configure();
+            List<BitwardenItemMetadata> metadata = List.of(
+                    new BitwardenItemMetadata("uuid-1", "dup", BitwardenItemType.LOGIN),
+                    new BitwardenItemMetadata("uuid-2", "dup", BitwardenItemType.LOGIN),
+                    new BitwardenItemMetadata("uuid-3", "uniq", BitwardenItemType.LOGIN));
+
+            withMetadata(metadata, () -> {
+                List<Credentials> credentials =
+                        provider().getCredentialsInItemGroup(Credentials.class, Jenkins.get(), ACL.SYSTEM2, List.of());
+
+                List<String> ids = credentialIds(credentials);
+                assertEquals(3, ids.size());
+                assertTrue(ids.contains("uuid-1"));
+                assertTrue(ids.contains("uuid-2"));
+                assertTrue(ids.contains("uniq"));
+            });
         }
 
         @Test
-        @DisplayName("should use name as ID for items with unique names")
-        void shouldUseNameAsIdForUniqueItems() {
-            // GIVEN
-            when(configMock.isConfigured()).thenReturn(true);
-            BitwardenItemMetadata uniqueItem = createMockMetadata("uuid-1", "UniqueName");
-            when(cacheManagerMock.getMetadata()).thenReturn(List.of(uniqueItem));
+        @DisplayName("skips item types that have no converter")
+        void skipsUnsupportedTypes(JenkinsRule ignored) throws Exception {
+            configure();
+            List<BitwardenItemMetadata> metadata = List.of(
+                    new BitwardenItemMetadata("uuid-1", "login", BitwardenItemType.LOGIN),
+                    new BitwardenItemMetadata("uuid-2", "card", BitwardenItemType.CARD),
+                    new BitwardenItemMetadata("uuid-3", "identity", BitwardenItemType.IDENTITY));
 
-            CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter
-                    .when(() -> CredentialConverter.findConverter(uniqueItem))
-                    .thenReturn(converterMock);
-            when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
+            withMetadata(metadata, () -> {
+                List<Credentials> credentials =
+                        provider().getCredentialsInItemGroup(Credentials.class, Jenkins.get(), ACL.SYSTEM2, List.of());
 
-            // WHEN
-            provider.listCredentials();
-
-            // THEN
-            verify(converterMock).createProxy(any(), eq("UniqueName"), eq(uniqueItem));
+                assertEquals(List.of("login"), credentialIds(credentials));
+            });
         }
 
         @Test
-        @DisplayName("should use UUID as ID for items with duplicate names")
-        void shouldUseUuidAsIdForDuplicateNames() {
-            // GIVEN
-            when(configMock.isConfigured()).thenReturn(true);
-            BitwardenItemMetadata item1 = createMockMetadata("uuid-1", "DuplicateName");
-            BitwardenItemMetadata item2 = createMockMetadata("uuid-2", "DuplicateName");
-            when(cacheManagerMock.getMetadata()).thenReturn(List.of(item1, item2));
+        @DisplayName("filters by the requested credential type")
+        void filtersByType(JenkinsRule ignored) throws Exception {
+            configure();
+            List<BitwardenItemMetadata> metadata = List.of(
+                    new BitwardenItemMetadata("uuid-1", "login", BitwardenItemType.LOGIN),
+                    new BitwardenItemMetadata("uuid-2", "note", BitwardenItemType.SECURE_NOTE));
 
-            CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter
-                    .when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
-                    .thenReturn(converterMock);
-            when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
+            withMetadata(metadata, () -> {
+                List<org.jenkinsci.plugins.plaincredentials.StringCredentials> notes = provider()
+                        .getCredentialsInItemGroup(
+                                org.jenkinsci.plugins.plaincredentials.StringCredentials.class,
+                                Jenkins.get(),
+                                ACL.SYSTEM2,
+                                List.of());
 
-            ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
-
-            // WHEN
-            List<Credentials> result = provider.listCredentials();
-
-            // THEN
-            assertEquals(2, result.size());
-            verify(converterMock, times(2)).createProxy(any(), idCaptor.capture(), any());
-            List<String> capturedIds = idCaptor.getAllValues();
-            assertTrue(capturedIds.contains("uuid-1"));
-            assertTrue(capturedIds.contains("uuid-2"));
+                assertEquals(List.of("note"), credentialIds(notes));
+            });
         }
 
         @Test
-        @DisplayName("should correctly handle a mix of unique and duplicate names")
-        void shouldHandleMixedNames() {
-            // GIVEN
-            when(configMock.isConfigured()).thenReturn(true);
-            BitwardenItemMetadata item1 = createMockMetadata("uuid-1", "DuplicateName");
-            BitwardenItemMetadata item2 = createMockMetadata("uuid-2", "DuplicateName");
-            BitwardenItemMetadata item3 = createMockMetadata("uuid-3", "UniqueName");
-            when(cacheManagerMock.getMetadata()).thenReturn(List.of(item1, item2, item3));
+        @DisplayName("returns nothing for non-system authentication")
+        void emptyForNonSystemAuthentication(JenkinsRule ignored) throws Exception {
+            configure();
+            List<BitwardenItemMetadata> metadata =
+                    List.of(new BitwardenItemMetadata("uuid-1", "login", BitwardenItemType.LOGIN));
 
-            CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter
-                    .when(() -> CredentialConverter.findConverter(any(BitwardenItemMetadata.class)))
-                    .thenReturn(converterMock);
-            when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
+            withMetadata(metadata, () -> {
+                List<Credentials> credentials = provider()
+                        .getCredentialsInItemGroup(Credentials.class, Jenkins.get(), Jenkins.ANONYMOUS2, List.of());
 
-            // WHEN
-            List<Credentials> result = provider.listCredentials();
-
-            // THEN
-            assertEquals(3, result.size());
-
-            ArgumentCaptor<String> idCaptor = ArgumentCaptor.forClass(String.class);
-            verify(converterMock, times(3)).createProxy(any(), idCaptor.capture(), any());
-            List<String> capturedIds = idCaptor.getAllValues();
-
-            assertTrue(capturedIds.contains("uuid-1"));
-            assertTrue(capturedIds.contains("uuid-2"));
-            assertTrue(capturedIds.contains("UniqueName"));
-        }
-
-        @Test
-        @DisplayName("should ignore items for which no converter is found")
-        void shouldIgnoreItemsWithNoConverter() {
-            // GIVEN
-            when(configMock.isConfigured()).thenReturn(true);
-            BitwardenItemMetadata convertibleItem = createMockMetadata("uuid-1", "Convertible");
-            BitwardenItemMetadata ignoredItem = createMockMetadata("uuid-2", "Ignored");
-            when(cacheManagerMock.getMetadata()).thenReturn(List.of(convertibleItem, ignoredItem));
-
-            CredentialConverter converterMock = mock(CredentialConverter.class);
-            mockedConverter
-                    .when(() -> CredentialConverter.findConverter(convertibleItem))
-                    .thenReturn(converterMock);
-            mockedConverter
-                    .when(() -> CredentialConverter.findConverter(ignoredItem))
-                    .thenReturn(null); // No
-            // converter
-
-            when(converterMock.createProxy(any(), anyString(), any())).thenReturn(mock(StandardCredentials.class));
-
-            // WHEN
-            List<Credentials> result = provider.listCredentials();
-
-            // THEN
-            assertEquals(1, result.size());
-            verify(converterMock, times(1)).createProxy(any(), eq("Convertible"), any());
+                assertTrue(credentials.isEmpty());
+            });
         }
     }
 
     @Nested
-    @DisplayName("getCredentialsInItemGroup() method")
-    class GetCredentialsInItemGroup {
-        @Test
-        @DisplayName("should return an empty list if context is missing")
-        void shouldReturnEmptyListIfContextIsMissing() {
-            // WHEN
-            List<Credentials> noItemGroup = provider.getCredentialsInItemGroup(
-                    Credentials.class, null, mockAuthentication, Collections.emptyList());
-            List<Credentials> noAuth =
-                    provider.getCredentialsInItemGroup(Credentials.class, mockItemGroup, null, Collections.emptyList());
+    @DisplayName("store")
+    class Store {
 
-            // THEN
-            assertTrue(noItemGroup.isEmpty());
-            assertTrue(noAuth.isEmpty());
+        @Test
+        @DisplayName("is exposed for the Jenkins context only")
+        void storeForJenkinsContextOnly(JenkinsRule r) throws Exception {
+            assertNotNull(provider().getStore(Jenkins.get()));
+            assertNull(provider().getStore(r.createFreeStyleProject()));
         }
 
         @Test
-        @DisplayName("should return an empty list if not configured")
-        void shouldReturnEmptyListWhenNotConfigured() {
-            // GIVEN
-            BitwardenCredentialsProvider providerSpy = spy(provider);
-            doReturn(Collections.emptyList()).when(providerSpy).listCredentials();
-
-            // WHEN
-            List<Credentials> result = providerSpy.getCredentialsInItemGroup(
-                    Credentials.class, mockItemGroup, mockAuthentication, Collections.emptyList());
-
-            // THEN
-            assertTrue(result.isEmpty());
-            verify(providerSpy, times(1)).listCredentials();
+        @DisplayName("is read-only")
+        void isReadOnly(JenkinsRule ignored) throws Exception {
+            CredentialsStore store = provider().getStore(Jenkins.get());
+            assertNotNull(store);
+            Domain domain = Domain.global();
+            assertFalse(store.addCredentials(domain, mock(Credentials.class)));
+            assertFalse(store.removeCredentials(domain, mock(Credentials.class)));
+            assertFalse(store.updateCredentials(domain, mock(Credentials.class), mock(Credentials.class)));
         }
 
         @Test
-        @DisplayName("should filter credentials by the requested type")
-        void shouldFilterCredentialsByRequestedType() {
-            // GIVEN: We spy on the provider to mock the result of listCredentials()
-            BitwardenCredentialsProvider providerSpy = spy(provider);
+        @DisplayName("exposes a store action bound to the store")
+        void exposesStoreAction(JenkinsRule ignored) {
+            CredentialsStore store = provider().getStore(Jenkins.get());
+            assertNotNull(store);
 
-            Credentials stringCred = mock(StringCredentials.class);
-            Credentials userPassCred =
-                    mock(com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials.class);
-            List<Credentials> allCredentials = List.of(stringCred, userPassCred);
-            doReturn(allCredentials).when(providerSpy).listCredentials();
-
-            // WHEN
-            List<StringCredentials> stringResult = providerSpy.getCredentialsInItemGroup(
-                    StringCredentials.class, mockItemGroup, mockAuthentication, Collections.emptyList());
-
-            List<Credentials> allResult = providerSpy.getCredentialsInItemGroup(
-                    Credentials.class, mockItemGroup, mockAuthentication, Collections.emptyList());
-
-            // THEN
-            assertEquals(1, stringResult.size());
-            assertTrue(stringResult.contains(stringCred));
-
-            assertEquals(2, allResult.size());
-        }
-    }
-
-    @Nested
-    @DisplayName("Other public methods")
-    class OtherPublicMethods {
-        @Test
-        @DisplayName("getStore() should return the store for the Jenkins context")
-        void shouldReturnStoreForJenkinsContext() {
-            Jenkins jenkinsMock = mock(Jenkins.class);
-            assertNotNull(provider.getStore(jenkinsMock));
-        }
-
-        @Test
-        @DisplayName("getStore() should return null for other contexts")
-        void shouldReturnNullForOtherContexts() {
-            ItemGroup<?> otherContext = mock(ItemGroup.class);
-            assertNull(provider.getStore(otherContext));
-        }
-
-        @Test
-        @DisplayName("getIconClassName() should return the correct class name")
-        void shouldReturnCorrectIconClassName() {
-            assertEquals("symbol-icon plugin-bitwarden-credentials-provider", provider.getIconClassName());
+            CredentialsStoreAction action = store.getStoreAction();
+            assertNotNull(action);
+            assertEquals(store, action.getStore());
         }
     }
 }

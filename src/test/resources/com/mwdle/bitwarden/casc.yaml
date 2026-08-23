@@ -1,0 +1,8 @@
+unclassified:
+  bitwarden:
+    serverUrl: "https://vault.example.com"
+    apiCredentialId: "bitwarden-api-key"
+    masterPasswordCredentialId: "bitwarden-master-password"
+    cliExecutablePath: "/usr/local/bin/bw"
+    cacheDuration: 15
+    fileCredentialSuffixes: ".env, .properties"
