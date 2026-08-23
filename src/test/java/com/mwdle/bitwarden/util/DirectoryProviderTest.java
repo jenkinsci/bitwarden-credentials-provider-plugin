@@ -116,8 +116,7 @@ class DirectoryProviderTest {
         when(jenkinsMock.getRootDir()).thenReturn(blockingFile);
 
         // WHEN & THEN: An exception should be thrown because mkdirs() will fail
-        RuntimeException exception =
-                assertThrows(RuntimeException.class, DirectoryProvider::getCliDataDirectory);
+        RuntimeException exception = assertThrows(RuntimeException.class, DirectoryProvider::getCliDataDirectory);
         assertTrue(exception.getMessage().contains("Could not create plugin directory"));
     }
 
