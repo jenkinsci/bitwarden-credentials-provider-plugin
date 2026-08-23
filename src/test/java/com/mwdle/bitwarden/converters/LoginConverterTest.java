@@ -8,6 +8,7 @@ import com.mwdle.bitwarden.model.BitwardenItemType;
 import com.mwdle.bitwarden.model.BitwardenLogin;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import hudson.util.Secret;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.jvnet.hudson.test.JenkinsRule;
@@ -58,5 +59,16 @@ class LoginConverterTest {
 
         assertEquals("admin", credential.getUsername());
         assertEquals("", credential.getPassword().getPlainText());
+    }
+
+    @Test
+    @DisplayName("throws NullPointerException when login data is missing")
+    void throwsWhenLoginDataMissing(JenkinsRule ignored) {
+        BitwardenItem item = new BitwardenItem("id", "login", BitwardenItemType.LOGIN, null, null, null);
+
+        Assertions.assertThrows(
+                NullPointerException.class,
+                () -> converter.convert("cred-id", "desc", item)
+        );
     }
 }
