@@ -36,8 +36,10 @@ public final class LoginConverter implements CredentialConverter {
     public UsernamePasswordCredentialsImpl convert(
             @NonNull String id, @NonNull String description, @NonNull BitwardenItem item) {
         BitwardenLogin login = Objects.requireNonNull(item.login, "Bitwarden item is a login but missing login data!");
-        Secret username = login.username() != null ? login.username() : Secret.fromString("");
-        Secret password = login.password() != null ? login.password() : Secret.fromString("");
+        Secret user = login.username();
+        Secret pass = login.password();
+        Secret username = user != null ? user : Secret.fromString("");
+        Secret password = pass != null ? pass : Secret.fromString("");
         try {
             return new UsernamePasswordCredentialsImpl(
                     CredentialsScope.GLOBAL, id, description, username.getPlainText(), password.getPlainText());
