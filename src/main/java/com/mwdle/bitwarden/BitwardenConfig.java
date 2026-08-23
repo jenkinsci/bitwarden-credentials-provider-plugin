@@ -9,8 +9,8 @@ import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.cli.BitwardenCli;
-import com.mwdle.bitwarden.cli.BitwardenCliManager;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.CliManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.converters.CredentialProxy;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -210,7 +210,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
             requiresCacheRefresh = false;
             LOGGER.info("Primary Bitwarden configuration settings updated. Reloading");
             Timer.get().submit(() -> {
-                BitwardenSessionManager.getInstance().invalidateSession();
+                SessionManager.getInstance().invalidateSession();
                 invalidateAndRefreshCache();
             });
         } else if (requiresCacheRefresh) {
@@ -294,7 +294,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
         LOGGER.info("Vault sync triggered by administrator");
-        BitwardenSessionManager.getInstance().invalidateSession();
+        SessionManager.getInstance().invalidateSession();
         CacheManager.getInstance().invalidateCache();
         CacheManager.getInstance().refreshCache();
         return FormValidation.ok(Messages.validation_syncCompleted());
@@ -333,7 +333,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         if (getCliExecutablePath() != null) return FormValidation.warning(Messages.validation_cliUpdateManual());
         LOGGER.info("Bitwarden CLI update triggered by administrator");
         try {
-            BitwardenCliManager.updateExecutable();
+            CliManager.updateExecutable();
             return FormValidation.ok(Messages.validation_cliUpdateOk(BitwardenCli.version()));
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
@@ -355,7 +355,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     public FormValidation doVerifySession() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
-        boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
+        boolean isValid = SessionManager.getInstance().isSessionValid();
         if (isValid) {
             return FormValidation.ok(Messages.validation_sessionOk());
         } else {

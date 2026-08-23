@@ -9,8 +9,8 @@ import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
 import com.mwdle.bitwarden.cli.BitwardenCli;
-import com.mwdle.bitwarden.cli.BitwardenCliManager;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.CliManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import hudson.ExtensionList;
 import hudson.model.ItemGroup;
 import hudson.security.ACL;
@@ -53,9 +53,9 @@ class BitwardenConfigTest {
     // Mocks for static Jenkins and plugin classes
     private MockedStatic<Jenkins> mockedJenkins;
     private MockedStatic<Timer> mockedTimer;
-    private MockedStatic<BitwardenSessionManager> mockedSessionManager;
+    private MockedStatic<SessionManager> mockedSessionManager;
     private MockedStatic<CacheManager> mockedCacheManager;
-    private MockedStatic<BitwardenCliManager> mockedCliManager;
+    private MockedStatic<CliManager> mockedCliManager;
     private MockedStatic<BitwardenCli> mockedCli;
     private MockedStatic<GlobalConfiguration> mockedGlobalConfig;
     private MockedStatic<Messages> mockedMessages;
@@ -69,13 +69,13 @@ class BitwardenConfigTest {
     private ScheduledExecutorService executorMock;
 
     @Mock
-    private BitwardenSessionManager bitwardenSessionManagerMock;
+    private SessionManager sessionManagerMock;
 
     @Mock
     private CacheManager cacheManagerMock;
 
     @Mock
-    private BitwardenCliManager cliManagerMock;
+    private CliManager cliManagerMock;
 
     @Mock
     private ExtensionList<CredentialsProvider> extensionListMock;
@@ -105,9 +105,9 @@ class BitwardenConfigTest {
         // Initialize all static mocks
         mockedJenkins = mockStatic(Jenkins.class);
         mockedTimer = mockStatic(Timer.class);
-        mockedSessionManager = mockStatic(BitwardenSessionManager.class);
+        mockedSessionManager = mockStatic(SessionManager.class);
         mockedCacheManager = mockStatic(CacheManager.class);
-        mockedCliManager = mockStatic(BitwardenCliManager.class);
+        mockedCliManager = mockStatic(CliManager.class);
         mockedCli = mockStatic(BitwardenCli.class);
         mockedGlobalConfig = mockStatic(GlobalConfiguration.class);
         mockedMessages = mockStatic(Messages.class);
@@ -119,9 +119,9 @@ class BitwardenConfigTest {
         when(jenkinsMock.getItemGroup()).thenReturn(jenkinsMock); // Jenkins *is* the ItemGroup
         mockedJenkins.when(Jenkins::getAuthentication2).thenReturn(authenticationMock);
         when(Timer.get()).thenReturn(executorMock);
-        when(BitwardenSessionManager.getInstance()).thenReturn(bitwardenSessionManagerMock);
+        when(SessionManager.getInstance()).thenReturn(sessionManagerMock);
         when(CacheManager.getInstance()).thenReturn(cacheManagerMock);
-        when(BitwardenCliManager.getInstance()).thenReturn(cliManagerMock);
+        when(CliManager.getInstance()).thenReturn(cliManagerMock);
 
         // Mocks for getInstance()
         when(GlobalConfiguration.all()).thenReturn(globalConfigListMock);
@@ -194,7 +194,7 @@ class BitwardenConfigTest {
 
             // THEN: No refresh logic should be triggered
             verify(executorMock, never()).submit(any(Runnable.class));
-            verify(bitwardenSessionManagerMock, never()).invalidateSession();
+            verify(sessionManagerMock, never()).invalidateSession();
             verify(cacheManagerMock, never()).invalidateCache();
         }
 
@@ -318,7 +318,7 @@ class BitwardenConfigTest {
             Runnable backgroundTask = taskCaptor.getValue();
             backgroundTask.run();
 
-            verify(bitwardenSessionManagerMock).invalidateSession();
+            verify(sessionManagerMock).invalidateSession();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
             verify(cacheManagerMock).refreshCache();
@@ -342,7 +342,7 @@ class BitwardenConfigTest {
             Runnable backgroundTask = taskCaptor.getValue();
             backgroundTask.run();
 
-            verify(bitwardenSessionManagerMock).invalidateSession();
+            verify(sessionManagerMock).invalidateSession();
             verify(cacheManagerMock).invalidateCache();
             verify(cliManagerMock).provisionExecutable();
             verify(cacheManagerMock, never()).refreshCache();
@@ -363,7 +363,7 @@ class BitwardenConfigTest {
             FormValidation result = config.doRefreshCache();
 
             // THEN
-            verify(bitwardenSessionManagerMock, times(1)).invalidateSession();
+            verify(sessionManagerMock, times(1)).invalidateSession();
             verify(cacheManagerMock, times(1)).refreshCache();
             assertEquals(FormValidation.Kind.OK, result.kind);
             assertEquals("Refresh started.", result.getMessage());
@@ -374,7 +374,7 @@ class BitwardenConfigTest {
         void doRefreshCacheError() {
             // GIVEN: The session manager will throw an exception
             doThrow(new RuntimeException("Test Exception"))
-                    .when(bitwardenSessionManagerMock)
+                    .when(sessionManagerMock)
                     .invalidateSession();
             when(Messages.validation_refreshError(anyString())).thenReturn("Error: Test Exception");
 
@@ -483,7 +483,7 @@ class BitwardenConfigTest {
             assertEquals(FormValidation.Kind.WARNING, result.kind);
             assertEquals("Not configured.", result.getMessage());
             // Ensure no session check was even attempted
-            verify(bitwardenSessionManagerMock, never()).isSessionValid();
+            verify(sessionManagerMock, never()).isSessionValid();
         }
 
         @Test
@@ -491,7 +491,7 @@ class BitwardenConfigTest {
         void shouldReturnOkWhenSessionIsValid() {
             // GIVEN: The plugin is configured and the session is valid
             doReturn(true).when(config).isConfigured();
-            when(bitwardenSessionManagerMock.isSessionValid()).thenReturn(true);
+            when(sessionManagerMock.isSessionValid()).thenReturn(true);
             when(Messages.validation_sessionOk()).thenReturn("Session OK.");
 
             // WHEN
@@ -507,7 +507,7 @@ class BitwardenConfigTest {
         void shouldReturnWarningWhenSessionIsNotValid() {
             // GIVEN: The plugin is configured but the session is not valid
             doReturn(true).when(config).isConfigured();
-            when(bitwardenSessionManagerMock.isSessionValid()).thenReturn(false);
+            when(sessionManagerMock.isSessionValid()).thenReturn(false);
             when(Messages.validation_sessionNotFound()).thenReturn("Session not found.");
 
             // WHEN

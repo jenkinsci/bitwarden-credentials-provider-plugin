@@ -169,7 +169,7 @@ public final class BitwardenCli {
         try {
             // See https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18
             Files.deleteIfExists(
-                    BitwardenDirectoryProvider.getCliDataDirectory().toPath().resolve("data.json"));
+                    DirectoryProvider.getCliDataDirectory().toPath().resolve("data.json"));
         } catch (IOException e) {
             LOGGER.log(Level.WARNING, "Failed to reset Bitwarden CLI", e);
         }
@@ -186,7 +186,7 @@ public final class BitwardenCli {
     @NonNull
     private static ArgumentListBuilder bitwardenCommand(@NonNull String... args)
             throws InterruptedException, IOException {
-        String executablePath = BitwardenCliManager.getExecutablePath();
+        String executablePath = CliManager.getExecutablePath();
         ArgumentListBuilder command = new ArgumentListBuilder();
         command.add(executablePath);
         command.add("--nointeraction");
@@ -212,7 +212,7 @@ public final class BitwardenCli {
         Map<String, String> env = new HashMap<>(environment);
         env.put(
                 "BITWARDENCLI_APPDATA_DIR",
-                BitwardenDirectoryProvider.getCliDataDirectory().getAbsolutePath());
+                DirectoryProvider.getCliDataDirectory().getAbsolutePath());
 
         Launcher launcher = new Launcher.LocalLauncher(TaskListener.NULL);
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();

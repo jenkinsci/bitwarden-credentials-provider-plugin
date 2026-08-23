@@ -9,13 +9,13 @@ import jenkins.model.Jenkins;
 /**
  * A utility that provides dedicated filesystem directory paths for this plugin's Bitwarden CLI data.
  */
-public final class BitwardenDirectoryProvider {
+public final class DirectoryProvider {
 
     private static volatile File pluginDirectory;
     private static volatile File binDirectory;
     private static volatile File cliDataDirectory;
 
-    private BitwardenDirectoryProvider() {
+    private DirectoryProvider() {
         throw new UnsupportedOperationException();
     }
 

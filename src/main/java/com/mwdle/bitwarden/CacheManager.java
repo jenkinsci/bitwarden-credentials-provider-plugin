@@ -6,7 +6,7 @@ import com.google.common.cache.LoadingCache;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.mwdle.bitwarden.cli.BitwardenCli;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import java.io.IOException;
@@ -115,8 +115,8 @@ public final class CacheManager {
      */
     @NonNull
     private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
-        BitwardenCli.sync(BitwardenSessionManager.getInstance().getSessionKey());
+        BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
         return BitwardenCli.listItemsMetadata(
-                BitwardenSessionManager.getInstance().getSessionKey());
+                SessionManager.getInstance().getSessionKey());
     }
 }

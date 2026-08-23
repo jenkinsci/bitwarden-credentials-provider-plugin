@@ -35,18 +35,18 @@ import org.mockito.MockitoAnnotations;
  * deterministic behavior for OS-dependent code.
  */
 @DisplayName("BitwardenCLIManager")
-class BitwardenCliManagerTest {
+class CliManagerTest {
     @TempDir
     Path tempDir;
 
-    private MockedStatic<BitwardenDirectoryProvider> mockedPluginDir;
+    private MockedStatic<DirectoryProvider> mockedPluginDir;
     private MockedStatic<ProxyConfiguration> mockedProxy;
     private MockedStatic<BitwardenConfig> mockedConfig;
 
     @Mock
     private BitwardenConfig configMock;
 
-    private BitwardenCliManager manager;
+    private CliManager manager;
     private String originalOsName;
     private AutoCloseable closeable;
 
@@ -55,13 +55,13 @@ class BitwardenCliManagerTest {
         originalOsName = System.getProperty("os.name");
         closeable = MockitoAnnotations.openMocks(this);
 
-        Constructor<BitwardenCliManager> constructor = BitwardenCliManager.class.getDeclaredConstructor();
+        Constructor<CliManager> constructor = CliManager.class.getDeclaredConstructor();
         constructor.setAccessible(true);
-        BitwardenCliManager instance = constructor.newInstance();
+        CliManager instance = constructor.newInstance();
         manager = spy(instance);
 
-        mockedPluginDir = mockStatic(BitwardenDirectoryProvider.class);
-        mockedPluginDir.when(BitwardenDirectoryProvider::getCliDataDirectory).thenReturn(tempDir.toFile());
+        mockedPluginDir = mockStatic(DirectoryProvider.class);
+        mockedPluginDir.when(DirectoryProvider::getCliDataDirectory).thenReturn(tempDir.toFile());
 
         mockedProxy = mockStatic(ProxyConfiguration.class);
         mockedConfig = mockStatic(BitwardenConfig.class);
@@ -124,7 +124,7 @@ class BitwardenCliManagerTest {
             File executable = new File(tempDir.toFile(), "bw");
             assertTrue(executable.createNewFile(), "Test setup failed: could not create fake executable.");
 
-            Field pathField = BitwardenCliManager.class.getDeclaredField("executablePath");
+            Field pathField = CliManager.class.getDeclaredField("executablePath");
             pathField.setAccessible(true);
             pathField.set(manager, executable.getAbsolutePath());
 
@@ -139,7 +139,7 @@ class BitwardenCliManagerTest {
         void shouldProvisionIfCacheIsEmpty() {
             when(configMock.getCliExecutablePath()).thenReturn(null);
             doAnswer(invocation -> {
-                        Field pathField = BitwardenCliManager.class.getDeclaredField("executablePath");
+                        Field pathField = CliManager.class.getDeclaredField("executablePath");
                         pathField.setAccessible(true);
                         pathField.set(manager, "/fake/path/to/bw");
                         return true;
@@ -206,7 +206,7 @@ class BitwardenCliManagerTest {
 
             assertTrue(manager.updateExecutable());
 
-            Field pathField = BitwardenCliManager.class.getDeclaredField("executablePath");
+            Field pathField = CliManager.class.getDeclaredField("executablePath");
             pathField.setAccessible(true);
             String executablePath = (String) pathField.get(manager);
 
@@ -313,13 +313,13 @@ class BitwardenCliManagerTest {
         }
 
         private String invokeGetExecutableName() throws Exception {
-            java.lang.reflect.Method method = BitwardenCliManager.class.getDeclaredMethod("getExecutableName");
+            java.lang.reflect.Method method = CliManager.class.getDeclaredMethod("getExecutableName");
             method.setAccessible(true);
             return (String) method.invoke(manager);
         }
 
         private void invokeGetDownloadUrl() throws Exception {
-            java.lang.reflect.Method method = BitwardenCliManager.class.getDeclaredMethod("getDownloadUrl");
+            java.lang.reflect.Method method = CliManager.class.getDeclaredMethod("getDownloadUrl");
             method.setAccessible(true);
             method.invoke(manager);
         }
@@ -355,7 +355,7 @@ class BitwardenCliManagerTest {
                     .thenReturn(mockResponse);
 
             java.lang.reflect.Method method =
-                    BitwardenCliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
+                    CliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
             method.setAccessible(true);
             method.invoke(manager, fakeUri, targetFile);
 
@@ -383,7 +383,7 @@ class BitwardenCliManagerTest {
                     .thenReturn(mockResponse);
 
             java.lang.reflect.Method method =
-                    BitwardenCliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
+                    CliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
             method.setAccessible(true);
 
             Exception exception =
@@ -409,7 +409,7 @@ class BitwardenCliManagerTest {
                     .thenReturn(mockResponse);
 
             java.lang.reflect.Method method =
-                    BitwardenCliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
+                    CliManager.class.getDeclaredMethod("downloadAndExtract", URI.class, File.class);
             method.setAccessible(true);
 
             Exception exception =

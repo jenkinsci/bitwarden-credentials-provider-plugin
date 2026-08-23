@@ -1,6 +1,6 @@
 package com.mwdle.bitwarden.cli;
 
-import static com.mwdle.bitwarden.cli.BitwardenDirectoryProvider.getBinDirectory;
+import static com.mwdle.bitwarden.cli.DirectoryProvider.getBinDirectory;
 
 import com.mwdle.bitwarden.BitwardenConfig;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -24,12 +24,12 @@ import java.util.zip.ZipFile;
 /**
  * A utility for managing this plugin's Bitwarden CLI executable.
  */
-public final class BitwardenCliManager {
+public final class CliManager {
 
-    private static final Logger LOGGER = Logger.getLogger(BitwardenCliManager.class.getName());
+    private static final Logger LOGGER = Logger.getLogger(CliManager.class.getName());
     private static final Object LOCK = new Object();
 
-    private BitwardenCliManager() {
+    private CliManager() {
         throw new UnsupportedOperationException();
     }
 
