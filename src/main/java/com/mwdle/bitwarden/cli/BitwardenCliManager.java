@@ -41,15 +41,11 @@ public final class BitwardenCliManager {
     @NonNull
     public static String getExecutablePath() throws InterruptedException, IOException {
         String userProvidedPath = BitwardenConfig.getInstance().getCliExecutablePath();
-        if (userProvidedPath != null) {
-            return userProvidedPath;
-        }
+        if (userProvidedPath != null) return userProvidedPath;
         File executable = new File(getBinDirectory(), getExecutableName());
         if (!executable.isFile()) {
             synchronized (LOCK) {
-                if (!executable.isFile()) {
-                    updateExecutable();
-                }
+                if (!executable.isFile()) updateExecutable();
             }
         }
         return executable.getAbsolutePath();

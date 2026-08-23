@@ -36,9 +36,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
      */
     @Initializer(after = InitMilestone.SYSTEM_CONFIG_ADAPTED)
     public static void triggerCacheRefresh() {
-        if (BitwardenConfig.getInstance().isConfigured()) {
-            Timer.get().submit(CacheManager.getInstance()::refreshCache);
-        }
+        if (BitwardenConfig.getInstance().isConfigured()) Timer.get().submit(CacheManager.getInstance()::refreshCache);
     }
 
     @Override
@@ -50,9 +48,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
     @Override
     @CheckForNull
     public CredentialsStore getStore(@CheckForNull ModelObject object) {
-        if (object == Jenkins.get()) {
-            return store;
-        }
+        if (object == Jenkins.get()) return store;
         return null;
     }
 
@@ -63,9 +59,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
             @Nullable ItemGroup itemGroup,
             @Nullable Authentication authentication,
             @NonNull List<DomainRequirement> domainRequirements) {
-        if (!ACL.SYSTEM2.equals(authentication)) {
-            return Collections.emptyList();
-        }
+        if (!ACL.SYSTEM2.equals(authentication)) return Collections.emptyList();
         return getBitwardenCredentials().stream()
                 .filter(type::isInstance)
                 .map(type::cast)
@@ -84,9 +78,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
      */
     @NonNull
     private static List<Credentials> getBitwardenCredentials() {
-        if (!BitwardenConfig.getInstance().isConfigured()) {
-            return Collections.emptyList();
-        }
+        if (!BitwardenConfig.getInstance().isConfigured()) return Collections.emptyList();
 
         List<BitwardenItemMetadata> bitwardenItemMetadata =
                 CacheManager.getInstance().getMetadata();
@@ -94,9 +86,7 @@ public final class BitwardenCredentialsProvider extends CredentialsProvider {
         final Set<String> seenNames = new HashSet<>(bitwardenItemMetadata.size());
         final Set<String> duplicateNames = new HashSet<>();
         for (BitwardenItemMetadata metadata : bitwardenItemMetadata) {
-            if (!seenNames.add(metadata.name)) {
-                duplicateNames.add(metadata.name);
-            }
+            if (!seenNames.add(metadata.name)) duplicateNames.add(metadata.name);
         }
 
         final List<Credentials> credentials = new ArrayList<>(bitwardenItemMetadata.size());

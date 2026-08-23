@@ -113,9 +113,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setServerUrl(@CheckForNull String serverUrl) {
         String strippedUrl = stripToNull(serverUrl);
-        if (!Objects.equals(this.serverUrl, strippedUrl)) {
-            requiresReauthentication = true;
-        }
+        if (!Objects.equals(this.serverUrl, strippedUrl)) requiresReauthentication = true;
         this.serverUrl = strippedUrl;
     }
 
@@ -127,9 +125,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setApiCredentialId(@CheckForNull String apiCredentialId) {
         String strippedId = stripToNull(apiCredentialId);
-        if (!Objects.equals(this.apiCredentialId, strippedId)) {
-            requiresReauthentication = true;
-        }
+        if (!Objects.equals(this.apiCredentialId, strippedId)) requiresReauthentication = true;
         this.apiCredentialId = strippedId;
     }
 
@@ -141,9 +137,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setMasterPasswordCredentialId(@CheckForNull String masterPasswordCredentialId) {
         String strippedId = stripToNull(masterPasswordCredentialId);
-        if (!Objects.equals(this.masterPasswordCredentialId, strippedId)) {
-            requiresReauthentication = true;
-        }
+        if (!Objects.equals(this.masterPasswordCredentialId, strippedId)) requiresReauthentication = true;
         this.masterPasswordCredentialId = strippedId;
     }
 
@@ -181,9 +175,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setCliExecutablePath(@CheckForNull String cliExecutablePath) {
         String strippedPath = stripToNull(cliExecutablePath);
-        if (!Objects.equals(this.cliExecutablePath, strippedPath)) {
-            requiresReauthentication = true;
-        }
+        if (!Objects.equals(this.cliExecutablePath, strippedPath)) requiresReauthentication = true;
         this.cliExecutablePath = strippedPath;
     }
 
@@ -194,9 +186,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @DataBoundSetter
     public void setCacheDuration(int duration) {
         int newDuration = (duration > 0) ? duration : DEFAULT_CACHE_DURATION;
-        if (cacheDuration != newDuration) {
-            requiresCacheRefresh = true;
-        }
+        if (cacheDuration != newDuration) requiresCacheRefresh = true;
         cacheDuration = newDuration;
     }
 
@@ -235,9 +225,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
      */
     private void invalidateAndRefreshCache() {
         CacheManager.getInstance().invalidateCache();
-        if (isConfigured()) {
-            CacheManager.getInstance().refreshCache();
-        }
+        if (isConfigured()) CacheManager.getInstance().refreshCache();
     }
 
     /**
@@ -304,9 +292,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @NonNull
     public FormValidation doSyncVault() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        if (!isConfigured()) {
-            return FormValidation.warning(Messages.validation_sessionNotConfigured());
-        }
+        if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
         LOGGER.info("Vault sync triggered by administrator");
         BitwardenSessionManager.getInstance().invalidateSession();
         CacheManager.getInstance().invalidateCache();
@@ -344,9 +330,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @NonNull
     public FormValidation doUpdateCli() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        if (getCliExecutablePath() != null) {
-            return FormValidation.warning(Messages.validation_cliUpdateManual());
-        }
+        if (getCliExecutablePath() != null) return FormValidation.warning(Messages.validation_cliUpdateManual());
         LOGGER.info("Bitwarden CLI update triggered by administrator");
         try {
             BitwardenCliManager.updateExecutable();
@@ -370,9 +354,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     @NonNull
     public FormValidation doVerifySession() {
         Jenkins.get().checkPermission(Jenkins.ADMINISTER);
-        if (!isConfigured()) {
-            return FormValidation.warning(Messages.validation_sessionNotConfigured());
-        }
+        if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
         boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
         if (isValid) {
             return FormValidation.ok(Messages.validation_sessionOk());

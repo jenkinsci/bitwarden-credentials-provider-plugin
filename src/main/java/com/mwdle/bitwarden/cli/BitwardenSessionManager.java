@@ -111,9 +111,7 @@ public final class BitwardenSessionManager {
     @CheckForNull
     private static <T extends StandardCredentials> T lookupJenkinsCredential(
             @CheckForNull String id, @NonNull Class<T> credentialClass) {
-        if (id == null) {
-            return null;
-        }
+        if (id == null) return null;
         return ExtensionList.lookup(CredentialsProvider.class).stream()
                 .filter(provider ->
                         provider.isEnabled(Jenkins.get()) && !(provider instanceof BitwardenCredentialsProvider))

@@ -90,9 +90,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     @Override
     @CheckForNull
     public Object invoke(@NonNull Object proxy, @NonNull Method method, @CheckForNull Object[] args) throws Throwable {
-        if (method.isDefault()) {
-            return InvocationHandler.invokeDefault(proxy, method, args);
-        }
+        if (method.isDefault()) return InvocationHandler.invokeDefault(proxy, method, args);
         return switch (method.getName()) {
             case "getDescription" -> getDescription();
             case "getDescriptor" -> Jenkins.get().getDescriptorOrDie(credentialClass);
@@ -148,9 +146,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         boolean isDuplicate = !credentialId.equals(itemName);
         String duplicateLabel = isDuplicate ? ", " + Messages.description_nonUniqueLabel() : "";
         String idString = "%s %s%s".formatted(Messages.description_idLabel(), itemId, duplicateLabel);
-        if (FileCredentials.class.isAssignableFrom(credentialClass)) {
-            return idString;
-        }
+        if (FileCredentials.class.isAssignableFrom(credentialClass)) return idString;
         return "%s (%s)".formatted(itemName, idString);
     }
 }
