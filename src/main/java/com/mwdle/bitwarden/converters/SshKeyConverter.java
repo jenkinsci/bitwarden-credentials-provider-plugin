@@ -41,20 +41,19 @@ public final class SshKeyConverter implements CredentialConverter {
     }
 
     /**
-     * Derives a username from the public key's comment, if available.
+     * Returns the username from the public key's comment, if available.
      * <p>
-     * If the comment is in "user@host" or email format, extracts the "user" part.
-     * Otherwise, falls back to an empty string.
+     * If the comment is in {@code user@host} or email format, extracts the {@code user} part.
      *
      * @param publicKey the SSH public key from the Bitwarden item
-     * @return the derived username, or an empty string if it cannot be determined
+     * @return the derived username, or null if it cannot be determined
      */
-    @NonNull
+    @CheckForNull
     private static String getUsername(@CheckForNull String publicKey) {
         return Optional.ofNullable(stripToNull(publicKey))
                 .map(key -> key.split("\\s+", 3))
                 .filter(parts -> parts.length > 2 && parts[2].contains("@"))
                 .map(parts -> parts[2].substring(0, parts[2].indexOf('@')).strip())
-                .orElse("");
+                .orElse(null);
     }
 }
