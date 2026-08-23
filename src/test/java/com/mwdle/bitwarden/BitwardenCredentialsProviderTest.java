@@ -199,5 +199,22 @@ class BitwardenCredentialsProviderTest {
             assertNotNull(action);
             assertEquals(store, action.getStore());
         }
+
+        @Test
+        @DisplayName("returns the Jenkins context from the store")
+        void exposesStoreContext(JenkinsRule ignored) {
+            CredentialsStore store = provider().getStore(Jenkins.get());
+            assertNotNull(store);
+            assertEquals(Jenkins.get(), store.getContext());
+        }
+
+        @Test
+        @DisplayName("returns empty list for non-matching domains")
+        void emptyForInvalidDomain(JenkinsRule ignored) {
+            CredentialsStore store = provider().getStore(Jenkins.get());
+            assertNotNull(store);
+            Domain customDomain = new Domain("invalid-domain", "", List.of());
+            assertTrue(store.getCredentials(customDomain).isEmpty());
+        }
     }
 }
