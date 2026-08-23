@@ -24,11 +24,11 @@ public final class LoginConverter implements CredentialConverter {
     public StandardUsernamePasswordCredentials createProxy(
             @NonNull String id, @NonNull BitwardenItemMetadata metadata) {
         return CredentialProxy.create(
-                getClass(),
                 id,
                 metadata,
                 StandardUsernamePasswordCredentials.class,
-                UsernamePasswordCredentialsImpl.class);
+                UsernamePasswordCredentialsImpl.class,
+                getClass());
     }
 
     @Override

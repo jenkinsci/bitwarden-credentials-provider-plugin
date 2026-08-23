@@ -20,7 +20,7 @@ public final class SecureNoteStringConverter implements CredentialConverter {
     @Override
     @NonNull
     public StandardCredentials createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
-        return CredentialProxy.create(getClass(), id, metadata, StringCredentials.class, StringCredentialsImpl.class);
+        return CredentialProxy.create(id, metadata, StringCredentials.class, StringCredentialsImpl.class, getClass());
     }
 
     @Override

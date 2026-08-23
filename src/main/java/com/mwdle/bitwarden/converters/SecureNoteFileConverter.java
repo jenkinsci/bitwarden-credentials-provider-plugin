@@ -21,7 +21,7 @@ public final class SecureNoteFileConverter implements CredentialConverter {
     @Override
     @NonNull
     public StandardCredentials createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
-        return CredentialProxy.create(getClass(), id, metadata, FileCredentials.class, FileCredentialsImpl.class);
+        return CredentialProxy.create(id, metadata, FileCredentials.class, FileCredentialsImpl.class, getClass());
     }
 
     @Override

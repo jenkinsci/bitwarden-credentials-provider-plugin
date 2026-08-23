@@ -50,18 +50,19 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
      * @param itemId the unique, persistent UUID of the item in Bitwarden
      * @param itemName the user-provided name of the item in Bitwarden
      * @param credentialClass the concrete Jenkins credential type this proxy represents
+     * @param converterClass the class of the converter that created this proxy
      */
     private CredentialProxy(
-            @NonNull Class<? extends CredentialConverter> converterClass,
             @NonNull String credentialId,
             @NonNull String itemId,
             @NonNull String itemName,
-            @NonNull Class<? extends StandardCredentials> credentialClass) {
-        this.converterClass = converterClass;
+            @NonNull Class<? extends StandardCredentials> credentialClass,
+            @NonNull Class<? extends CredentialConverter> converterClass) {
         this.credentialId = credentialId;
         this.itemId = itemId;
         this.itemName = itemName;
         this.credentialClass = credentialClass;
+        this.converterClass = converterClass;
     }
 
     /**
@@ -71,17 +72,18 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
      * @param metadata the Bitwarden item metadata
      * @param credentialInterface the standard credential interface this proxy implements
      * @param credentialClass the concrete Jenkins credential type this proxy represents
+     * @param converterClass the class of the converter that created this proxy
      * @param <T> the type of the standard credential interface
      * @return a proxy implementing the specified standard credential interface
      */
     @NonNull
     public static <T extends StandardCredentials> T create(
-            @NonNull Class<? extends CredentialConverter> converterClass,
             @NonNull String id,
             @NonNull BitwardenItemMetadata metadata,
             @NonNull Class<T> credentialInterface,
-            @NonNull Class<? extends T> credentialClass) {
-        CredentialProxy handler = new CredentialProxy(converterClass, id, metadata.id, metadata.name, credentialClass);
+            @NonNull Class<? extends T> credentialClass,
+            @NonNull Class<? extends CredentialConverter> converterClass) {
+        CredentialProxy handler = new CredentialProxy(id, metadata.id, metadata.name, credentialClass, converterClass);
         Object proxy = Proxy.newProxyInstance(
                 credentialInterface.getClassLoader(), new Class<?>[] {credentialInterface}, handler);
         return credentialInterface.cast(proxy);

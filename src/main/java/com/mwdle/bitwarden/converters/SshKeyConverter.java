@@ -25,7 +25,7 @@ public final class SshKeyConverter implements CredentialConverter {
     @Override
     @NonNull
     public SSHUserPrivateKey createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
-        return CredentialProxy.create(getClass(), id, metadata, SSHUserPrivateKey.class, BasicSSHUserPrivateKey.class);
+        return CredentialProxy.create(id, metadata, SSHUserPrivateKey.class, BasicSSHUserPrivateKey.class, getClass());
     }
 
     @Override
