@@ -1,17 +1,23 @@
 package com.mwdle.bitwarden;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.mockStatic;
-import static org.mockito.Mockito.when;
+import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
+import com.cloudbees.plugins.credentials.CredentialsProvider;
+import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
+import com.cloudbees.plugins.credentials.domains.Domain;
+import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.CliManager;
 import com.mwdle.bitwarden.cli.SessionManager;
+import hudson.security.ACL;
+import hudson.security.ACLContext;
 import hudson.util.FormValidation;
 import java.io.IOException;
+
+import hudson.util.ListBoxModel;
+import jenkins.model.Jenkins;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -203,6 +209,111 @@ class BitwardenConfigTest {
             config.setCliExecutablePath("/usr/local/bin/bw");
 
             assertEquals(FormValidation.Kind.WARNING, config.doUpdateCli().kind);
+        }
+
+        @Test
+        @DisplayName("doSyncVault does not fail when the plugin is configured")
+        void syncVaultConfigured(JenkinsRule ignored) {
+            BitwardenConfig config = config();
+            config.setApiCredentialId("api");
+            config.setMasterPasswordCredentialId("master");
+            assertEquals(FormValidation.Kind.OK, config.doSyncVault().kind);
+        }
+
+        @Test
+        @DisplayName("doCheckCliVersion reports an error on InterruptedException")
+        void checkCliVersionInterrupted(JenkinsRule ignored) {
+            try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                cli.when(BitwardenCli::version).thenThrow(new InterruptedException("Interrupted"));
+
+                assertEquals(FormValidation.Kind.ERROR, config().doCheckCliVersion().kind);
+                assertTrue(Thread.currentThread().isInterrupted());
+                Thread.interrupted();
+            }
+        }
+
+        @Test
+        @DisplayName("doUpdateCli succeeds when no manual path is configured")
+        void updateCliSuccess(JenkinsRule ignored) {
+            try (MockedStatic<CliManager> cliManager = mockStatic(CliManager.class);
+                 MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                cli.when(BitwardenCli::version).thenReturn("2026.7.0");
+
+                assertEquals(FormValidation.Kind.OK, config().doUpdateCli().kind);
+
+                cliManager.verify(CliManager::updateExecutable, times(1));
+            }
+        }
+
+        @Test
+        @DisplayName("doUpdateCli reports an error on IOException")
+        void updateCliIoException(JenkinsRule ignored) {
+            try (MockedStatic<CliManager> cliManager = mockStatic(CliManager.class)) {
+                cliManager.when(CliManager::updateExecutable).thenThrow(new IOException("Download failed"));
+
+                assertEquals(FormValidation.Kind.ERROR, config().doUpdateCli().kind);
+            }
+        }
+
+        @Test
+        @DisplayName("doUpdateCli reports an error on InterruptedException")
+        void updateCliInterrupted(JenkinsRule ignored) {
+            try (MockedStatic<CliManager> cliManager = mockStatic(CliManager.class)) {
+                cliManager.when(CliManager::updateExecutable).thenThrow(new InterruptedException("Interrupted"));
+
+                assertEquals(FormValidation.Kind.ERROR, config().doUpdateCli().kind);
+                assertTrue(Thread.currentThread().isInterrupted());
+                Thread.interrupted();
+            }
+        }
+
+        @Test
+        @DisplayName("list box items are restricted to empty value for non-admin users")
+        void credentialsListBoxRespectsPermissions(JenkinsRule r) throws Exception {
+            BitwardenConfig config = config();
+
+            r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+            r.jenkins.setAuthorizationStrategy(new hudson.security.FullControlOnceLoggedInAuthorizationStrategy());
+
+            UsernamePasswordCredentialsImpl sampleCred =
+                    new UsernamePasswordCredentialsImpl(
+                            CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
+
+            SystemCredentialsProvider.getInstance().getCredentials().add(sampleCred);
+            SystemCredentialsProvider.getInstance().save();
+
+            try (ACLContext ignored = ACL.as2(Jenkins.ANONYMOUS2)) {
+                ListBoxModel apiModel = config.doFillApiCredentialIdItems(r.jenkins, "");
+                ListBoxModel masterModel = config.doFillMasterPasswordCredentialIdItems(r.jenkins, "");
+
+                assertEquals(1, apiModel.size(), "Non-admins should only see an empty value option");
+                assertEquals("", apiModel.get(0).value);
+
+                assertEquals(1, masterModel.size(), "Non-admins should only see an empty value option");
+                assertEquals("", masterModel.get(0).value);
+            }
+        }
+
+        @Test
+        @DisplayName("list box items include matching credentials for admin users")
+        void credentialsListBoxIncludesCredentialsForAdmin(JenkinsRule r) throws Exception {
+            BitwardenConfig config = config();
+
+            r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
+            r.jenkins.setAuthorizationStrategy(new hudson.security.FullControlOnceLoggedInAuthorizationStrategy());
+
+            UsernamePasswordCredentialsImpl sampleCred =
+                    new UsernamePasswordCredentialsImpl(
+                            CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
+
+            SystemCredentialsProvider.getInstance().getCredentials().add(sampleCred);
+            SystemCredentialsProvider.getInstance().save();
+
+            ListBoxModel apiModel = config.doFillApiCredentialIdItems(r.jenkins, "");
+
+            assertTrue(apiModel.size() >= 2, "Admin should see the empty value and matching credentials");
+            boolean found = apiModel.stream().anyMatch(item -> "test-cred-id".equals(item.value));
+            assertTrue(found, "ListBox model should contain the seeded test credential ID");
         }
     }
 }
