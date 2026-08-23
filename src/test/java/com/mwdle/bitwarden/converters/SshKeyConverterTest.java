@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
@@ -70,6 +72,28 @@ class SshKeyConverterTest {
     @DisplayName("falls back to the controller OS user when the public key is missing")
     void fallsBackToSystemUserWhenPublicKeyNull(JenkinsRule ignored) {
         BasicSSHUserPrivateKey credential = converter.convert("cred-id", "desc", sshItem("KEY", null));
+
+        assertEquals(System.getProperty("user.name"), credential.getUsername());
+    }
+
+    @Test
+    @DisplayName("handles a missing private key gracefully")
+    void handlesNullPrivateKey(JenkinsRule ignored) {
+        BitwardenSshKey sshKey = new BitwardenSshKey(null, "ssh-ed25519 AAAA user@host");
+        BitwardenItem item = new BitwardenItem("id", "sshkey", BitwardenItemType.SSH_KEY, null, null, sshKey);
+
+        BasicSSHUserPrivateKey credential = converter.convert("cred-id", "desc", item);
+
+        assertEquals("cred-id", credential.getId());
+        assertEquals(0, credential.getPrivateKeys().size());
+    }
+
+    @ParameterizedTest
+    @NullSource
+    @ValueSource(strings = {"", "   "})
+    @DisplayName("handles null, empty, or blank public keys safely")
+    void handlesBlankPublicKey(String publicKey, JenkinsRule ignored) {
+        BasicSSHUserPrivateKey credential = converter.convert("cred-id", "desc", sshItem("KEY", publicKey));
 
         assertEquals(System.getProperty("user.name"), credential.getUsername());
     }
