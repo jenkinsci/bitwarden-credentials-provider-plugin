@@ -19,7 +19,7 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 
 1. **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64` systems. Other architectures require manual installation and providing the path to the executable (see Getting Started).
 2. **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) for the Jenkins credentials in memory.
-3. **Background Refresh:** The local vault is automatically re-synced with the Bitwarden server via `bw sync` in the background based on the "Cache Duration" setting, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
+3. **On-Demand Background Refresh:** When credentials are requested and the cached item list is older than the "Item List Cache Duration" setting, the plugin serves the existing list immediately and re-syncs with the Bitwarden server via `bw sync` in the background, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 4. **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
 5. **Network Resilience:** If the Bitwarden server goes offline or Jenkins loses internet, pipelines will continue working uninterrupted using the Bitwarden CLI's local database. (Note: A Jenkins controller restart still requires an internet connection for the initial login).
 
@@ -39,12 +39,13 @@ You must first configure the plugin's global settings under **Manage Jenkins > S
     - *It is highly recommended to create this manually via the Jenkins UI (not JCasC) with **System** scope to prevent exposure to standard pipelines.*
 - **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
     - *It is highly recommended to create this manually via the Jenkins UI (not JCasC) with **System** scope to prevent exposure to standard pipelines.*
-- **Cache Duration:** Sets how often the plugin will sync with the Bitwarden server in the background.
+- **Item List Cache Duration:** Sets how long (in minutes) the cached list of vault items is considered fresh. When credentials are requested after this duration has passed, a background re-sync is triggered. Defaults to 5 minutes.
 - **Bitwarden CLI Executable Path (Optional):** Provide the absolute path to a manually installed `bw` executable. See [Manual CLI Provisioning](#manual-cli-provisioning-optional).
+- **File Credential Suffixes (Optional):** A comma-separated list of name suffixes (e.g., `.env,.yaml`) identifying which Secure Notes should be exposed as File credentials instead of Secret text.
 
 You can verify that the configuration was applied successfully using the following steps:
 
-1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced**. Click the **Verify Session Status** button.
+1.  **Verify the Session:** Navigate to **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced**. Click the **Verify Session** button.
     - A **success message** immediately confirms that your configuration is correct and the plugin is working.
     - If you see a **"No active session"** warning, this is normal right after startup. Wait up to a minute for the initial background sync to complete, then click the button again.
 
@@ -85,9 +86,9 @@ USER jenkins
 The plugin includes several actions under **Manage Jenkins > System > Bitwarden Credentials Provider Configuration > Advanced** to help you diagnose and quickly configure the plugin without needing to check the system log.
 
 - **Verify Session:** Performs a check to see if the plugin currently has an active session with the Bitwarden CLI. This is the quickest way to confirm that the plugin is logged in and ready to serve credentials.
-- **Check Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
-- **Download Latest:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version.
-- **Refresh Now:** Forces the plugin to invalidate its current session and credential list and start a new sync in the background. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
+- **Check CLI Version:** Verifies that the Bitwarden CLI is installed and executable by Jenkins.
+- **Update CLI:** Forces a fresh download of the latest official Bitwarden CLI. This is useful for updating the CLI to a newer version. (Disabled when a manual CLI path is configured.)
+- **Sync Vault:** Forces the plugin to invalidate its current session and cached item list, re-authenticate, and re-sync with the Bitwarden server. Use this if you've made changes in your Bitwarden vault and want them to appear immediately.
 
 > [!IMPORTANT]
 > **Service Account Recommended**
@@ -120,7 +121,8 @@ unclassified:
     # (Optional) The absolute path to a manually installed `bw` executable.
     # Required for non-x86_64 architectures like ARM/aarch64.
     cliExecutablePath: "/usr/local/bin/bw"
-    # The time (in minutes) before the local Bitwarden CLI data is considered stale.
+    # The time (in minutes) before the cached item list is considered stale and a background re-sync is triggered on the next request.
+    # Defaults to 5 minutes.
     cacheDuration: 10
     # (Optional) Comma-separated list of suffixes for Secure Notes names to be treated as File credentials.
     # If omitted, defaults to treating all notes as String credentials.
@@ -237,10 +239,12 @@ The plugin automatically converts Bitwarden items into the following Jenkins cre
 
 | Bitwarden Item Type | Jenkins Credential Type               | Notes                                                                                                                                                                    |
 | ------------------- | ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Login               | `StandardUsernamePasswordCredentials` | The login item must contain a username or a password. If a field is missing, it will be treated as an empty string.                                                      |
+| Login               | `StandardUsernamePasswordCredentials` | If the username or password field is missing, it will be treated as an empty string.                                                                                     |
 | Secure Note         | `StringCredentials`                   | The default for any secure note. The Bitwarden Secure Note character limit applies here.                                                                                 |
 | Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here.                                            |
 | SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field. If unable to parse, the Jenkins `SSHUserPrivateKey` defaults to the username the Jenkins Controller runs as. |
+
+Bitwarden **Card** and **Identity** items are not supported and are ignored.
 
 ## License
 
