@@ -1,8 +1,6 @@
 package com.mwdle.bitwarden.converters;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertSame;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -20,8 +18,11 @@ import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
 import hudson.util.Secret;
 import java.io.IOException;
+
+import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
+import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -54,12 +55,26 @@ class CredentialProxyTest {
         private final SecureNoteFileConverter fileConverter = new SecureNoteFileConverter();
 
         @Test
-        @DisplayName("serves id and scope from memory without contacting the CLI")
-        void servesIdAndScope(JenkinsRule ignored) {
+        @DisplayName("serves id, scope and descriptor from memory without contacting the CLI")
+        void servesIdScopeDescriptor(JenkinsRule ignored) {
             try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
                 StandardCredentials proxy = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
 
                 assertEquals("UniqueName", proxy.getId());
+                assertEquals(CredentialsScope.GLOBAL, proxy.getScope());
+                assertEquals(Jenkins.get().getDescriptorOrDie(StringCredentialsImpl.class), proxy.getDescriptor());
+                cli.verifyNoInteractions();
+            }
+        }
+
+        @Test
+        @DisplayName("serves filename from memory without contacting the CLI and uses the item name as the file name")
+        void servesFilename(JenkinsRule ignored) {
+            try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                BitwardenConfig.getInstance().setFileCredentialSuffixes(".env");
+                FileCredentials proxy = fileConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+
+                assertEquals("UniqueName", proxy.getFileName());
                 assertEquals(CredentialsScope.GLOBAL, proxy.getScope());
                 cli.verifyNoInteractions();
             }
@@ -90,16 +105,28 @@ class CredentialProxyTest {
         }
 
         @Test
-        @DisplayName("serves filename from memory without contacting the CLI and uses the item name as the file name")
-        void servesFilename(JenkinsRule ignored) {
-            try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
-                BitwardenConfig.getInstance().setFileCredentialSuffixes(".env");
-                FileCredentials proxy = fileConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+        @DisplayName("supports hashCode")
+        void supportsHashCode(JenkinsRule ignored) {
+            StandardCredentials proxy1 = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+            StandardCredentials proxy2 = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+            StandardCredentials proxy3 = stringConverter.createProxy("OtherName", metadata("uuid-2", "OtherName"));
 
-                assertEquals("UniqueName", proxy.getFileName());
-                assertEquals(CredentialsScope.GLOBAL, proxy.getScope());
-                cli.verifyNoInteractions();
-            }
+            assertEquals(proxy1.hashCode(), proxy2.hashCode());
+            assertNotEquals(proxy1.hashCode(), proxy3.hashCode());
+        }
+
+        @Test
+        @DisplayName("supports equals")
+        void supportsEquals(JenkinsRule ignored) {
+            StandardCredentials proxy1 = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+            StandardCredentials proxy2 = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+            StandardCredentials proxy3 = stringConverter.createProxy("OtherName", metadata("uuid-2", "OtherName"));
+
+            assertEquals(proxy1, proxy1);
+            assertEquals(proxy1, proxy2);
+            assertNotEquals(null, proxy1);
+            assertNotEquals(new Object(), proxy1);
+            assertNotEquals(proxy1, proxy3);
         }
     }
 
@@ -143,6 +170,25 @@ class CredentialProxyTest {
                 StringCredentials proxy = converter.createProxy("cred-id", metadata("item-id", "Note"));
 
                 assertThrows(IllegalStateException.class, proxy::getSecret);
+            }
+        }
+
+        @Test
+        @DisplayName("wraps an InterruptedException in an IllegalStateException and sets interrupt flag")
+        void wrapsInterruptedException(JenkinsRule ignored) throws Exception {
+            SessionManager sessionManager = mock(SessionManager.class);
+            when(sessionManager.getSessionKey()).thenReturn(Secret.fromString("session"));
+
+            try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
+                 MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
+                cli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenThrow(new InterruptedException("Interrupted"));
+
+                StringCredentials proxy = converter.createProxy("cred-id", metadata("item-id", "Note"));
+
+                assertThrows(IllegalStateException.class, proxy::getSecret);
+                assertTrue(Thread.currentThread().isInterrupted());
+                Thread.interrupted();
             }
         }
     }
