@@ -22,8 +22,6 @@ public final class BitwardenSessionManager {
 
     private static final BitwardenSessionManager INSTANCE = new BitwardenSessionManager();
     private final Object lock = new Object();
-
-    @SuppressWarnings("squid:S3077")
     private volatile Secret sessionKey;
 
     private BitwardenSessionManager() {}

@@ -67,8 +67,7 @@ public final class BitwardenCliManager {
             File executableZip = Files.createTempFile(getBinDirectory().toPath(), getExecutableName(), ".zip")
                     .toFile();
             try {
-                // Update this to try-with-resources once plugin is updated to a Java 21+ Jenkins baseline.
-                @SuppressWarnings("java:S2095") // HttpClient does not implement AutoCloseable in Java 17
+                // TODO: Update this to try-with-resources once plugin is updated to a Java 21+ Jenkins baseline.
                 HttpClient client = ProxyConfiguration.newHttpClient();
                 HttpRequest request = HttpRequest.newBuilder(getDownloadUrl()).build();
                 HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());

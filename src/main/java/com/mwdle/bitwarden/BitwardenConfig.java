@@ -76,10 +76,8 @@ public final class BitwardenConfig extends GlobalConfiguration {
     private String fileCredentialSuffixes;
 
     /** Determines if primary settings (server URL, core credentials, CLI path) changed and require Bitwarden reauthentication and sync. */
-    @SuppressWarnings("squid:S2065")
     private transient boolean requiresReauthentication = false;
     /** Determines if file credential suffixes changed and require a Bitwarden sync. */
-    @SuppressWarnings("squid:S2065")
     private transient boolean requiresCacheRefresh = false;
 
     public BitwardenConfig() {
