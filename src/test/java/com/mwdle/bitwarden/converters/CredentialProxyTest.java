@@ -18,7 +18,6 @@ import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
 import hudson.util.Secret;
 import java.io.IOException;
-
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
@@ -180,9 +179,10 @@ class CredentialProxyTest {
             when(sessionManager.getSessionKey()).thenReturn(Secret.fromString("session"));
 
             try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
-                 MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                    MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
                 sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
-                cli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenThrow(new InterruptedException("Interrupted"));
+                cli.when(() -> BitwardenCli.getItem(any(), eq("item-id")))
+                        .thenThrow(new InterruptedException("Interrupted"));
 
                 StringCredentials proxy = converter.createProxy("cred-id", metadata("item-id", "Note"));
 

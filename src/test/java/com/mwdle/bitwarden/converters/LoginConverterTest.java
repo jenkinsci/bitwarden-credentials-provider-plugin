@@ -66,9 +66,6 @@ class LoginConverterTest {
     void throwsWhenLoginDataMissing(JenkinsRule ignored) {
         BitwardenItem item = new BitwardenItem("id", "login", BitwardenItemType.LOGIN, null, null, null);
 
-        Assertions.assertThrows(
-                NullPointerException.class,
-                () -> converter.convert("cred-id", "desc", item)
-        );
+        Assertions.assertThrows(NullPointerException.class, () -> converter.convert("cred-id", "desc", item));
     }
 }

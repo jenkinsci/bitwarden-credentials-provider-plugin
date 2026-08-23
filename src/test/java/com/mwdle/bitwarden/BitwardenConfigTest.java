@@ -3,10 +3,8 @@ package com.mwdle.bitwarden;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
-import com.cloudbees.plugins.credentials.CredentialsProvider;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.SystemCredentialsProvider;
-import com.cloudbees.plugins.credentials.domains.Domain;
 import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.CliManager;
@@ -14,9 +12,8 @@ import com.mwdle.bitwarden.cli.SessionManager;
 import hudson.security.ACL;
 import hudson.security.ACLContext;
 import hudson.util.FormValidation;
-import java.io.IOException;
-
 import hudson.util.ListBoxModel;
+import java.io.IOException;
 import jenkins.model.Jenkins;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -236,7 +233,7 @@ class BitwardenConfigTest {
         @DisplayName("doUpdateCli succeeds when no manual path is configured")
         void updateCliSuccess(JenkinsRule ignored) {
             try (MockedStatic<CliManager> cliManager = mockStatic(CliManager.class);
-                 MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                    MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
                 cli.when(BitwardenCli::version).thenReturn("2026.7.0");
 
                 assertEquals(FormValidation.Kind.OK, config().doUpdateCli().kind);
@@ -275,9 +272,8 @@ class BitwardenConfigTest {
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
             r.jenkins.setAuthorizationStrategy(new hudson.security.FullControlOnceLoggedInAuthorizationStrategy());
 
-            UsernamePasswordCredentialsImpl sampleCred =
-                    new UsernamePasswordCredentialsImpl(
-                            CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
+            UsernamePasswordCredentialsImpl sampleCred = new UsernamePasswordCredentialsImpl(
+                    CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
 
             SystemCredentialsProvider.getInstance().getCredentials().add(sampleCred);
             SystemCredentialsProvider.getInstance().save();
@@ -302,9 +298,8 @@ class BitwardenConfigTest {
             r.jenkins.setSecurityRealm(r.createDummySecurityRealm());
             r.jenkins.setAuthorizationStrategy(new hudson.security.FullControlOnceLoggedInAuthorizationStrategy());
 
-            UsernamePasswordCredentialsImpl sampleCred =
-                    new UsernamePasswordCredentialsImpl(
-                            CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
+            UsernamePasswordCredentialsImpl sampleCred = new UsernamePasswordCredentialsImpl(
+                    CredentialsScope.GLOBAL, "test-cred-id", "Test Credential", "admin", "password");
 
             SystemCredentialsProvider.getInstance().getCredentials().add(sampleCred);
             SystemCredentialsProvider.getInstance().save();
