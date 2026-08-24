@@ -23,7 +23,7 @@ jobs:
         run: |
           mkdir -p $HOME/bw-cli
           curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v2026.8.0/bw-oss-macos-arm64-2026.8.0.zip"
-          unzip bw.zip -d $HOME/bw-cli/
+          unzip bw.zip -d $HOME/bw-cli
           chmod +x $HOME/bw-cli/bw
           echo "BWCP_CLI_EXECUTABLE_PATH=$HOME/bw-cli/bw" >> $GITHUB_ENV
 
