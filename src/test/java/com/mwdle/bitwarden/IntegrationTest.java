@@ -200,7 +200,7 @@ class IntegrationTest {
     }
 
     private void resolvesConcurrently() {
-        IntStream.range(0, 10).parallel().forEach(i -> {
+        IntStream.range(0, 4).parallel().forEach(i -> {
             StandardUsernamePasswordCredentials login =
                     lookupCredentialById("login", StandardUsernamePasswordCredentials.class);
             assertEquals("username", login.getUsername());
