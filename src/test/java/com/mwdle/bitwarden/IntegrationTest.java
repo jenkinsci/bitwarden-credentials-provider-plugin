@@ -16,6 +16,7 @@ import hudson.util.Secret;
 import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
+import java.util.stream.IntStream;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
@@ -78,6 +79,7 @@ class IntegrationTest {
                 dynamicTest("resolves SSH key with empty comment", this::resolvesSshKeyEmptyComment),
                 dynamicTest("resolves duplicates", this::resolvesDuplicates),
                 dynamicTest("resolves bad names", this::resolvesBadNames),
+                dynamicTest("resolves concurrently", this::resolvesConcurrently),
                 dynamicTest("ignores card items", this::ignoresCardItems),
                 dynamicTest("ignores identity items", this::ignoresIdentityItems),
                 dynamicTest("ignores non-existent items", this::ignoresNonExistentItems));
@@ -195,6 +197,15 @@ class IntegrationTest {
                 NullPointerException.class,
                 () -> lookupCredentialById("some-made-up-uuid-that-doesnt-exist", StandardCredentials.class),
                 "Non-existent IDs should safely return null and trigger this exception");
+    }
+
+    private void resolvesConcurrently() {
+        IntStream.range(0, 10).parallel().forEach(i -> {
+            StandardUsernamePasswordCredentials login =
+                    lookupCredentialById("login", StandardUsernamePasswordCredentials.class);
+            assertEquals("username", login.getUsername());
+            assertEquals("password", login.getPassword().getPlainText());
+        });
     }
 
     @NonNull
