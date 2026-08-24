@@ -6,7 +6,7 @@
 [![CD Build Status](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml)
 [![License](https://img.shields.io/github/license/jenkinsci/bitwarden-credentials-provider-plugin.svg)](LICENSE)
 
-The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that dynamically exposes items from a **Bitwarden Password Manager** vault (including self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) as native Jenkins credentials.
+The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that integrates with [Bitwarden Password Manager](https://bitwarden.com) (and self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) to provide secrets as native Jenkins credentials.
 
 This plugin integrates with personal vaults and organizations within the Password Manager product. It does **not** support the separate enterprise product, **Bitwarden Secrets Manager**.
 
@@ -70,7 +70,7 @@ FROM jenkins/jenkins:lts
 USER root
 
 # Pin the Bitwarden CLI version for the Bitwarden Credentials Provider Plugin
-ARG BW_CLI_VERSION="2026.7.0"
+ARG BW_CLI_VERSION="2026.8.0"
 
 # Download the x86 BW CLI zip file directly from GitHub releases
 RUN curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-linux-${BW_CLI_VERSION}.zip" \
@@ -113,10 +113,10 @@ unclassified:
     # Defaults to the official Bitwarden USA cloud (https://vault.bitwarden.com); set a self-hosted or Bitwarden EU cloud URL here to override it.
     serverUrl: "https://vault.example.com"
     # The Jenkins credential ID for your Bitwarden API Key.
-    # I recommend creating this credential manually via the Jenkins UI and giving it SYSTEM (not global) scope.
+    # It is recommended to create this credential manually via the Jenkins UI under SYSTEM (not global) scope.
     apiCredentialId: "bitwarden-api-key"
     # The Jenkins credential ID for your Bitwarden Master Password.
-    # I recommend creating this credential manually via the Jenkins UI and giving it SYSTEM (not global) scope.
+    # It is recommended to create this credential manually via the Jenkins UI under SYSTEM (not global) scope.
     masterPasswordCredentialId: "bitwarden-master-password"
     # (Optional) The absolute path to a manually installed `bw` executable.
     # Required for non-x86_64 architectures like ARM/aarch64.
