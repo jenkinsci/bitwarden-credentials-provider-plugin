@@ -57,6 +57,7 @@ class IntegrationTest {
                         "Bitwarden master password",
                         Secret.fromString(System.getenv("BWCP_MASTER_PASSWORD"))));
         BitwardenConfig config = BitwardenConfig.getInstance();
+        config.setCliExecutablePath(System.getenv("BWCP_CLI_EXECUTABLE_PATH"));
         config.setServerUrl(System.getenv("BWCP_SERVER_URL"));
         config.setApiCredentialId(API_CREDENTIAL_ID);
         config.setMasterPasswordCredentialId(MASTER_PASSWORD_CREDENTIAL_ID);
