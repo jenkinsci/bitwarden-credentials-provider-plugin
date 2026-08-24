@@ -14,5 +14,5 @@ work
 .classpath
 .project
 
-# End-to-End test
+# Integration test
 .env
