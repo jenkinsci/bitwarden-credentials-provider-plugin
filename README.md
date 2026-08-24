@@ -244,7 +244,7 @@ The plugin automatically converts Bitwarden items into the following Jenkins cre
 | Secure Note         | `FileCredentials`                     | If the note's name ends with a user-configured suffix (e.g., `.env`). The Bitwarden Secure Note character limit applies here.                                            |
 | SSH Key             | `SSHUserPrivateKey`                   | The username is parsed from the public key's comment field. If unable to parse, the Jenkins `SSHUserPrivateKey` defaults to the username the Jenkins Controller runs as. |
 
-Bitwarden **Card** and **Identity** items are not supported and are ignored.
+Bitwarden **Card** and **Identity** items are not currently supported and are ignored.
 
 ## License
 
