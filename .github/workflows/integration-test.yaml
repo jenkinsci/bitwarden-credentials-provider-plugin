@@ -1,4 +1,4 @@
-name: Integration Tests
+name: Integration Test
 
 on:
   pull_request:
@@ -14,7 +14,7 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
-      - name: Integration Tests
+      - name: Integration Test
         env:
           BWCP_API_CLIENT_ID: ${{ secrets.BWCP_API_CLIENT_ID }}
           BWCP_API_CLIENT_SECRET: ${{ secrets.BWCP_API_CLIENT_SECRET }}
