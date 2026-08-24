@@ -14,9 +14,18 @@ jobs:
           java-version: '17'
           distribution: 'temurin'
           cache: 'maven'
+
       - name: Integration Test
         env:
           BWCP_API_CLIENT_ID: ${{ secrets.BWCP_API_CLIENT_ID }}
           BWCP_API_CLIENT_SECRET: ${{ secrets.BWCP_API_CLIENT_SECRET }}
           BWCP_MASTER_PASSWORD: ${{ secrets.BWCP_MASTER_PASSWORD }}
         run: mvn test --no-transfer-progress -Dtest=IntegrationTest
+
+      - name: Test Coverage Report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: integration-test-coverage
+          path: target/site/jacoco/
+          archive: false
