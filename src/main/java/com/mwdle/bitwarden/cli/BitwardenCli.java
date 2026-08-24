@@ -164,7 +164,7 @@ public final class BitwardenCli {
         try {
             executeCommand(command, Map.of());
         } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Logout failed (likely already logged out)", e);
+            LOGGER.log(Level.FINE, "Logout failed (likely already logged out)", e);
         }
         try {
             // See https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18
