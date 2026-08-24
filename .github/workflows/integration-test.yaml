@@ -1,0 +1,22 @@
+name: Integration Tests
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+      - name: Integration Tests
+        env:
+          BWCP_API_CLIENT_ID: ${{ secrets.BWCP_API_CLIENT_ID }}
+          BWCP_API_CLIENT_SECRET: ${{ secrets.BWCP_API_CLIENT_SECRET }}
+          BWCP_MASTER_PASSWORD: ${{ secrets.BWCP_MASTER_PASSWORD }}
+        run: mvn test --batch-mode -Dtest=IntegrationTest
