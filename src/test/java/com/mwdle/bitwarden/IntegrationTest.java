@@ -28,7 +28,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 @WithJenkins
-@DisplayName("End-to-End")
+@DisplayName("Integration tests against vault.bitwarden.com using a dedicated plugin test vault")
 @EnabledIfEnvironmentVariable(named = "BWCP_API_CLIENT_ID", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "BWCP_API_CLIENT_SECRET", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "BWCP_MASTER_PASSWORD", matches = ".+")
