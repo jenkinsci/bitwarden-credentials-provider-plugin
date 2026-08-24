@@ -13,10 +13,12 @@ import com.cloudbees.plugins.credentials.impl.UsernamePasswordCredentialsImpl;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.security.ACL;
 import hudson.util.Secret;
+import java.io.IOException;
 import java.util.List;
 import java.util.Objects;
 import java.util.stream.Stream;
 import jenkins.model.Jenkins;
+import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
 import org.jenkinsci.plugins.plaincredentials.impl.StringCredentialsImpl;
 import org.junit.jupiter.api.BeforeEach;
@@ -28,7 +30,7 @@ import org.jvnet.hudson.test.JenkinsRule;
 import org.jvnet.hudson.test.junit.jupiter.WithJenkins;
 
 @WithJenkins
-@DisplayName("Integration tests against vault.bitwarden.com using a dedicated plugin test vault")
+@DisplayName("Integration test against vault.bitwarden.com using dedicated BWCP plugin test vault")
 @EnabledIfEnvironmentVariable(named = "BWCP_API_CLIENT_ID", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "BWCP_API_CLIENT_SECRET", matches = ".+")
 @EnabledIfEnvironmentVariable(named = "BWCP_MASTER_PASSWORD", matches = ".+")
@@ -65,12 +67,20 @@ class IntegrationTest {
     @DisplayName("resolves vault credentials")
     Stream<DynamicTest> runAllTests() {
         return Stream.of(
-                dynamicTest("resolves standard login with username and password", this::resolvesLogin),
+                dynamicTest("resolves login", this::resolvesLogin),
+                dynamicTest("resolves login", this::resolvesEmptyLogin),
                 dynamicTest("resolves login with empty username", this::resolvesLoginEmptyUsername),
                 dynamicTest("resolves login with empty password", this::resolvesLoginEmptyPassword),
-                dynamicTest("resolves secure note with content", this::resolvesSecureNote),
-                dynamicTest("resolves empty secure note", this::resolvesEmptySecureNote),
-                dynamicTest("resolves valid SSH key with OpenSSH formatting", this::resolvesSshKey));
+                dynamicTest("resolves note", this::resolvesStringNote),
+                dynamicTest("resolves empty note", this::resolvesEmptyNote),
+                dynamicTest("resolves file note", this::resolvesFileNote),
+                dynamicTest("resolves SSH key", this::resolvesSshKey),
+                dynamicTest("resolves SSH key with empty comment", this::resolvesSshKeyEmptyComment),
+                dynamicTest("resolves duplicates", this::resolvesDuplicates),
+                dynamicTest("resolves bad names", this::resolvesBadNames),
+                dynamicTest("ignores card items", this::ignoresCardItems),
+                dynamicTest("ignores identity items", this::ignoresIdentityItems),
+                dynamicTest("ignores non-existent items", this::ignoresNonExistentItems));
     }
 
     private void resolvesLogin() {
@@ -78,6 +88,13 @@ class IntegrationTest {
                 lookupCredentialById("login", StandardUsernamePasswordCredentials.class);
         assertEquals("username", login.getUsername());
         assertEquals("password", login.getPassword().getPlainText());
+    }
+
+    private void resolvesEmptyLogin() {
+        StandardUsernamePasswordCredentials login =
+                lookupCredentialById("empty login", StandardUsernamePasswordCredentials.class);
+        assertEquals("", login.getUsername());
+        assertEquals("", login.getPassword().getPlainText());
     }
 
     private void resolvesLoginEmptyUsername() {
@@ -94,14 +111,25 @@ class IntegrationTest {
         assertTrue(login.getPassword().getPlainText().isEmpty(), "Password should be empty");
     }
 
-    private void resolvesSecureNote() {
+    private void resolvesStringNote() {
         StringCredentials note = lookupCredentialById("note", StringCredentials.class);
         assertEquals("note", note.getSecret().getPlainText());
     }
 
-    private void resolvesEmptySecureNote() {
+    private void resolvesEmptyNote() {
         StringCredentials note = lookupCredentialById("empty note", StringCredentials.class);
         assertTrue(note.getSecret().getPlainText().isEmpty(), "Secure note content should be empty");
+    }
+
+    private void resolvesFileNote() throws IOException {
+        FileCredentials envFileNote = lookupCredentialById("note.env", FileCredentials.class);
+        FileCredentials yamlFileNote = lookupCredentialById("note.yaml", FileCredentials.class);
+        String envContent =
+                new String(envFileNote.getContent().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        String yamlContent =
+                new String(yamlFileNote.getContent().readAllBytes(), java.nio.charset.StandardCharsets.UTF_8);
+        assertEquals("note", envContent);
+        assertEquals("note", yamlContent);
     }
 
     private void resolvesSshKey() {
@@ -114,6 +142,59 @@ class IntegrationTest {
         assertTrue(
                 privateKeyContent.contains("-----END OPENSSH PRIVATE KEY-----"),
                 "Private key should contain OpenSSH footer");
+        assertEquals("user", key.getUsername());
+    }
+
+    private void resolvesSshKeyEmptyComment() {
+        SSHUserPrivateKey key = lookupCredentialById("ssh key empty comment", SSHUserPrivateKey.class);
+        assertFalse(key.getPrivateKeys().isEmpty(), "SSH private keys list should not be empty");
+        String privateKeyContent = key.getPrivateKeys().get(0);
+        assertTrue(
+                privateKeyContent.contains("-----BEGIN OPENSSH PRIVATE KEY-----"),
+                "Private key should contain OpenSSH header");
+        assertTrue(
+                privateKeyContent.contains("-----END OPENSSH PRIVATE KEY-----"),
+                "Private key should contain OpenSSH footer");
+        assertEquals(
+                System.getProperty("user.name"),
+                key.getUsername(),
+                "Username should match the system user name because of Jenkins fallback behavior when username is null or empty");
+    }
+
+    private void resolvesDuplicates() {
+        StringCredentials duplicateNoteA =
+                lookupCredentialById("221bfdc5-ed07-4653-9957-b42f0108e2fa", StringCredentials.class);
+        StringCredentials duplicateNoteB =
+                lookupCredentialById("abaabf94-2b73-4b62-8aa3-b42f0108f9a5", StringCredentials.class);
+        assertEquals("note", duplicateNoteA.getSecret().getPlainText());
+        assertEquals("note", duplicateNoteB.getSecret().getPlainText());
+    }
+
+    private void resolvesBadNames() {
+        StringCredentials badNameNote =
+                lookupCredentialById("badname~!@#$%^&*()_+{}|:\"<>?`-=[]\\;',./", StringCredentials.class);
+        assertEquals("badname", badNameNote.getSecret().getPlainText());
+    }
+
+    private void ignoresCardItems() {
+        assertThrows(
+                NullPointerException.class,
+                () -> lookupCredentialById("card", StandardCredentials.class),
+                "Card items are not currently suppported");
+    }
+
+    private void ignoresIdentityItems() {
+        assertThrows(
+                NullPointerException.class,
+                () -> lookupCredentialById("identity", StandardCredentials.class),
+                "Identity items are not currently suppported");
+    }
+
+    private void ignoresNonExistentItems() {
+        assertThrows(
+                NullPointerException.class,
+                () -> lookupCredentialById("some-made-up-uuid-that-doesnt-exist", StandardCredentials.class),
+                "Non-existent IDs should safely return null and trigger this exception");
     }
 
     @NonNull
