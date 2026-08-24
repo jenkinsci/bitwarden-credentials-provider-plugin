@@ -20,7 +20,7 @@ jobs:
           BWCP_API_CLIENT_ID: ${{ secrets.BWCP_API_CLIENT_ID }}
           BWCP_API_CLIENT_SECRET: ${{ secrets.BWCP_API_CLIENT_SECRET }}
           BWCP_MASTER_PASSWORD: ${{ secrets.BWCP_MASTER_PASSWORD }}
-        run: mvn test --no-transfer-progress -Dtest=IntegrationTest
+        run: mvn org.jacoco:jacoco-maven-plugin:prepare-agent test org.jacoco:jacoco-maven-plugin:report --no-transfer-progress -Dtest=IntegrationTest
 
       - name: Test Coverage Report
         uses: actions/upload-artifact@v7
@@ -28,4 +28,3 @@ jobs:
         with:
           name: integration-test-coverage
           path: target/site/jacoco/
-          archive: false
