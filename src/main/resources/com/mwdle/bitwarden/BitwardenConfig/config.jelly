@@ -10,41 +10,44 @@
         <f:entry title="${%field.masterPasswordCredentialId}" field="masterPasswordCredentialId">
             <c:select />
         </f:entry>
-        <f:entry title="${%field.cacheDuration}" field="cacheDuration">
-            <f:number default="5" min="1" />
-        </f:entry>
-        <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
-            <f:textbox default=".env" />
-        </f:entry>
         <f:advanced title="${%section.advancedActions}">
-            <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
+            <f:entry title="${%field.cacheDuration}" field="cacheDuration">
+                <f:number min="1" />
+            </f:entry>
+            <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
                 <f:textbox />
             </f:entry>
-            <f:entry title="${%field.verifySession}" field="verifySession">
-                <f:helpArea />
-                <f:validateButton
-                        title="${%button.verifySession}"
-                        progress="${%button.checking}"
-                        method="verifySession" />
+            <f:entry title="${%field.cliExecutablePath}" field="cliExecutablePath">
+                <f:textbox />
             </f:entry>
             <f:entry title="${%field.cliManagement}" field="cliManagement">
                 <f:helpArea />
                 <f:validateButton
-                        title="${%button.checkVersion}"
+                        title="${%button.checkCliVersion}"
                         progress="${%button.checking}"
-                        method="checkCliVersion" />
+                        method="checkCliVersion"
+                />
                 <f:validateButton
-                        title="${%button.downloadLatest}"
-                        progress="${%button.downloading}"
-                        method="forceUpdateCli" />
+                        title="${%button.updateCli}"
+                        progress="${%button.updating}"
+                        method="updateCli"
+                />
             </f:entry>
-            <f:entry title="${%field.refreshCache}" field="refreshCache">
+            <f:entry title="${%field.vaultSynchronization}" field="vaultSynchronization">
                 <f:helpArea />
                 <f:validateButton
-                        title="${%button.refreshNow}"
-                        progress="${%button.refreshing}"
-                        method="refreshCache"
-                        with="serverUrl,apiCredentialId,masterPasswordCredentialId" />
+                        title="${%button.syncVault}"
+                        progress="${%button.syncing}"
+                        method="syncVault"
+                />
+            </f:entry>
+            <f:entry title="${%field.sessionStatus}" field="sessionStatus">
+                <f:helpArea />
+                <f:validateButton
+                        title="${%button.verifySession}"
+                        progress="${%button.verifying}"
+                        method="verifySession"
+                />
             </f:entry>
         </f:advanced>
     </f:section>

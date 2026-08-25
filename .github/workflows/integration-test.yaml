@@ -1,0 +1,44 @@
+name: Integration Test
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  integration-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-java@v5
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: 'maven'
+
+      - if: runner.os == 'macOS'
+        name: Provision ARM64 Bitwarden CLI (macOS only)
+        env:
+          BW_CLI_VERSION: "2026.8.0"
+        run: |
+          mkdir -p $HOME/bw-cli
+          curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-macos-arm64-${BW_CLI_VERSION}.zip"
+          unzip bw.zip -d $HOME/bw-cli
+          chmod +x $HOME/bw-cli/bw
+          echo "BWCP_CLI_EXECUTABLE_PATH=$HOME/bw-cli/bw" >> $GITHUB_ENV
+
+      - name: Integration Test
+        env:
+          BWCP_API_CLIENT_ID: ${{ secrets.BWCP_API_CLIENT_ID }}
+          BWCP_API_CLIENT_SECRET: ${{ secrets.BWCP_API_CLIENT_SECRET }}
+          BWCP_MASTER_PASSWORD: ${{ secrets.BWCP_MASTER_PASSWORD }}
+        run: mvn org.jacoco:jacoco-maven-plugin:prepare-agent test org.jacoco:jacoco-maven-plugin:report --no-transfer-progress -Dtest=IntegrationTest
+
+      - name: Test Coverage Report
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: integration-test-coverage
+          path: target/site/jacoco/

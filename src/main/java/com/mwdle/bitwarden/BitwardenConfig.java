@@ -1,20 +1,28 @@
 package com.mwdle.bitwarden;
 
+import static com.mwdle.bitwarden.util.StringUtils.stripToNull;
+
 import com.cloudbees.plugins.credentials.CredentialsMatcher;
 import com.cloudbees.plugins.credentials.CredentialsMatchers;
 import com.cloudbees.plugins.credentials.CredentialsScope;
+import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.cloudbees.plugins.credentials.common.StandardListBoxModel;
 import com.cloudbees.plugins.credentials.common.StandardUsernamePasswordCredentials;
-import com.mwdle.bitwarden.cli.BitwardenCLI;
-import com.mwdle.bitwarden.cli.BitwardenCLIManager;
-import com.mwdle.bitwarden.cli.BitwardenSessionManager;
+import com.mwdle.bitwarden.cli.BitwardenCli;
+import com.mwdle.bitwarden.cli.CliManager;
+import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.converters.CredentialProxy;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
+import hudson.ExtensionList;
+import hudson.Util;
 import hudson.security.ACL;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
-import jakarta.annotation.Nonnull;
+import java.io.IOException;
 import java.lang.reflect.Proxy;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.Objects;
 import java.util.logging.Level;
@@ -32,348 +40,322 @@ import org.kohsuke.stapler.StaplerRequest2;
 import org.kohsuke.stapler.verb.POST;
 
 /**
- * Manages the system-wide configuration for the Bitwarden Credentials Provider plugin.
- * <p>
- * This class is a singleton managed by Jenkins, responsible for storing the plugin's global
- * settings, presenting them in the "Configure System" UI, and handling the logic when the
- * configuration is saved by a user or by JCasC.
+ * A Jenkins-managed singleton responsible for managing this plugin.
  */
 @Extension
 @Symbol("bitwarden")
-public class BitwardenConfig extends GlobalConfiguration {
+public final class BitwardenConfig extends GlobalConfiguration {
 
     private static final Logger LOGGER = Logger.getLogger(BitwardenConfig.class.getName());
 
-    /**
-     * A transient, in-memory snapshot of the configuration as it was last loaded or saved.
-     * This is used to determine if critical settings have changed,
-     * preventing unnecessary re-authentication and cache refreshes on every save.
-     */
-    private transient BitwardenConfig loadedConfig;
+    /** A matcher including SYSTEM and GLOBAL credentials, excluding those created by this plugin to prevent circular dependencies. */
+    private static final CredentialsMatcher CREDENTIALS_MATCHER = CredentialsMatchers.allOf(
+            CredentialsMatchers.anyOf(
+                    CredentialsMatchers.withScope(CredentialsScope.SYSTEM),
+                    CredentialsMatchers.withScope(CredentialsScope.GLOBAL)),
+            credential -> !(Proxy.isProxyClass(credential.getClass())
+                    && Proxy.getInvocationHandler(credential) instanceof CredentialProxy));
 
-    /** The URL of the self-hosted Bitwarden/Vaultwarden server. */
-    private String serverUrl;
-    /** The Jenkins credential ID for the Bitwarden API Key (Client ID & Secret). */
+    /** The default Bitwarden server URL. */
+    private static final String DEFAULT_SERVER_URL = "https://vault.bitwarden.com";
+    /** The default cache duration in minutes. */
+    private static final int DEFAULT_CACHE_DURATION = 5;
+
+    /** The URL of the Bitwarden server. */
+    private String serverUrl = DEFAULT_SERVER_URL;
+    /** The Jenkins credential ID for the Bitwarden API Key. */
     private String apiCredentialId;
     /** The Jenkins credential ID for the Bitwarden Master Password. */
     private String masterPasswordCredentialId;
     /** The absolute path to a manually installed Bitwarden CLI executable. */
     private String cliExecutablePath;
-    /** The cache duration in minutes for the list of item metadata. */
-    private int cacheDuration = 5; // Default to 5 minutes
-    /** A comma-separated list of suffixes to identify FileCredentials. */
-    // This field stores non-secret configuration strings, not secrets.
-    // lgtm[jenkins/plaintext-storage]
+    /** The cache duration in minutes for the list of Bitwarden item metadata. */
+    private int cacheDuration = DEFAULT_CACHE_DURATION;
+    /** A comma-separated list of suffixes to identify if a Bitwarden item should be treated as a File credential based on its name. */
+    @SuppressWarnings("lgtm[jenkins/plaintext-storage]")
     private String fileCredentialSuffixes;
 
-    /**
-     * Called by Jenkins at startup to create the singleton instance of this class.
-     * <p>
-     * The constructor first calls {@link #load()} to populate the fields from the persisted XML
-     * configuration on disk.
-     */
+    /** Determines if primary settings (server URL, core credentials, CLI path) changed and require Bitwarden reauthentication and sync. */
+    private transient volatile boolean requiresReauthentication = false;
+    /** Determines if file credential suffixes changed and require a Bitwarden sync. */
+    private transient volatile boolean requiresCacheRefresh = false;
+
     public BitwardenConfig() {
         load();
-        LOGGER.fine("BitwardenConfig loaded from disk.");
     }
 
     /**
-     * Provides the display name for this configuration section in the "Configure System" page.
-     *
-     * @return The internationalized display name.
+     * @return The singleton instance of this manager.
      */
+    @NonNull
+    public static BitwardenConfig getInstance() {
+        return ExtensionList.lookupSingleton(BitwardenConfig.class);
+    }
+
+    /**
+     * @return {@code true} if the plugin is configured with an API key and master password credential ID
+     */
+    public boolean isConfigured() {
+        return apiCredentialId != null && masterPasswordCredentialId != null;
+    }
+
     @Override
-    @Nonnull
+    @NonNull
     public String getDisplayName() {
         return Messages.BitwardenConfig_DisplayName();
     }
 
-    /**
-     * Provides global access to the single instance of this configuration.
-     *
-     * @return The singleton instance of {@link BitwardenConfig}.
-     */
-    public static BitwardenConfig getInstance() {
-        return GlobalConfiguration.all().get(BitwardenConfig.class);
-    }
-
+    @NonNull
     public String getServerUrl() {
-        return serverUrl;
+        return Util.fixNull(serverUrl, DEFAULT_SERVER_URL);
     }
 
+    @DataBoundSetter
+    public void setServerUrl(@CheckForNull String serverUrl) {
+        String strippedUrl = stripToNull(serverUrl);
+        if (!Objects.equals(this.serverUrl, strippedUrl)) requiresReauthentication = true;
+        this.serverUrl = strippedUrl;
+    }
+
+    @CheckForNull
     public String getApiCredentialId() {
         return apiCredentialId;
     }
 
+    @DataBoundSetter
+    public void setApiCredentialId(@CheckForNull String apiCredentialId) {
+        String strippedId = stripToNull(apiCredentialId);
+        if (!Objects.equals(this.apiCredentialId, strippedId)) requiresReauthentication = true;
+        this.apiCredentialId = strippedId;
+    }
+
+    @CheckForNull
     public String getMasterPasswordCredentialId() {
         return masterPasswordCredentialId;
     }
 
-    public String getCliExecutablePath() {
-        return cliExecutablePath;
+    @DataBoundSetter
+    public void setMasterPasswordCredentialId(@CheckForNull String masterPasswordCredentialId) {
+        String strippedId = stripToNull(masterPasswordCredentialId);
+        if (!Objects.equals(this.masterPasswordCredentialId, strippedId)) requiresReauthentication = true;
+        this.masterPasswordCredentialId = strippedId;
     }
 
-    public int getCacheDuration() {
-        return cacheDuration;
-    }
-
+    @CheckForNull
     public String getFileCredentialSuffixes() {
         return fileCredentialSuffixes;
     }
 
     @DataBoundSetter
-    public void setServerUrl(String serverUrl) {
-        this.serverUrl = serverUrl;
-    }
-
-    @DataBoundSetter
-    public void setApiCredentialId(String apiCredentialId) {
-        this.apiCredentialId = apiCredentialId;
-    }
-
-    @DataBoundSetter
-    public void setMasterPasswordCredentialId(String masterPasswordCredentialId) {
-        this.masterPasswordCredentialId = masterPasswordCredentialId;
-    }
-
-    @DataBoundSetter
-    public void setCliExecutablePath(String cliExecutablePath) {
-        this.cliExecutablePath = cliExecutablePath;
-    }
-
-    @DataBoundSetter
-    public void setCacheDuration(int cacheDuration) {
-        this.cacheDuration = (cacheDuration > 0) ? cacheDuration : 5;
-    }
-
-    @DataBoundSetter
-    public void setFileCredentialSuffixes(String fileCredentialSuffixes) {
-        this.fileCredentialSuffixes = fileCredentialSuffixes;
+    public void setFileCredentialSuffixes(@CheckForNull String fileCredentialSuffixes) {
+        this.fileCredentialSuffixes = stripToNull(fileCredentialSuffixes);
     }
 
     /**
-     * Creates a simple, in-memory copy of this object's critical settings for state comparison.
+     * Returns whether the given item name ends with a user-configured file credential suffix.
      *
-     * @return A new {@link BitwardenConfig} instance with copied fields.
+     * @param name the name of the Bitwarden item
+     * @return {@code true} if the name ends with a configured suffix
      */
-    private BitwardenConfig snapshot() {
-        BitwardenConfig snapshot = new BitwardenConfig();
-        snapshot.serverUrl = this.serverUrl;
-        snapshot.apiCredentialId = this.apiCredentialId;
-        snapshot.masterPasswordCredentialId = this.masterPasswordCredentialId;
-        snapshot.cliExecutablePath = this.cliExecutablePath;
-        return snapshot;
+    public boolean hasFileCredentialSuffix(@NonNull String name) {
+        String suffixes = getFileCredentialSuffixes();
+        if (suffixes == null) return false;
+        String strippedName = name.strip();
+        return Arrays.stream(suffixes.split(","))
+                .map(String::strip)
+                .filter(s -> !s.isEmpty())
+                .anyMatch(strippedName::endsWith);
     }
 
-    /**
-     * A helper method to check if the essential configuration (API key and master password) is present.
-     *
-     * @return {@code true} if the plugin is configured with the minimum required credentials.
-     */
-    public boolean isConfigured() {
-        return apiCredentialId != null
-                && !apiCredentialId.isEmpty()
-                && masterPasswordCredentialId != null
-                && !masterPasswordCredentialId.isEmpty();
+    @CheckForNull
+    public String getCliExecutablePath() {
+        return cliExecutablePath;
     }
 
-    /**
-     * The entry point for Jenkins when a user saves the global configuration from the UI.
-     * It binds the form data to this object's fields and then calls {@link #save()}.
-     * <p>
-     * By calling {@link #save()}, we create a single, unified hook that ensures changes made
-     * by both users (via this method) and by JCasC are handled consistently.
-     *
-     * @param req  The current web request.
-     * @param json The JSON object representing the form data for this configuration section.
-     * @return {@code true} to indicate success.
-     * @throws FormException if the form data cannot be processed.
-     */
+    @DataBoundSetter
+    public void setCliExecutablePath(@CheckForNull String cliExecutablePath) {
+        String strippedPath = stripToNull(cliExecutablePath);
+        if (!Objects.equals(this.cliExecutablePath, strippedPath)) requiresReauthentication = true;
+        this.cliExecutablePath = strippedPath;
+    }
+
+    public int getCacheDuration() {
+        return (cacheDuration > 0) ? cacheDuration : DEFAULT_CACHE_DURATION;
+    }
+
+    @DataBoundSetter
+    public void setCacheDuration(int duration) {
+        int newDuration = (duration > 0) ? duration : DEFAULT_CACHE_DURATION;
+        if (cacheDuration != newDuration) requiresCacheRefresh = true;
+        cacheDuration = newDuration;
+    }
+
     @Override
-    public boolean configure(StaplerRequest2 req, JSONObject json) throws FormException {
+    public boolean configure(@NonNull StaplerRequest2 req, @NonNull JSONObject json) throws FormException {
         super.configure(req, json);
         save();
         return true;
     }
 
     /**
-     * The unified hook for all configuration changes, called by both the UI (via {@link #configure}) and JCasC.
+     * Triggers a background task to re-authenticate and/or resync the credential cache if any critical settings have changed.
      * <p>
-     * This method performs a "dirty check" to see if any critical settings have actually changed.
-     * If they have, it triggers a background task to re-authenticate and refresh the credential cache.
+     * {@inheritDoc}
      */
     @Override
-    public void save() {
+    public synchronized void save() {
         super.save();
-        boolean configChanged = loadedConfig == null
-                || !Objects.equals(this.serverUrl, loadedConfig.serverUrl)
-                || !Objects.equals(this.apiCredentialId, loadedConfig.apiCredentialId)
-                || !Objects.equals(this.masterPasswordCredentialId, loadedConfig.masterPasswordCredentialId)
-                || !Objects.equals(this.cliExecutablePath, loadedConfig.cliExecutablePath);
-
-        if (isConfigured() && configChanged) {
-            LOGGER.info("Bitwarden configuration has changed, triggering background re-authentication and sync.");
+        if (requiresReauthentication) {
+            requiresReauthentication = false;
+            requiresCacheRefresh = false;
+            LOGGER.info("Primary Bitwarden configuration settings updated. Reloading");
             Timer.get().submit(() -> {
-                BitwardenSessionManager.getInstance().invalidateSessionToken();
-                BitwardenCacheManager.getInstance().invalidateCache();
-                if (BitwardenCLIManager.getInstance().provisionExecutable()) {
-                    BitwardenCacheManager.getInstance().updateCache();
-                }
+                SessionManager.getInstance().invalidateSession();
+                invalidateAndRefreshCache();
             });
+        } else if (requiresCacheRefresh) {
+            requiresCacheRefresh = false;
+            LOGGER.info("Cache configuration settings updated. Reloading");
+            Timer.get().submit(this::invalidateAndRefreshCache);
         }
-        // After any save, update our snapshot to the new state.
-        this.loadedConfig = snapshot();
     }
 
     /**
-     * Creates a credentials matcher for the configuration dropdowns.
-     * This filter includes standard credentials but excludes any credentials that come from
-     * this plugin itself, preventing a "chicken-and-egg" problem.
-     *
-     * @return A {@link CredentialsMatcher} to filter the list of available credentials.
+     * Invalidates the Bitwarden item metadata cache and refreshes it if the plugin is configured.
      */
-    private CredentialsMatcher getCredentialsMatcher() {
-        return CredentialsMatchers.allOf(
-                CredentialsMatchers.anyOf(
-                        CredentialsMatchers.withScope(CredentialsScope.SYSTEM),
-                        CredentialsMatchers.withScope(CredentialsScope.GLOBAL)),
-                credential -> !(Proxy.isProxyClass(credential.getClass())
-                        && Proxy.getInvocationHandler(credential) instanceof CredentialProxy));
+    private void invalidateAndRefreshCache() {
+        CacheManager.getInstance().invalidateCache();
+        if (isConfigured()) CacheManager.getInstance().refreshCache();
     }
 
     /**
-     * Populates the "Bitwarden API Key Credential" dropdown in the UI.
-     * <p>
-     * This method is called by Stapler.
+     * Populates the Bitwarden API Key Credential dropdown in the UI.
      *
-     * @param context The current Jenkins context.
-     * @param apiCredentialId The ID of the currently selected credential.
-     * @return A {@link ListBoxModel} containing suitable credentials.
+     * @param context the current Jenkins context
+     * @param apiCredentialId the ID of the currently selected credential
+     * @return a list of suitable credentials
      */
     @POST
+    @NonNull
     public ListBoxModel doFillApiCredentialIdItems(
-            @AncestorInPath Jenkins context, @QueryParameter String apiCredentialId) {
-        if (!context.hasPermission(Jenkins.MANAGE))
-            return new StandardListBoxModel().includeCurrentValue(apiCredentialId);
-        return new StandardListBoxModel()
-                .includeEmptyValue()
-                .includeMatchingAs(
-                        ACL.SYSTEM2,
-                        context.getItemGroup(),
-                        StandardUsernamePasswordCredentials.class,
-                        Collections.emptyList(),
-                        getCredentialsMatcher())
-                .includeCurrentValue(apiCredentialId);
+            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String apiCredentialId) {
+        return createCredentialsListBox(apiCredentialId, context, StandardUsernamePasswordCredentials.class);
     }
 
     /**
-     * Populates the "Bitwarden Master Password Credential" dropdown in the UI.
-     * <p>
-     * This method is called by Stapler.
+     * Populates the Bitwarden Master Password Credential dropdown in the UI.
      *
-     * @param context The current Jenkins context.
-     * @param masterPasswordCredentialId The ID of the currently selected credential.
-     * @return A {@link ListBoxModel} containing suitable credentials.
+     * @param context the current Jenkins context
+     * @param masterPasswordCredentialId the ID of the currently selected credential
+     * @return a list of suitable credentials
      */
     @POST
+    @NonNull
     public ListBoxModel doFillMasterPasswordCredentialIdItems(
-            @AncestorInPath Jenkins context, @QueryParameter String masterPasswordCredentialId) {
-        if (!context.hasPermission(Jenkins.MANAGE))
-            return new StandardListBoxModel().includeCurrentValue(masterPasswordCredentialId);
-        return new StandardListBoxModel()
-                .includeEmptyValue()
-                .includeMatchingAs(
-                        ACL.SYSTEM2,
-                        context.getItemGroup(),
-                        StringCredentials.class,
-                        Collections.emptyList(),
-                        getCredentialsMatcher())
-                .includeCurrentValue(masterPasswordCredentialId);
+            @NonNull @AncestorInPath Jenkins context, @CheckForNull @QueryParameter String masterPasswordCredentialId) {
+        return createCredentialsListBox(masterPasswordCredentialId, context, StringCredentials.class);
     }
 
     /**
-     * An action method for the "Refresh Now" button in the UI.
-     * <p>
-     * This method is called by Stapler.
-     * <p>
-     * Forces a re-authentication and triggers a non-destructive background refresh of the cache.
+     * Returns a dropdown list of credentials, applying security checks and filtering by type.
      *
-     * @return A {@link FormValidation} object indicating the action has started.
+     * @param id the ID of the currently selected credential
+     * @param context the Jenkins context
+     * @param credentialClass the Class of the concrete credential type to find
+     * @return a populated list box model for the Jenkins UI
      */
-    @POST
-    public FormValidation doRefreshCache() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
-        try {
-            LOGGER.info("Manual cache refresh triggered by administrator.");
-            BitwardenSessionManager.getInstance().invalidateSessionToken();
-            BitwardenCacheManager.getInstance().updateCache();
-            return FormValidation.ok(Messages.validation_refreshStarted());
-        } catch (Exception e) {
-            LOGGER.log(Level.WARNING, "Failed to start manual cache refresh", e);
-            return FormValidation.error(Messages.validation_refreshError(e.getMessage()));
-        }
+    @NonNull
+    private static ListBoxModel createCredentialsListBox(
+            @CheckForNull String id,
+            @NonNull Jenkins context,
+            @NonNull Class<? extends StandardCredentials> credentialClass) {
+        id = Util.fixNull(id);
+        return !context.hasPermission(Jenkins.ADMINISTER)
+                ? new StandardListBoxModel().includeEmptyValue()
+                : new StandardListBoxModel()
+                        .includeEmptyValue()
+                        .includeMatchingAs(
+                                ACL.SYSTEM2,
+                                context.getItemGroup(),
+                                credentialClass,
+                                Collections.emptyList(),
+                                CREDENTIALS_MATCHER)
+                        .includeCurrentValue(id);
     }
 
     /**
-     * An action method for the "Check Version" button in the UI.
-     * <p>
-     * This method is called by Stapler.
+     * An action for the "Sync Vault" button in the UI.
      *
-     * @return A {@link FormValidation} object showing the installed CLI version or an error.
+     * @return a form validation indicating the action was attempted
      */
     @POST
+    @NonNull
+    public FormValidation doSyncVault() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
+        LOGGER.info("Vault sync triggered by administrator");
+        SessionManager.getInstance().invalidateSession();
+        CacheManager.getInstance().invalidateCache();
+        CacheManager.getInstance().refreshCache();
+        return FormValidation.ok(Messages.validation_syncCompleted());
+    }
+
+    /**
+     * An action for the "Check Version" button in the UI.
+     *
+     * @return a form validation showing the installed Bitwarden CLI version or an error
+     */
+    @POST
+    @NonNull
     public FormValidation doCheckCliVersion() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
         try {
-            String currentVersion = BitwardenCLI.version();
-            return FormValidation.ok(Messages.validation_cliVersion(currentVersion));
-        } catch (Exception e) {
+            return FormValidation.ok(Messages.validation_cliVersion(BitwardenCli.version()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
-            return FormValidation.error(Messages.validation_cliError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliError(Util.fixNull(e.getMessage(), e.toString())));
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Failed to check Bitwarden CLI version", e);
+            return FormValidation.error(Messages.validation_cliError(Util.fixNull(e.getMessage(), e.toString())));
         }
     }
 
     /**
-     * An action method for the "Download Latest" button in the UI.
-     * <p>
-     * This method is called by Stapler.
+     * An action for the "Update CLI" button in the UI.
      *
-     * @return A {@link FormValidation} object indicating the result of the download attempt.
+     * @return a form validation indicating the result of the download/update attempt
      */
     @POST
-    public FormValidation doForceUpdateCli() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
-        String userPath = getCliExecutablePath();
-        if (userPath != null && !userPath.trim().isEmpty()) {
-            return FormValidation.warning(Messages.validation_cliUpdateManual());
-        }
+    @NonNull
+    public FormValidation doUpdateCli() {
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        if (getCliExecutablePath() != null) return FormValidation.warning(Messages.validation_cliUpdateManual());
+        LOGGER.info("Bitwarden CLI update triggered by administrator");
         try {
-            LOGGER.info("Manual Bitwarden CLI update triggered by administrator.");
-            BitwardenCLIManager.getInstance().downloadLatestExecutable();
-            String newVersion = BitwardenCLI.version();
-            return FormValidation.ok(Messages.validation_cliUpdateOk(newVersion));
-        } catch (Exception e) {
+            CliManager.updateExecutable();
+            return FormValidation.ok(Messages.validation_cliUpdateOk(BitwardenCli.version()));
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
             LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
-            return FormValidation.error(Messages.validation_cliUpdateError(e.getMessage()));
+            return FormValidation.error(Messages.validation_cliUpdateError(Util.fixNull(e.getMessage(), e.toString())));
+        } catch (IOException e) {
+            LOGGER.log(Level.WARNING, "Manual CLI update failed", e);
+            return FormValidation.error(Messages.validation_cliUpdateError(Util.fixNull(e.getMessage(), e.toString())));
         }
     }
 
     /**
-     * An action method for the "Verify Session" button in the UI.
-     * <p>
-     * This method is called by Stapler.
-     * It performs a fast, read-only check to see if the {@link com.mwdle.bitwarden.cli.BitwardenSessionManager}
-     * currently holds a valid, unlocked session token.
+     * An action for the "Verify Session" button in the UI.
      *
-     * @return A {@link FormValidation} object indicating if the current session is active or not.
+     * @return a form validation indicating whether the plugin has an active Bitwarden CLI session
      */
     @POST
+    @NonNull
     public FormValidation doVerifySession() {
-        Jenkins.get().checkPermission(Jenkins.MANAGE);
-        if (!isConfigured()) {
-            return FormValidation.warning(Messages.validation_sessionNotConfigured());
-        }
-        boolean isValid = BitwardenSessionManager.getInstance().isSessionValid();
+        Jenkins.get().checkPermission(Jenkins.ADMINISTER);
+        if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
+        boolean isValid = SessionManager.getInstance().isSessionValid();
         if (isValid) {
             return FormValidation.ok(Messages.validation_sessionOk());
         } else {

@@ -1,0 +1,16 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": ["github>jenkinsci/renovate-config"],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "managerFilePatterns": [
+        "/^\\.github/workflows/integration-test\\.yaml$/"
+      ],
+      "matchStrings": ["BW_CLI_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "depNameTemplate": "bitwarden/clients",
+      "datasourceTemplate": "github-releases",
+      "extractVersionTemplate": "^cli-v(?<version>.*)$"
+    }
+  ]
+}

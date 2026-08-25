@@ -1,105 +1,59 @@
 package com.mwdle.bitwarden.converters;
 
+import static com.mwdle.bitwarden.util.StringUtils.stripToNull;
+
 import com.cloudbees.jenkins.plugins.sshcredentials.SSHUserPrivateKey;
 import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey;
+import com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey.DirectEntryPrivateKeySource;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import com.mwdle.bitwarden.model.BitwardenItemType;
 import com.mwdle.bitwarden.model.BitwardenSshKey;
+import edu.umd.cs.findbugs.annotations.CheckForNull;
+import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.Extension;
-import hudson.model.Descriptor;
-import java.lang.reflect.Proxy;
-import java.util.logging.Logger;
-import jenkins.model.Jenkins;
+import java.util.Objects;
+import java.util.Optional;
 
 /**
- * Converts Bitwarden SSH Key items into a Jenkins {@link SSHUserPrivateKey}.
+ * Converts {@link BitwardenItemType#SSH_KEY} items into Jenkins {@link BasicSSHUserPrivateKey}.
  */
 @Extension
-public class SshKeyConverter extends CredentialConverter {
+public final class SshKeyConverter implements CredentialConverter {
 
-    private static final Logger LOGGER = Logger.getLogger(SshKeyConverter.class.getName());
+    @Override
+    @NonNull
+    public SSHUserPrivateKey createProxy(@NonNull String id, @NonNull BitwardenItemMetadata metadata) {
+        return CredentialProxy.create(id, metadata, SSHUserPrivateKey.class, BasicSSHUserPrivateKey.class, getClass());
+    }
+
+    @Override
+    @NonNull
+    public BasicSSHUserPrivateKey convert(
+            @NonNull String id, @NonNull String description, @NonNull BitwardenItem item) {
+        BitwardenSshKey sshKeyData =
+                Objects.requireNonNull(item.sshKey, "Bitwarden item is an SSH key but missing SSH key data!");
+        String username = getUsername(sshKeyData.publicKey());
+        DirectEntryPrivateKeySource privateKeySource =
+                sshKeyData.privateKey() != null ? new DirectEntryPrivateKeySource(sshKeyData.privateKey()) : null;
+        return new BasicSSHUserPrivateKey(CredentialsScope.GLOBAL, id, username, privateKeySource, null, description);
+    }
 
     /**
-     * Derives a username from the public key's comment, if available.
+     * Returns the username from the public key's comment, if available.
      * <p>
-     * If the public key string contains a comment in the common "user@host" format,
-     * this method extracts the "user" part.
+     * If the comment is in {@code user@host} or email format, extracts the {@code user} part.
      *
-     * @param sshKeyData The SSH key data from the Bitwarden item.
-     * @return The derived username, or an empty string if it cannot be determined.
+     * @param publicKey the SSH public key from the Bitwarden item
+     * @return the derived username, or null if it cannot be determined
      */
-    private static String getUsername(BitwardenSshKey sshKeyData) {
-        String username = "";
-        String publicKey = sshKeyData.getPublicKey();
-        if (publicKey != null) {
-            String[] parts = publicKey.trim().split("\\s+");
-            if (parts.length > 2) {
-                // The last part of a public key is typically the comment (e.g., "user@host")
-                String comment = parts[parts.length - 1];
-                username = comment.split("@")[0];
-            }
-        }
-        return username;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation returns {@code true} if the item's type is {@link BitwardenItemType#SSH_KEY}.
-     */
-    @Override
-    public boolean canConvert(BitwardenItemMetadata metadata) {
-        return metadata.getItemType() == BitwardenItemType.SSH_KEY;
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation returns {@code true} if the Bitwarden item contains a non-null {@code privateKey}.
-     */
-    @Override
-    public boolean canConvert(BitwardenItem item) {
-        BitwardenSshKey sshKeyData = item.getSshKey();
-        boolean canConvert = sshKeyData != null && sshKeyData.getPrivateKey() != null;
-        LOGGER.fine(() ->
-                "canConvert: item id=" + item.getId() + " name='" + item.getName() + "' canConvert=" + canConvert);
-        return canConvert;
-    }
-
-    @Override
-    public SSHUserPrivateKey createProxy(CredentialsScope scope, String id, BitwardenItemMetadata metadata) {
-        LOGGER.fine(() -> "Creating PROXY credential for SSH key: " + metadata.getId());
-
-        Descriptor<?> descriptor = Jenkins.get().getDescriptor(BasicSSHUserPrivateKey.class);
-        if (descriptor == null) {
-            LOGGER.warning(
-                    "Descriptor for BasicSSHUserPrivateKey not found. Is the SSH Credentials plugin installed and enabled?");
-            return null;
-        }
-
-        CredentialProxy handler = new CredentialProxy(id, metadata.getId(), metadata.getName(), descriptor);
-        return (SSHUserPrivateKey) Proxy.newProxyInstance(
-                SSHUserPrivateKey.class.getClassLoader(), new Class<?>[] {SSHUserPrivateKey.class}, handler);
-    }
-
-    /**
-     * {@inheritDoc}
-     * <p>
-     * This implementation returns a {@link BasicSSHUserPrivateKey}, deriving the username from the
-     * public key's comment field if available.
-     */
-    @Override
-    public BasicSSHUserPrivateKey convert(CredentialsScope scope, String id, String description, BitwardenItem item) {
-        LOGGER.fine(() -> "convert: id=" + id + " item id=" + item.getId() + " name='" + item.getName() + "'");
-        BitwardenSshKey sshKeyData = item.getSshKey();
-        String username = getUsername(sshKeyData);
-        LOGGER.fine(() -> "convert: derived username='" + username + "'");
-        BasicSSHUserPrivateKey.DirectEntryPrivateKeySource privateKeySource =
-                new BasicSSHUserPrivateKey.DirectEntryPrivateKeySource(sshKeyData.getPrivateKey());
-
-        // Pass in a blank string for the passphrase since Bitwarden does not provide such a field.
-        return new BasicSSHUserPrivateKey(scope, id, username, privateKeySource, "", description);
+    @CheckForNull
+    private static String getUsername(@CheckForNull String publicKey) {
+        return Optional.ofNullable(stripToNull(publicKey))
+                .map(key -> key.split("\\s+", 3))
+                .filter(parts -> parts.length > 2 && parts[2].contains("@"))
+                .map(parts -> parts[2].substring(0, parts[2].indexOf('@')).strip())
+                .orElse(null);
     }
 }

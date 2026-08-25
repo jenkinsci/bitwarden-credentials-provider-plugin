@@ -1,4 +1,4 @@
 <?jelly escape-by-default='true'?>
 <div>
-    Allows fetching secrets from a Bitwarden or Vaultwarden vault and using them as native Jenkins credentials.
+    Integrates Bitwarden and Vaultwarden with Jenkins, exposing vault items as native credentials.
 </div>

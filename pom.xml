@@ -5,7 +5,7 @@
   <parent>
     <groupId>org.jenkins-ci.plugins</groupId>
     <artifactId>plugin</artifactId>
-    <version>6.2138.v03274d462c13</version>
+    <version>6.2211.v27f680c93c53</version>
     <relativePath />
   </parent>
 
@@ -15,7 +15,6 @@
   <packaging>hpi</packaging>
 
   <name>Bitwarden Credentials Provider</name>
-  <description>A Jenkins credentials provider for Bitwarden that exposes vault items as native Jenkins credentials.</description>
   <url>https://github.com/jenkinsci/${project.artifactId}-plugin</url>
 
   <licenses>
@@ -35,7 +34,7 @@
   <properties>
     <changelist>999999-SNAPSHOT</changelist>
     <!-- https://www.jenkins.io/doc/developer/plugin-development/choosing-jenkins-baseline/ -->
-    <jenkins.baseline>2.504</jenkins.baseline>
+    <jenkins.baseline>2.541</jenkins.baseline>
     <jenkins.version>${jenkins.baseline}.3</jenkins.version>
     <gitHubRepo>jenkinsci/${project.artifactId}-plugin</gitHubRepo>
 
@@ -46,11 +45,11 @@
 
   <dependencyManagement>
     <dependencies>
-      <!-- https://mvnrepository.com/artifact/io.jenkins.tools.bom/bom-2.516.x -->
+      <!-- https://github.com/jenkinsci/bom -->
       <dependency>
         <groupId>io.jenkins.tools.bom</groupId>
         <artifactId>bom-${jenkins.baseline}.x</artifactId>
-        <version>5983.v443959746f1f</version>
+        <version>6783.v88c6c30f4b_db_</version>
         <type>pom</type>
         <scope>import</scope>
       </dependency>
@@ -73,6 +72,12 @@
     <dependency>
       <groupId>org.jenkins-ci.plugins</groupId>
       <artifactId>ssh-credentials</artifactId>
+    </dependency>
+    <!-- test dependencies -->
+    <dependency>
+      <groupId>io.jenkins.configuration-as-code</groupId>
+      <artifactId>test-harness</artifactId>
+      <scope>test</scope>
     </dependency>
     <dependency>
       <groupId>org.mockito</groupId>
