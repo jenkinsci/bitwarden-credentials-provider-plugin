@@ -1,7 +1,6 @@
 # Bitwarden Credentials Provider Plugin
 
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/bitwarden-credentials-provider.svg)](https://plugins.jenkins.io/bitwarden-credentials-provider)
-[![GitHub release](https://img.shields.io/github/release/jenkinsci/bitwarden-credentials-provider-plugin.svg?label=release)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/releases/latest)
 [![CI Build Status](https://ci.jenkins.io/buildStatus/icon?job=Plugins/bitwarden-credentials-provider-plugin/main)](https://ci.jenkins.io/job/Plugins/job/bitwarden-credentials-provider-plugin/job/main/)
 [![CD Build Status](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml)
 [![Security Scan](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yml)
