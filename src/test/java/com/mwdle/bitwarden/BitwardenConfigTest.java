@@ -15,7 +15,6 @@ import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
 import java.lang.reflect.Field;
-
 import jenkins.model.Jenkins;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
