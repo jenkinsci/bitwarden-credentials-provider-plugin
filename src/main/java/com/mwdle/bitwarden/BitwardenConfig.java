@@ -96,7 +96,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
      * @return {@code true} if the plugin is configured with an API key and master password credential ID
      */
     public boolean isConfigured() {
-        return apiCredentialId != null && masterPasswordCredentialId != null;
+        return getApiCredentialId() != null && getMasterPasswordCredentialId() != null;
     }
 
     @Override
@@ -107,7 +107,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @NonNull
     public String getServerUrl() {
-        return Util.fixNull(serverUrl, DEFAULT_SERVER_URL);
+        return Util.fixNull(stripToNull(serverUrl), DEFAULT_SERVER_URL);
     }
 
     @DataBoundSetter
@@ -119,7 +119,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @CheckForNull
     public String getApiCredentialId() {
-        return apiCredentialId;
+        return stripToNull(apiCredentialId);
     }
 
     @DataBoundSetter
@@ -131,7 +131,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @CheckForNull
     public String getMasterPasswordCredentialId() {
-        return masterPasswordCredentialId;
+        return stripToNull(masterPasswordCredentialId);
     }
 
     @DataBoundSetter
@@ -143,7 +143,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @CheckForNull
     public String getFileCredentialSuffixes() {
-        return fileCredentialSuffixes;
+        return stripToNull(fileCredentialSuffixes);
     }
 
     @DataBoundSetter
@@ -169,7 +169,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
 
     @CheckForNull
     public String getCliExecutablePath() {
-        return cliExecutablePath;
+        return stripToNull(cliExecutablePath);
     }
 
     @DataBoundSetter

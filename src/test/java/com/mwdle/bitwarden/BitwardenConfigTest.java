@@ -14,6 +14,7 @@ import hudson.security.ACLContext;
 import hudson.util.FormValidation;
 import hudson.util.ListBoxModel;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import jenkins.model.Jenkins;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -64,6 +65,16 @@ class BitwardenConfigTest {
             assertNull(config.getApiCredentialId());
         }
 
+        @ParameterizedTest
+        @CsvSource({"0, 5", "-3, 5", "10, 10", "1, 1"})
+        @DisplayName("defaults non-positive cache durations to 5 minutes")
+        void cacheDurationDefaulting(int input, int expected, JenkinsRule ignored) {
+            BitwardenConfig config = config();
+            config.setCacheDuration(input);
+
+            assertEquals(expected, config.getCacheDuration());
+        }
+
         @Test
         @DisplayName("falls back to the default server URL when unset")
         void defaultServerUrl(JenkinsRule ignored) {
@@ -73,14 +84,37 @@ class BitwardenConfigTest {
             assertEquals("https://vault.bitwarden.com", config.getServerUrl());
         }
 
-        @ParameterizedTest
-        @CsvSource({"0, 5", "-3, 5", "10, 10", "1, 1"})
-        @DisplayName("defaults non-positive cache durations to 5 minutes")
-        void cacheDurationDefaulting(int input, int expected, JenkinsRule ignored) {
+        @Test
+        @DisplayName("server URL getter returns default URL when legacy storage contains empty/blank string")
+        void legacyBlankServerUrlReturnsDefaultUrl(JenkinsRule ignored) throws Exception {
             BitwardenConfig config = config();
-            config.setCacheDuration(input);
+            // Simulate XStream injecting empty/blank strings directly into private fields
+            setPrivateField(config, "serverUrl", "");
 
-            assertEquals(expected, config.getCacheDuration());
+            assertEquals("https://vault.bitwarden.com", config.getServerUrl());
+        }
+
+        @Test
+        @DisplayName("getters return null when legacy storage contains empty or blank strings")
+        void legacyBlankValuesReturnNull(JenkinsRule ignored) throws Exception {
+            BitwardenConfig config = config();
+
+            // Simulate XStream injecting empty/blank strings directly into private fields
+            setPrivateField(config, "cliExecutablePath", "");
+            setPrivateField(config, "apiCredentialId", "   ");
+            setPrivateField(config, "masterPasswordCredentialId", "");
+            setPrivateField(config, "fileCredentialSuffixes", "   ");
+
+            assertNull(config.getCliExecutablePath());
+            assertNull(config.getApiCredentialId());
+            assertNull(config.getMasterPasswordCredentialId());
+            assertNull(config.getFileCredentialSuffixes());
+        }
+
+        private void setPrivateField(Object target, String fieldName, Object value) throws Exception {
+            Field field = target.getClass().getDeclaredField(fieldName);
+            field.setAccessible(true);
+            field.set(target, value);
         }
     }
 
