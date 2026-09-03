@@ -99,6 +99,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
             case "getId" -> credentialId;
             case "getScope" -> CredentialsScope.GLOBAL;
             case "getFileName" -> itemName;
+            case "toString" -> toString();
             case "hashCode" -> IdCredentials.Helpers.hashCode((IdCredentials) proxy);
             case "equals" -> {
                 if (args == null || args.length != 1) yield false;
