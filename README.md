@@ -3,7 +3,7 @@
 [![Jenkins Plugin](https://img.shields.io/jenkins/plugin/v/bitwarden-credentials-provider.svg)](https://plugins.jenkins.io/bitwarden-credentials-provider)
 [![CI Build Status](https://ci.jenkins.io/buildStatus/icon?job=Plugins/bitwarden-credentials-provider-plugin/main)](https://ci.jenkins.io/job/Plugins/job/bitwarden-credentials-provider-plugin/job/main/)
 [![CD Build Status](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/cd.yaml)
-[![Security Scan](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yml)
+[![Security Scan](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yaml/badge.svg)](https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/actions/workflows/jenkins-security-scan.yaml)
 [![License](https://img.shields.io/github/license/jenkinsci/bitwarden-credentials-provider-plugin.svg)](LICENSE)
 
 The **Bitwarden Credentials Provider** is a [Jenkins](https://jenkins.io) plugin that integrates with [Bitwarden Password Manager](https://bitwarden.com) (and self-hosted [Vaultwarden](https://github.com/dani-garcia/vaultwarden)) to provide secrets as native Jenkins credentials.
