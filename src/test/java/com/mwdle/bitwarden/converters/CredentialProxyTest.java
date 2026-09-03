@@ -104,6 +104,20 @@ class CredentialProxyTest {
         }
 
         @Test
+        @DisplayName("supports toString")
+        void supportsToString(JenkinsRule ignored) {
+            try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                StandardCredentials proxy = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
+
+                String result = proxy.toString();
+
+                assertNotNull(result);
+                assertFalse(result.isBlank());
+                cli.verifyNoInteractions();
+            }
+        }
+
+        @Test
         @DisplayName("supports hashCode")
         void supportsHashCode(JenkinsRule ignored) {
             StandardCredentials proxy1 = stringConverter.createProxy("UniqueName", metadata("uuid-1", "UniqueName"));
