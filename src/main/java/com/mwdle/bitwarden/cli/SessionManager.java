@@ -27,7 +27,7 @@ public final class SessionManager {
     private SessionManager() {}
 
     /**
-     * @return The singleton instance of this manager.
+     * @return the singleton instance of this manager
      */
     @NonNull
     public static SessionManager getInstance() {
@@ -35,7 +35,7 @@ public final class SessionManager {
     }
 
     /**
-     * @return {@code true} if the Bitwarden session key is present.
+     * @return {@code true} if the Bitwarden session key is present
      */
     public boolean isSessionValid() {
         return sessionKey != null;

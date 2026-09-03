@@ -111,8 +111,8 @@ public final class CliManager {
     /**
      * Returns the download URL for the Bitwarden CLI based on the current OS and architecture.
      *
-     * @return the appropriate download URL for the Bitwarden CLI zip archive.
-     * @throws IOException if automatic download is not possible for the current OS or architecture.
+     * @return the appropriate download URL for the Bitwarden CLI zip archive
+     * @throws IOException if automatic download is not possible for the current OS or architecture
      */
     @NonNull
     private static URI getDownloadUrl() throws IOException {
