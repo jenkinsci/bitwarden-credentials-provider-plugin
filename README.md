@@ -17,7 +17,7 @@ This plugin integrates with personal vaults and organizations within the Passwor
 
 This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interactions with your vault. Its architecture is designed for performance, security, and resilience.
 
-1. **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64` systems. Other architectures require manual installation and providing the path to the executable (see Getting Started).
+1. **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64`/`amd64` systems. Other architectures require manual provisioning (see [Manual CLI Provisioning](#manual-cli-provisioning-optional)).
 2. **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) for the Jenkins credentials in memory.
 3. **On-Demand Background Refresh:** When credentials are requested and the cached item list is older than the "Item List Cache Duration" setting, the plugin serves the existing list immediately and re-syncs with the Bitwarden server via `bw sync` in the background, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
 4. **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
@@ -55,14 +55,14 @@ You can verify that the configuration was applied successfully using the followi
 
 ### Manual CLI Provisioning (Optional)
 
-By default, this plugin automatically downloads and manages the Bitwarden CLI for `x86_64` architectures running Linux, macOS, and Windows.
+By default, this plugin automatically downloads and manages the Bitwarden CLI for `x86_64`/`amd64` architectures running Linux, macOS, and Windows.
 
 However, there are two common scenarios where you must or may want to manually provision the CLI:
 
-1. **ARM Architectures:** Bitwarden does not package pre-compiled standalone binaries for ARM. To run this plugin on an ARM-based Jenkins controller, you must install the CLI manually. You could, for example, install Node.js, run `npm install -g @bitwarden/cli` and then point this plugin to the resulting executable path.
+1. **ARM Architectures:** The automatic downloader can only fetch the `x86_64`/`amd64` build. Bitwarden's `arm64` binaries exist only as version-specific GitHub release assets, so ARM controllers need manual provisioning — download the appropriate `arm64` build (see the Dockerfile below) or run `npm install -g @bitwarden/cli`, then point the plugin to the executable path.
 2. **Version Pinning & OSS Builds:** The plugin's automatic downloader fetches the latest non-OSS version of the CLI directly from Bitwarden's servers. If you need to pin a specific version, use the strict Open Source Software (OSS) build, or operate in an air-gapped environment, you can manage the installation yourself.
 
-Here is an example `Dockerfile` demonstrating how to manually install and pin a specific version of the official **OSS build** from GitHub releases into an `x86_64` Jenkins controller image:
+The following example `Dockerfile` demonstrates how to manually install and pin a specific version of the official **OSS build** from GitHub releases into an `x86_64` Jenkins controller image:
 
 ```Dockerfile
 FROM jenkins/jenkins:lts
@@ -72,8 +72,27 @@ USER root
 # Pin the Bitwarden CLI version for the Bitwarden Credentials Provider Plugin
 ARG BW_CLI_VERSION="2026.8.0"
 
-# Download the x86 BW CLI zip file directly from GitHub releases
+# Download the x86_64 BW CLI zip file directly from GitHub releases
 RUN curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-linux-${BW_CLI_VERSION}.zip" \
+    && unzip bw.zip -d /usr/local/bin/ \
+    && rm bw.zip \
+    && chmod +x /usr/local/bin/bw
+
+USER jenkins
+```
+
+Or, for an `arm64` Jenkins controller image (e.g., for an Apple Silicon machine), use an `arm64` version instead:
+
+```Dockerfile
+FROM jenkins/jenkins:lts
+
+USER root
+
+# Pin the Bitwarden CLI version for the Bitwarden Credentials Provider Plugin
+ARG BW_CLI_VERSION="2026.8.0"
+
+# Download the arm64 BW CLI zip file directly from GitHub releases
+RUN curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-linux-arm64-${BW_CLI_VERSION}.zip" \
     && unzip bw.zip -d /usr/local/bin/ \
     && rm bw.zip \
     && chmod +x /usr/local/bin/bw
@@ -119,7 +138,7 @@ unclassified:
     # It is recommended to create this credential manually via the Jenkins UI under SYSTEM (not global) scope.
     masterPasswordCredentialId: "bitwarden-master-password"
     # (Optional) The absolute path to a manually installed `bw` executable.
-    # Required for non-x86_64 architectures like ARM/aarch64.
+    # Required for architectures other than x86_64/amd64, such as ARM/aarch64.
     cliExecutablePath: "/usr/local/bin/bw"
     # The time (in minutes) before the cached item list is considered stale and a background re-sync is triggered on the next request.
     # Defaults to 5 minutes.

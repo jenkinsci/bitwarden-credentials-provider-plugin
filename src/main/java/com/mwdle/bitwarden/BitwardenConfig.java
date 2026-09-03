@@ -85,7 +85,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
     }
 
     /**
-     * @return The singleton instance of this manager.
+     * @return the singleton instance of this manager
      */
     @NonNull
     public static BitwardenConfig getInstance() {
