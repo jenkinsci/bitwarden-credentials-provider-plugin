@@ -5,9 +5,13 @@
     {
       "customType": "regex",
       "managerFilePatterns": [
-        "/^\\.github/workflows/integration-test\\.yaml$/"
+        "/^\\.github/workflows/integration-test\\.yaml$/",
+        "/^README\\.md$/"
       ],
-      "matchStrings": ["BW_CLI_VERSION: \"(?<currentValue>[^\"]+)\""],
+      "matchStrings": [
+        "BW_CLI_VERSION: \"(?<currentValue>[^\"]+)\"",
+        "ARG BW_CLI_VERSION=\"(?<currentValue>[^\"]+)\""
+      ],
       "depNameTemplate": "bitwarden/clients",
       "datasourceTemplate": "github-releases",
       "extractVersionTemplate": "^cli-v(?<version>.*)$"
