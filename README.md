@@ -70,7 +70,7 @@ FROM jenkins/jenkins:lts
 USER root
 
 # Pin the Bitwarden CLI version for the Bitwarden Credentials Provider Plugin
-ARG BW_CLI_VERSION="2026.8.0"
+ARG BW_CLI_VERSION="2026.9.1"
 
 # Download the x86_64 BW CLI zip file directly from GitHub releases
 RUN curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-linux-${BW_CLI_VERSION}.zip" \
@@ -89,7 +89,7 @@ FROM jenkins/jenkins:lts
 USER root
 
 # Pin the Bitwarden CLI version for the Bitwarden Credentials Provider Plugin
-ARG BW_CLI_VERSION="2026.8.0"
+ARG BW_CLI_VERSION="2026.9.1"
 
 # Download the arm64 BW CLI zip file directly from GitHub releases
 RUN curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-linux-arm64-${BW_CLI_VERSION}.zip" \

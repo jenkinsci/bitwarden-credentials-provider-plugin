@@ -21,7 +21,7 @@ jobs:
       - if: runner.os == 'macOS'
         name: Provision ARM64 Bitwarden CLI (macOS only)
         env:
-          BW_CLI_VERSION: "2026.8.0"
+          BW_CLI_VERSION: "2026.9.1"
         run: |
           mkdir -p $HOME/bw-cli
           curl -Lso bw.zip "https://github.com/bitwarden/clients/releases/download/cli-v${BW_CLI_VERSION}/bw-oss-macos-arm64-${BW_CLI_VERSION}.zip"
