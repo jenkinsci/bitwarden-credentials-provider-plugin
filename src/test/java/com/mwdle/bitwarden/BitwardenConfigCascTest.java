@@ -31,6 +31,8 @@ class BitwardenConfigCascTest {
         assertEquals("bitwarden-master-password", config.getMasterPasswordCredentialId());
         assertEquals("/usr/local/bin/bw", config.getCliExecutablePath());
         assertEquals(15, config.getCacheDuration());
+        assertEquals(30, config.getSecretCacheDuration());
+        assertEquals(30, config.getSecretCacheDuration());
         assertEquals(".env, .properties", config.getFileCredentialSuffixes());
     }
 
@@ -47,6 +49,7 @@ class BitwardenConfigCascTest {
         assertTrue(exportedYaml.contains("masterPasswordCredentialId: \"bitwarden-master-password\""));
         assertTrue(exportedYaml.contains("cliExecutablePath: \"/usr/local/bin/bw\""));
         assertTrue(exportedYaml.contains("cacheDuration: 15"));
+        assertTrue(exportedYaml.contains("secretCacheDuration: 30"));
         assertTrue(exportedYaml.contains("fileCredentialSuffixes: \".env, .properties\""));
     }
 }

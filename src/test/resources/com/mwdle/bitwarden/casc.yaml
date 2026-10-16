@@ -5,4 +5,5 @@ unclassified:
     masterPasswordCredentialId: "bitwarden-master-password"
     cliExecutablePath: "/usr/local/bin/bw"
     cacheDuration: 15
+    secretCacheDuration: 30
     fileCredentialSuffixes: ".env, .properties"

@@ -20,7 +20,7 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 1. **Bitwarden CLI Management:** The plugin manages its own copy of the `bw` executable for `x86_64`/`amd64` systems. Other architectures require manual provisioning (see [Manual CLI Provisioning](#manual-cli-provisioning-optional)).
 2. **Efficient Caching:** On startup or after being configured, the plugin performs an initial `bw sync`. It then caches only the non-secret **metadata** (names, IDs, types) for the Jenkins credentials in memory.
 3. **On-Demand Background Refresh:** When credentials are requested and the cached item list is older than the "Item List Cache Duration" setting, the plugin serves the existing list immediately and re-syncs with the Bitwarden server via `bw sync` in the background, keeping your credentials reasonably fresh without impacting performance from slow CLI operations.
-4. **Live, On-Demand Secret Fetching:** Your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them.
+4. **Live, On-Demand Secret Fetching:** By default, your actual secrets (passwords, keys, etc.) are **never** cached by Jenkins. They are fetched "live" from the CLI's secure, local database at the exact moment a build needs to use them. Short-lived in-memory secret caching can optionally be enabled (see **Secret Cache Duration** below).
 5. **Network Resilience:** If the Bitwarden server goes offline or Jenkins loses internet, pipelines will continue working uninterrupted using the Bitwarden CLI's local database. (Note: A Jenkins controller restart still requires an internet connection for the initial login).
 
 > [!WARNING]
@@ -28,7 +28,7 @@ This plugin uses the official Bitwarden CLI (`bw`) as its engine for all interac
 >
 > The fetching of secrets involves a call to the Bitwarden CLI, which is a relatively slow operation (it can take several seconds). While the plugin's caching makes most operations fast, any operation in Jenkins that requires resolving a secret value from Bitwarden will incur this one-time performance cost.
 >
-> For this reason, it is not recommended to use credentials from this plugin for high-frequency operations, such as configuring the SCM for a GitHub Organization folder, which utilizes credentials multiple times on every scan.
+> For this reason, it is not recommended to use credentials from this plugin for high-frequency operations, such as configuring the SCM for a GitHub Organization folder, which utilizes credentials multiple times on every scan, unless **Secret Cache Duration** is enabled.
 
 ## Getting Started
 
@@ -40,6 +40,7 @@ You must first configure the plugin's global settings under **Manage Jenkins > S
 - **Bitwarden Master Password Credential:** Select a Jenkins "Secret text" credential that stores your account's Master Password.
     - *It is highly recommended to create this manually via the Jenkins UI (not JCasC) with **System** scope to prevent exposure to standard pipelines.*
 - **Item List Cache Duration:** Sets how long (in minutes) the cached list of vault items is considered fresh. When credentials are requested after this duration has passed, a background re-sync is triggered. Defaults to 5 minutes.
+- **Secret Cache Duration (Optional):** Keeps resolved secret values in Jenkins memory for up to this many seconds (0 to 3600), so repeated lookups don't each run the slow Bitwarden CLI. Concurrent requests for the same item share one CLI call. Cached secrets stay encrypted in memory, are never written to disk, and are cleared on every vault sync, on **Sync Vault**, and when the configuration changes. Defaults to 0 (disabled), which keeps the live-fetch behavior described above.
 - **Bitwarden CLI Executable Path (Optional):** Provide the absolute path to a manually installed `bw` executable. See [Manual CLI Provisioning](#manual-cli-provisioning-optional).
 - **File Credential Suffixes (Optional):** A comma-separated list of name suffixes (e.g., `.env,.yaml`) identifying which Secure Notes should be exposed as File credentials instead of Secret text.
 

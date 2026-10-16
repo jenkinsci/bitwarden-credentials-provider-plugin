@@ -108,6 +108,9 @@ public final class CacheManager {
 
     /**
      * Synchronizes the Bitwarden CLI and returns the latest Bitwarden item metadata.
+     * <p>
+     * Also clears the {@link SecretCache} after a successful sync, so cached secrets are never older than the local
+     * vault.
      *
      * @return a list of Bitwarden item metadata
      * @throws InterruptedException if the command is interrupted
@@ -116,6 +119,7 @@ public final class CacheManager {
     @NonNull
     private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
         BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
+        SecretCache.getInstance().invalidate();
         return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
     }
 }

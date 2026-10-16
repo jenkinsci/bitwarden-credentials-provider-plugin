@@ -75,6 +75,16 @@ class BitwardenConfigTest {
             assertEquals(expected, config.getCacheDuration());
         }
 
+        @ParameterizedTest
+        @CsvSource({"0, 0", "-5, 0", "30, 30", "3600, 3600", "7200, 3600"})
+        @DisplayName("clamps the secret cache duration to between 0 and 3600 seconds")
+        void secretCacheDurationClamping(int input, int expected, JenkinsRule ignored) {
+            BitwardenConfig config = config();
+            config.setSecretCacheDuration(input);
+
+            assertEquals(expected, config.getSecretCacheDuration());
+        }
+
         @Test
         @DisplayName("falls back to the default server URL when unset")
         void defaultServerUrl(JenkinsRule ignored) {

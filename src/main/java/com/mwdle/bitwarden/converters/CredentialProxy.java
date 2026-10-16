@@ -4,6 +4,7 @@ import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.IdCredentials;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.mwdle.bitwarden.Messages;
+import com.mwdle.bitwarden.SecretCache;
 import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
@@ -116,7 +117,7 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
     }
 
     /**
-     * Returns a Bitwarden item from the CLI as a concrete Jenkins credential.
+     * Returns a Bitwarden item from the CLI (or the opt-in {@link SecretCache}) as a concrete Jenkins credential.
      *
      * @return the concrete Jenkins credential
      */
@@ -125,7 +126,11 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         if (resolvedCredential == null) {
             BitwardenItem item;
             try {
-                item = BitwardenCli.getItem(SessionManager.getInstance().getSessionKey(), itemId);
+                item = SecretCache.getInstance()
+                        .getItem(
+                                itemId,
+                                () -> BitwardenCli.getItem(
+                                        SessionManager.getInstance().getSessionKey(), itemId));
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(itemId), e);

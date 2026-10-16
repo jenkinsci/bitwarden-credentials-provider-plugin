@@ -60,6 +60,8 @@ public final class BitwardenConfig extends GlobalConfiguration {
     private static final String DEFAULT_SERVER_URL = "https://vault.bitwarden.com";
     /** The default cache duration in minutes. */
     private static final int DEFAULT_CACHE_DURATION = 5;
+    /** The maximum secret cache duration in seconds. */
+    public static final int MAX_SECRET_CACHE_DURATION = 3600;
 
     /** The URL of the Bitwarden server. */
     private String serverUrl = DEFAULT_SERVER_URL;
@@ -71,6 +73,8 @@ public final class BitwardenConfig extends GlobalConfiguration {
     private String cliExecutablePath;
     /** The cache duration in minutes for the list of Bitwarden item metadata. */
     private int cacheDuration = DEFAULT_CACHE_DURATION;
+    /** The cache duration in seconds for resolved secret values. {@code 0} (the default) disables secret caching. */
+    private int secretCacheDuration;
     /** A comma-separated list of suffixes to identify if a Bitwarden item should be treated as a File credential based on its name. */
     @SuppressWarnings("lgtm[jenkins/plaintext-storage]")
     private String fileCredentialSuffixes;
@@ -190,6 +194,22 @@ public final class BitwardenConfig extends GlobalConfiguration {
         cacheDuration = newDuration;
     }
 
+    /**
+     * @return the secret cache duration in seconds, between {@code 0} (disabled) and {@link #MAX_SECRET_CACHE_DURATION}
+     */
+    public int getSecretCacheDuration() {
+        return clampSecretCacheDuration(secretCacheDuration);
+    }
+
+    @DataBoundSetter
+    public void setSecretCacheDuration(int duration) {
+        secretCacheDuration = clampSecretCacheDuration(duration);
+    }
+
+    private static int clampSecretCacheDuration(int duration) {
+        return Math.min(Math.max(duration, 0), MAX_SECRET_CACHE_DURATION);
+    }
+
     @Override
     public boolean configure(@NonNull StaplerRequest2 req, @NonNull JSONObject json) throws FormException {
         super.configure(req, json);
@@ -224,6 +244,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
      * Invalidates the Bitwarden item metadata cache and refreshes it if the plugin is configured.
      */
     private void invalidateAndRefreshCache() {
+        SecretCache.getInstance().invalidate();
         CacheManager.getInstance().invalidateCache();
         if (isConfigured()) CacheManager.getInstance().refreshCache();
     }
@@ -295,6 +316,7 @@ public final class BitwardenConfig extends GlobalConfiguration {
         if (!isConfigured()) return FormValidation.warning(Messages.validation_sessionNotConfigured());
         LOGGER.info("Vault sync triggered by administrator");
         SessionManager.getInstance().invalidateSession();
+        SecretCache.getInstance().invalidate();
         CacheManager.getInstance().invalidateCache();
         CacheManager.getInstance().refreshCache();
         return FormValidation.ok(Messages.validation_syncCompleted());

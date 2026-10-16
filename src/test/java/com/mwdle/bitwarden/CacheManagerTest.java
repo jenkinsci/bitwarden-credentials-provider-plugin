@@ -10,10 +10,13 @@ import static org.mockito.Mockito.when;
 
 import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
+import com.mwdle.bitwarden.model.BitwardenItem;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
+import com.mwdle.bitwarden.model.BitwardenItemType;
 import hudson.util.Secret;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -58,6 +61,35 @@ class CacheManagerTest {
 
             cli.verify(() -> BitwardenCli.sync(any()), times(1));
             cli.verify(() -> BitwardenCli.listItemsMetadata(any()), times(1));
+        }
+    }
+
+    @Test
+    @DisplayName("clears the secret cache after syncing the vault")
+    void syncClearsSecretCache(JenkinsRule ignored) throws Exception {
+        BitwardenConfig.getInstance().setSecretCacheDuration(60);
+        AtomicInteger loads = new AtomicInteger();
+        SecretCache.ItemLoader loader = () -> {
+            loads.incrementAndGet();
+            return new BitwardenItem("item-id", "Note", BitwardenItemType.SECURE_NOTE, null, null, null);
+        };
+
+        try (MockedStatic<SessionManager> session = mockStatic(SessionManager.class);
+                MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+
+            SessionManager mockSessionManager = mock(SessionManager.class);
+            session.when(SessionManager::getInstance).thenReturn(mockSessionManager);
+            when(mockSessionManager.getSessionKey()).thenReturn(Secret.fromString("dummy-key"));
+            cli.when(() -> BitwardenCli.listItemsMetadata(any())).thenReturn(List.of());
+
+            SecretCache.getInstance().getItem("item-id", loader);
+            CacheManager.getInstance().getMetadata();
+            SecretCache.getInstance().getItem("item-id", loader);
+
+            assertEquals(2, loads.get(), "the cached item should be reloaded after a vault sync");
+        } finally {
+            BitwardenConfig.getInstance().setSecretCacheDuration(0);
+            SecretCache.getInstance().invalidate();
         }
     }
 

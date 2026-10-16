@@ -11,6 +11,7 @@ import static org.mockito.Mockito.when;
 import com.cloudbees.plugins.credentials.CredentialsScope;
 import com.cloudbees.plugins.credentials.common.StandardCredentials;
 import com.mwdle.bitwarden.BitwardenConfig;
+import com.mwdle.bitwarden.SecretCache;
 import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItem;
@@ -166,6 +167,49 @@ class CredentialProxyTest {
                 assertEquals("my-secret-value", proxy.getSecret().getPlainText());
                 assertSame(proxy.getSecret(), proxy.getSecret(), "second read should reuse the cached credential");
                 cli.verify(() -> BitwardenCli.getItem(any(), eq("item-id")), times(1));
+            }
+        }
+
+        @Test
+        @DisplayName("shares one CLI call across separate proxies when the secret cache is enabled")
+        void sharesSecretCacheAcrossProxies(JenkinsRule ignored) throws Exception {
+            SessionManager sessionManager = mock(SessionManager.class);
+            when(sessionManager.getSessionKey()).thenReturn(Secret.fromString("session"));
+            BitwardenConfig.getInstance().setSecretCacheDuration(60);
+            SecretCache.getInstance().invalidate();
+
+            try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
+                    MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
+                cli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenReturn(note());
+
+                StringCredentials first = converter.createProxy("cred-id", metadata("item-id", "Note"));
+                StringCredentials second = converter.createProxy("cred-id", metadata("item-id", "Note"));
+
+                assertEquals("my-secret-value", first.getSecret().getPlainText());
+                assertEquals("my-secret-value", second.getSecret().getPlainText());
+                cli.verify(() -> BitwardenCli.getItem(any(), eq("item-id")), times(1));
+            } finally {
+                BitwardenConfig.getInstance().setSecretCacheDuration(0);
+                SecretCache.getInstance().invalidate();
+            }
+        }
+
+        @Test
+        @DisplayName("fetches the item again for each new proxy when the secret cache is disabled")
+        void fetchesPerProxyWhenDisabled(JenkinsRule ignored) throws Exception {
+            SessionManager sessionManager = mock(SessionManager.class);
+            when(sessionManager.getSessionKey()).thenReturn(Secret.fromString("session"));
+
+            try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
+                    MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
+                cli.when(() -> BitwardenCli.getItem(any(), eq("item-id"))).thenReturn(note());
+
+                converter.createProxy("cred-id", metadata("item-id", "Note")).getSecret();
+                converter.createProxy("cred-id", metadata("item-id", "Note")).getSecret();
+
+                cli.verify(() -> BitwardenCli.getItem(any(), eq("item-id")), times(2));
             }
         }
 

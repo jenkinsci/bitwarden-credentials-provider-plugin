@@ -14,6 +14,9 @@
             <f:entry title="${%field.cacheDuration}" field="cacheDuration">
                 <f:number min="1" />
             </f:entry>
+            <f:entry title="${%field.secretCacheDuration}" field="secretCacheDuration">
+                <f:number min="0" max="3600" default="0" />
+            </f:entry>
             <f:entry title="${%field.fileCredentialSuffixes}" field="fileCredentialSuffixes">
                 <f:textbox />
             </f:entry>
