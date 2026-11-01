@@ -22,16 +22,15 @@ public sealed interface CredentialConverter
      */
     @CheckForNull
     static CredentialConverter getConverter(@NonNull BitwardenItemMetadata metadata) {
-        Class<? extends CredentialConverter> converterClass =
-                switch (metadata.type) {
-                    case LOGIN -> LoginConverter.class;
-                    case SECURE_NOTE ->
-                        BitwardenConfig.getInstance().hasFileCredentialSuffix(metadata.name)
-                                ? SecureNoteFileConverter.class
-                                : SecureNoteStringConverter.class;
-                    case SSH_KEY -> SshKeyConverter.class;
-                    case CARD, IDENTITY, UNKNOWN -> null;
-                };
+        Class<? extends CredentialConverter> converterClass = switch (metadata.type) {
+            case LOGIN -> LoginConverter.class;
+            case SECURE_NOTE ->
+                BitwardenConfig.getInstance().hasFileCredentialSuffix(metadata.name)
+                        ? SecureNoteFileConverter.class
+                        : SecureNoteStringConverter.class;
+            case SSH_KEY -> SshKeyConverter.class;
+            case CARD, IDENTITY, UNKNOWN -> null;
+        };
         return converterClass != null ? ExtensionList.lookupSingleton(converterClass) : null;
     }
 
