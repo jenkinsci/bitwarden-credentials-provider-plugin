@@ -11,6 +11,7 @@ import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.CheckForNull;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import hudson.ExtensionList;
+import hudson.util.Secret;
 import java.io.IOException;
 import java.io.Serial;
 import java.io.Serializable;
@@ -18,6 +19,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import jenkins.model.Jenkins;
 import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 
@@ -30,6 +33,9 @@ import org.jenkinsci.plugins.plaincredentials.FileCredentials;
 public final class CredentialProxy implements InvocationHandler, Serializable {
     @Serial
     private static final long serialVersionUID = 2L;
+
+    private static final Logger LOGGER = Logger.getLogger(CredentialProxy.class.getName());
+
     /** The class of the converter that created this proxy. */
     private final Class<? extends CredentialConverter> converterClass;
     /** The Jenkins ID for this credential. */
@@ -125,7 +131,21 @@ public final class CredentialProxy implements InvocationHandler, Serializable {
         if (resolvedCredential == null) {
             BitwardenItem item;
             try {
-                item = BitwardenCli.getItem(SessionManager.getInstance().getSessionKey(), itemId);
+                SessionManager sessionManager = SessionManager.getInstance();
+                Secret sessionKey = sessionManager.getSessionKey();
+                try {
+                    item = BitwardenCli.getItem(sessionKey, itemId);
+                } catch (IOException e) {
+                    if (!BitwardenCli.isSessionError(e)) {
+                        throw e;
+                    }
+                    LOGGER.log(
+                            Level.WARNING,
+                            "Bitwarden CLI session is invalid while fetching item {0}; re-authenticating and retrying",
+                            itemId);
+                    sessionManager.invalidateSession(sessionKey);
+                    item = BitwardenCli.getItem(sessionManager.getSessionKey(), itemId);
+                }
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
                 throw new IllegalStateException("Failed to fetch Bitwarden item: %s".formatted(itemId), e);

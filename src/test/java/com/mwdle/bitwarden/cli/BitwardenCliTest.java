@@ -1,6 +1,7 @@
 package com.mwdle.bitwarden.cli;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
@@ -19,9 +20,15 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -52,6 +59,7 @@ class BitwardenCliTest {
     private ArgumentListBuilder capturedCommand;
     private OutputStream capturedStdout;
     private OutputStream capturedStderr;
+    private Proc proc;
 
     private String stdout = "";
     private String stderr = "";
@@ -83,7 +91,7 @@ class BitwardenCliTest {
             return procStarter;
         });
 
-        Proc proc = mock(Proc.class);
+        proc = mock(Proc.class);
         when(procStarter.start()).thenReturn(proc);
         when(proc.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
                 .thenAnswer(invocation -> {
@@ -150,5 +158,64 @@ class BitwardenCliTest {
         String result = BitwardenCli.version();
 
         assertEquals("2026.7.0", result);
+    }
+
+    @Test
+    @DisplayName("identifies recoverable session and state corruption errors")
+    void identifiesSessionErrors() {
+        assertTrue(BitwardenCli.isSessionError(new IOException("Command failed. Stderr: You are not logged in.")));
+        assertTrue(BitwardenCli.isSessionError(new IOException("Command failed. Stderr: Vault is locked.")));
+        assertTrue(BitwardenCli.isSessionError(new IOException("Malformed JSON in file: data.json")));
+        assertTrue(BitwardenCli.isSessionError(new IOException("Invalid JSON, emptying data file")));
+        assertTrue(BitwardenCli.isSessionError(new IOException("Unauthorized response received for request")));
+
+        assertFalse(BitwardenCli.isSessionError(new IOException("Network connection timed out")));
+        assertFalse(BitwardenCli.isSessionError(new IOException((String) null)));
+    }
+
+    @Test
+    @DisplayName("serializes concurrent CLI executions")
+    void serializesConcurrentExecutions() throws Exception {
+        stdout = "  2026.7.0 \n";
+        AtomicInteger active = new AtomicInteger();
+        AtomicInteger maxActive = new AtomicInteger();
+
+        when(proc.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
+                .thenAnswer(invocation -> {
+                    int current = active.incrementAndGet();
+                    maxActive.accumulateAndGet(current, Math::max);
+                    try {
+                        Thread.sleep(30);
+                        capturedStdout.write(stdout.getBytes(StandardCharsets.UTF_8));
+                        return 0;
+                    } finally {
+                        active.decrementAndGet();
+                    }
+                });
+
+        int workers = 4;
+        ExecutorService executor = Executors.newFixedThreadPool(workers);
+        CountDownLatch ready = new CountDownLatch(workers);
+        CountDownLatch start = new CountDownLatch(1);
+        List<Future<String>> futures = new ArrayList<>();
+        try {
+            for (int i = 0; i < workers; i++) {
+                futures.add(executor.submit(() -> {
+                    ready.countDown();
+                    assertTrue(start.await(5, TimeUnit.SECONDS));
+                    return BitwardenCli.version();
+                }));
+            }
+            assertTrue(ready.await(5, TimeUnit.SECONDS));
+            start.countDown();
+
+            for (Future<String> future : futures) {
+                assertEquals("2026.7.0", future.get(10, TimeUnit.SECONDS));
+            }
+        } finally {
+            executor.shutdownNow();
+        }
+
+        assertEquals(1, maxActive.get(), "CLI executions should never overlap");
     }
 }
