@@ -9,6 +9,7 @@ import com.mwdle.bitwarden.cli.BitwardenCli;
 import com.mwdle.bitwarden.cli.SessionManager;
 import com.mwdle.bitwarden.model.BitwardenItemMetadata;
 import edu.umd.cs.findbugs.annotations.NonNull;
+import hudson.util.Secret;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -115,7 +116,20 @@ public final class CacheManager {
      */
     @NonNull
     private static List<BitwardenItemMetadata> fetchMetadata() throws IOException, InterruptedException {
-        BitwardenCli.sync(SessionManager.getInstance().getSessionKey());
-        return BitwardenCli.listItemsMetadata(SessionManager.getInstance().getSessionKey());
+        SessionManager sessionManager = SessionManager.getInstance();
+        Secret sessionKey = sessionManager.getSessionKey();
+        try {
+            BitwardenCli.sync(sessionKey);
+            return BitwardenCli.listItemsMetadata(sessionKey);
+        } catch (IOException e) {
+            if (!BitwardenCli.isSessionError(e)) {
+                throw e;
+            }
+            LOGGER.log(Level.WARNING, "Bitwarden CLI session is invalid; re-authenticating and retrying sync", e);
+            sessionManager.invalidateSession(sessionKey);
+            Secret refreshedKey = sessionManager.getSessionKey();
+            BitwardenCli.sync(refreshedKey);
+            return BitwardenCli.listItemsMetadata(refreshedKey);
+        }
     }
 }

@@ -20,8 +20,10 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import org.jenkinsci.plugins.plaincredentials.StringCredentials;
@@ -38,6 +40,7 @@ public final class BitwardenCli {
             .disable(StreamReadFeature.INCLUDE_SOURCE_IN_LOCATION)
             .build();
     private static final String ENV_BW_SESSION = "BW_SESSION";
+    private static final ReentrantLock CLI_LOCK = new ReentrantLock(true);
 
     private BitwardenCli() {
         throw new UnsupportedOperationException();
@@ -153,25 +156,52 @@ public final class BitwardenCli {
     }
 
     /**
+     * Returns {@code true} if the given CLI failure indicates a lost, locked, or corrupted Bitwarden CLI session
+     * that can be recovered by re-authenticating.
+     *
+     * @param exception the exception thrown by a Bitwarden CLI command
+     * @return {@code true} if invalidating and re-acquiring the session may recover from the error
+     */
+    public static boolean isSessionError(@NonNull IOException exception) {
+        String message = exception.getMessage();
+        if (message == null) {
+            return false;
+        }
+        String lower = message.toLowerCase(Locale.ROOT);
+        return lower.contains("you are not logged in")
+                || lower.contains("vault is locked")
+                || lower.contains("malformed json")
+                || lower.contains("emptying data file")
+                || lower.contains("invalid key, throwing away stored keys")
+                || lower.contains("unauthorized response received")
+                || lower.contains("\"statuscode\":401");
+    }
+
+    /**
      * Logs out of the Bitwarden CLI.
      *
      * @throws InterruptedException if the command is interrupted
      * @throws IOException if the CLI executable path cannot be determined
      */
     public static void logout() throws InterruptedException, IOException {
-        LOGGER.info("Logging out of vault and resetting Bitwarden CLI");
-        ArgumentListBuilder command = bitwardenCommand("logout");
+        CLI_LOCK.lockInterruptibly();
         try {
-            executeCommand(command, Map.of());
-        } catch (IOException e) {
-            LOGGER.log(Level.FINE, "Logout failed (likely already logged out)", e);
-        }
-        try {
-            // See https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18
-            Files.deleteIfExists(
-                    DirectoryProvider.getCliDataDirectory().toPath().resolve("data.json"));
-        } catch (IOException e) {
-            LOGGER.log(Level.WARNING, "Failed to reset Bitwarden CLI", e);
+            LOGGER.info("Logging out of vault and resetting Bitwarden CLI");
+            ArgumentListBuilder command = bitwardenCommand("logout");
+            try {
+                executeCommand(command, Map.of());
+            } catch (IOException e) {
+                LOGGER.log(Level.FINE, "Logout failed (likely already logged out)", e);
+            }
+            try {
+                // See https://github.com/jenkinsci/bitwarden-credentials-provider-plugin/issues/18
+                Files.deleteIfExists(
+                        DirectoryProvider.getCliDataDirectory().toPath().resolve("data.json"));
+            } catch (IOException e) {
+                LOGGER.log(Level.WARNING, "Failed to reset Bitwarden CLI", e);
+            }
+        } finally {
+            CLI_LOCK.unlock();
         }
     }
 
@@ -207,34 +237,39 @@ public final class BitwardenCli {
     @NonNull
     private static String executeCommand(@NonNull ArgumentListBuilder args, @NonNull Map<String, String> environment)
             throws InterruptedException, IOException {
-        LOGGER.log(Level.FINE, "Executing command: {0}", args);
+        CLI_LOCK.lockInterruptibly();
+        try {
+            LOGGER.log(Level.FINE, "Executing command: {0}", args);
 
-        Map<String, String> env = new HashMap<>(environment);
-        env.put(
-                "BITWARDENCLI_APPDATA_DIR",
-                DirectoryProvider.getCliDataDirectory().getAbsolutePath());
+            Map<String, String> env = new HashMap<>(environment);
+            env.put(
+                    "BITWARDENCLI_APPDATA_DIR",
+                    DirectoryProvider.getCliDataDirectory().getAbsolutePath());
 
-        Launcher launcher = new Launcher.LocalLauncher(TaskListener.NULL);
-        ByteArrayOutputStream stdout = new ByteArrayOutputStream();
-        ByteArrayOutputStream stderr = new ByteArrayOutputStream();
+            Launcher launcher = new Launcher.LocalLauncher(TaskListener.NULL);
+            ByteArrayOutputStream stdout = new ByteArrayOutputStream();
+            ByteArrayOutputStream stderr = new ByteArrayOutputStream();
 
-        Proc process = launcher.launch()
-                .cmds(args)
-                .envs(env)
-                .stdout(stdout)
-                .stderr(stderr)
-                .start();
+            Proc process = launcher.launch()
+                    .cmds(args)
+                    .envs(env)
+                    .stdout(stdout)
+                    .stderr(stderr)
+                    .start();
 
-        int exitCode = process.joinWithTimeout(3, TimeUnit.MINUTES, new LogTaskListener(LOGGER, Level.SEVERE));
-        String output = stdout.toString(StandardCharsets.UTF_8).strip();
-        String errors = stderr.toString(StandardCharsets.UTF_8).strip();
+            int exitCode = process.joinWithTimeout(3, TimeUnit.MINUTES, new LogTaskListener(LOGGER, Level.SEVERE));
+            String output = stdout.toString(StandardCharsets.UTF_8).strip();
+            String errors = stderr.toString(StandardCharsets.UTF_8).strip();
 
-        if (exitCode != 0) {
-            throw new IOException("Command failed with exit code %s. Stderr: %s".formatted(exitCode, errors));
-        } else if (!errors.isEmpty()) {
-            LOGGER.log(Level.FINE, "Command exit code is 0, but stderr is not empty: {0}", errors);
+            if (exitCode != 0) {
+                throw new IOException("Command failed with exit code %s. Stderr: %s".formatted(exitCode, errors));
+            } else if (!errors.isEmpty()) {
+                LOGGER.log(Level.FINE, "Command exit code is 0, but stderr is not empty: {0}", errors);
+            }
+
+            return output;
+        } finally {
+            CLI_LOCK.unlock();
         }
-
-        return output;
     }
 }

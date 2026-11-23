@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.mwdle.bitwarden.cli.BitwardenCli;
@@ -78,6 +79,34 @@ class CacheManagerTest {
             List<BitwardenItemMetadata> result = manager.getMetadata();
 
             assertTrue(result.isEmpty(), "Expected an empty list when CLI execution fails");
+        }
+    }
+
+    @Test
+    @DisplayName("invalidates session and retries once when sync fails with a session error")
+    void recoversAndRetriesOnSessionError(JenkinsRule ignored) throws Exception {
+        List<BitwardenItemMetadata> mockMetadata = List.of(mock(BitwardenItemMetadata.class));
+        Secret staleKey = Secret.fromString("stale-key");
+        Secret refreshedKey = Secret.fromString("refreshed-key");
+
+        try (MockedStatic<SessionManager> session = mockStatic(SessionManager.class);
+                MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+
+            SessionManager mockSessionManager = mock(SessionManager.class);
+            session.when(SessionManager::getInstance).thenReturn(mockSessionManager);
+            when(mockSessionManager.getSessionKey()).thenReturn(staleKey, refreshedKey);
+
+            cli.when(() -> BitwardenCli.isSessionError(any())).thenCallRealMethod();
+            cli.when(() -> BitwardenCli.sync(staleKey))
+                    .thenThrow(new IOException("Command failed with exit code 1. Stderr: You are not logged in."));
+            cli.when(() -> BitwardenCli.listItemsMetadata(refreshedKey)).thenReturn(mockMetadata);
+
+            List<BitwardenItemMetadata> result = CacheManager.getInstance().getMetadata();
+
+            assertEquals(1, result.size());
+            verify(mockSessionManager, times(1)).invalidateSession(staleKey);
+            cli.verify(() -> BitwardenCli.sync(refreshedKey), times(1));
+            cli.verify(() -> BitwardenCli.listItemsMetadata(refreshedKey), times(1));
         }
     }
 }

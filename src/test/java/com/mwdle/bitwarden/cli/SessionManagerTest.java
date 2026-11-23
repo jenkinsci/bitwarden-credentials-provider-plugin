@@ -70,6 +70,26 @@ class SessionManagerTest {
                 assertFalse(manager.isSessionValid());
             }
         }
+
+        @Test
+        @DisplayName("invalidateSession(Secret) only invalidates matching session key")
+        void invalidatesOnlyMatchingSessionKey(JenkinsRule ignored) throws Exception {
+            SessionManager manager = SessionManager.getInstance();
+
+            setupJenkinsCredentials("api", "master");
+            try (MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                cli.when(() -> BitwardenCli.unlock(any())).thenReturn(Secret.fromString("token-1"));
+
+                Secret activeKey = manager.getSessionKey();
+                assertTrue(manager.isSessionValid());
+
+                manager.invalidateSession(Secret.fromString("other-token"));
+                assertTrue(manager.isSessionValid());
+
+                manager.invalidateSession(activeKey);
+                assertFalse(manager.isSessionValid());
+            }
+        }
     }
 
     @Nested

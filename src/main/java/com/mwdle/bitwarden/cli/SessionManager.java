@@ -51,6 +51,19 @@ public final class SessionManager {
     }
 
     /**
+     * Invalidates the current Bitwarden CLI session only if it still matches the given stale session key.
+     *
+     * @param failedSessionKey the session key that failed and triggered invalidation
+     */
+    public void invalidateSession(@NonNull Secret failedSessionKey) {
+        synchronized (lock) {
+            if (sessionKey == failedSessionKey) {
+                sessionKey = null;
+            }
+        }
+    }
+
+    /**
      * @return a Bitwarden CLI session key
      * @throws InterruptedException if the Bitwarden CLI command is interrupted
      * @throws IOException if the login/unlock process fails

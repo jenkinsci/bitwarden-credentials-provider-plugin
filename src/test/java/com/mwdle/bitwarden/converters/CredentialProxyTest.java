@@ -6,6 +6,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.cloudbees.plugins.credentials.CredentialsScope;
@@ -203,6 +204,30 @@ class CredentialProxyTest {
                 assertThrows(IllegalStateException.class, proxy::getSecret);
                 assertTrue(Thread.currentThread().isInterrupted());
                 Thread.interrupted();
+            }
+        }
+
+        @Test
+        @DisplayName("invalidates session and retries once when getItem fails with a session error")
+        void recoversAndRetriesOnSessionError(JenkinsRule ignored) throws Exception {
+            Secret staleKey = Secret.fromString("stale-key");
+            Secret refreshedKey = Secret.fromString("refreshed-key");
+            SessionManager sessionManager = mock(SessionManager.class);
+            when(sessionManager.getSessionKey()).thenReturn(staleKey, refreshedKey);
+
+            try (MockedStatic<SessionManager> sessions = mockStatic(SessionManager.class);
+                    MockedStatic<BitwardenCli> cli = mockStatic(BitwardenCli.class)) {
+                sessions.when(SessionManager::getInstance).thenReturn(sessionManager);
+                cli.when(() -> BitwardenCli.isSessionError(any())).thenCallRealMethod();
+                cli.when(() -> BitwardenCli.getItem(staleKey, "item-id"))
+                        .thenThrow(new IOException("Command failed with exit code 1. Stderr: You are not logged in."));
+                cli.when(() -> BitwardenCli.getItem(refreshedKey, "item-id")).thenReturn(note());
+
+                StringCredentials proxy = converter.createProxy("cred-id", metadata("item-id", "Note"));
+
+                assertEquals("my-secret-value", proxy.getSecret().getPlainText());
+                verify(sessionManager, times(1)).invalidateSession(staleKey);
+                cli.verify(() -> BitwardenCli.getItem(refreshedKey, "item-id"), times(1));
             }
         }
     }
