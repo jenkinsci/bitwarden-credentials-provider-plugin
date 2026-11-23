@@ -29,6 +29,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -59,7 +60,6 @@ class BitwardenCliTest {
     private ArgumentListBuilder capturedCommand;
     private OutputStream capturedStdout;
     private OutputStream capturedStderr;
-    private Proc proc;
 
     private String stdout = "";
     private String stderr = "";
@@ -91,7 +91,7 @@ class BitwardenCliTest {
             return procStarter;
         });
 
-        proc = mock(Proc.class);
+        Proc proc = mock(Proc.class);
         when(procStarter.start()).thenReturn(proc);
         when(proc.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
                 .thenAnswer(invocation -> {
@@ -176,22 +176,8 @@ class BitwardenCliTest {
     @Test
     @DisplayName("serializes concurrent CLI executions")
     void serializesConcurrentExecutions() throws Exception {
-        stdout = "  2026.7.0 \n";
         AtomicInteger active = new AtomicInteger();
         AtomicInteger maxActive = new AtomicInteger();
-
-        when(proc.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
-                .thenAnswer(invocation -> {
-                    int current = active.incrementAndGet();
-                    maxActive.accumulateAndGet(current, Math::max);
-                    try {
-                        Thread.sleep(30);
-                        capturedStdout.write(stdout.getBytes(StandardCharsets.UTF_8));
-                        return 0;
-                    } finally {
-                        active.decrementAndGet();
-                    }
-                });
 
         int workers = 4;
         ExecutorService executor = Executors.newFixedThreadPool(workers);
@@ -201,9 +187,43 @@ class BitwardenCliTest {
         try {
             for (int i = 0; i < workers; i++) {
                 futures.add(executor.submit(() -> {
-                    ready.countDown();
-                    assertTrue(start.await(5, TimeUnit.SECONDS));
-                    return BitwardenCli.version();
+                    AtomicReference<OutputStream> workerStdout = new AtomicReference<>();
+                    Launcher.ProcStarter workerStarter = mock(Launcher.ProcStarter.class);
+                    when(workerStarter.cmds(any(ArgumentListBuilder.class))).thenReturn(workerStarter);
+                    when(workerStarter.envs(anyMap())).thenReturn(workerStarter);
+                    when(workerStarter.stdout(any(OutputStream.class))).thenAnswer(invocation -> {
+                        workerStdout.set(invocation.getArgument(0));
+                        return workerStarter;
+                    });
+                    when(workerStarter.stderr(any(OutputStream.class))).thenReturn(workerStarter);
+
+                    Proc workerProc = mock(Proc.class);
+                    when(workerStarter.start()).thenReturn(workerProc);
+                    when(workerProc.joinWithTimeout(anyLong(), any(TimeUnit.class), any(TaskListener.class)))
+                            .thenAnswer(invocation -> {
+                                int current = active.incrementAndGet();
+                                maxActive.accumulateAndGet(current, Math::max);
+                                try {
+                                    Thread.sleep(30);
+                                    workerStdout.get().write("  2026.7.0 \n".getBytes(StandardCharsets.UTF_8));
+                                    return 0;
+                                } finally {
+                                    active.decrementAndGet();
+                                }
+                            });
+
+                    try (MockedStatic<CliManager> workerCli = mockStatic(CliManager.class);
+                            MockedStatic<DirectoryProvider> workerDir = mockStatic(DirectoryProvider.class);
+                            MockedConstruction<Launcher.LocalLauncher> workerLauncher = mockConstruction(
+                                    Launcher.LocalLauncher.class,
+                                    (mock, context) -> when(mock.launch()).thenReturn(workerStarter))) {
+                        workerCli.when(CliManager::getExecutablePath).thenReturn(EXECUTABLE);
+                        workerDir.when(DirectoryProvider::getCliDataDirectory).thenReturn(tempDir.toFile());
+
+                        ready.countDown();
+                        assertTrue(start.await(5, TimeUnit.SECONDS));
+                        return BitwardenCli.version();
+                    }
                 }));
             }
             assertTrue(ready.await(5, TimeUnit.SECONDS));
